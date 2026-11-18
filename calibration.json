@@ -1,0 +1,16 @@
+{
+  "series": 300,
+  "format": 3,
+  "nota": "Cruces fijos de referencia. Rango = % de victorias esperado del primer equipo en una serie Bo3.",
+  "cruces": [
+    ["Sentinels", "NRG", 50, 62],
+    ["Sentinels", "Leviatán", 70, 85],
+    ["NRG", "Leviatán", 68, 82],
+    ["Gentle Mates", "Sentinels", 35, 42],
+    ["Gentle Mates", "NRG", 38, 46],
+    ["Team Vitality", "NRG", 35, 42],
+    ["Fnatic", "Karmine Corp", 58, 70],
+    ["100 Thieves", "Sentinels", 35, 44],
+    ["T1", "Xi Lai Gaming", 45, 55]
+  ]
+}

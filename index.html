@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>VCT SIM // 2027 Tactical Broadcast &amp; VLR Engine</title>
+  <meta name="description" content="Simulador táctico de VALORANT Champions Tour 2027 con plantillas VLR.gg, 1v1 de apertura, veto táctico de coaches y series Bo1/Bo3/Bo5.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,6 94,50 50,94 6,50' fill='none' stroke='%23FF4655' stroke-width='8'/%3E%3Crect x='40' y='40' width='20' height='20' fill='%2300E5FF'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- FIXED BROADCAST TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="#top" class="brand">
+        <span class="brand-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polygon points="12 2 22 12 12 22 2 12" stroke="#FF4655"/>
+            <rect x="9" y="9" width="6" height="6" fill="#00E5FF" stroke="none"/>
+          </svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-title">VCT <span>SIM</span> // 2027</span>
+          <span class="brand-sub">Official VLR Broadcast &amp; Tactical Engine</span>
+        </span>
+      </a>
+      <nav class="nav-links" aria-label="Secciones principales">
+        <a href="#simulador" class="nav-link">Simulador</a>
+        <a href="#out" class="nav-link">Marcador &amp; Veto</a>
+        <a href="#database" class="nav-link">Base VLR (12 Equipos)</a>
+        <button type="button" class="theme-btn" id="themeToggle" title="Cambiar tema claro/oscuro">
+          <span id="themeLabel">MODO: DARK</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- COMPACT HERO -->
+    <section class="hero" id="simulador">
+      <div>
+        <div class="hero-kicker">VCT 2027 // 1V1 DUEL, COACH VETO &amp; PRO ROSTER ENGINE</div>
+        <h1>VCT <span>Broadcast</span> Simulator</h1>
+        <p class="hero-sub">Simulación táctica ronda a ronda con Duelo 1v1 de apertura para definir Equipo A/B, pizarra oficial de vetos y picks dirigida por los Coaches, series Bo1/Bo3/Bo5 continuas y datos de VLR.gg.</p>
+      </div>
+      <div class="hero-telemetry">
+        <div class="tele-item">
+          <small>Franquicias</small>
+          <strong>12 Equipos</strong>
+        </div>
+        <div class="tele-item">
+          <small>Base VLR.gg</small>
+          <strong>62 Pros</strong>
+        </div>
+        <div class="tele-item">
+          <small>Techo AIM</small>
+          <strong style="color:var(--gold)">OXY · 97</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- TACTICAL MATCH CONTROL DECK -->
+    <section class="control-deck" aria-label="Configuración de la serie">
+      <div class="deck-grid">
+        <div class="team-picker" id="pickerCardA">
+          <div class="picker-logo-wrap" id="logoWrapA"></div>
+          <div class="picker-body">
+            <div class="picker-top">
+              <span class="picker-label ca">EQUIPO IZQUIERDA</span>
+              <span class="picker-meta" id="metaA"></span>
+            </div>
+            <select id="ta" aria-label="Equipo Izquierda"></select>
+          </div>
+        </div>
+
+        <button type="button" class="swap-btn" id="swapBtn" title="Intercambiar equipos">⇄</button>
+
+        <div class="team-picker" id="pickerCardB">
+          <div class="picker-logo-wrap" id="logoWrapB"></div>
+          <div class="picker-body">
+            <div class="picker-top">
+              <span class="picker-label cb">EQUIPO DERECHA</span>
+              <span class="picker-meta" id="metaB"></span>
+            </div>
+            <select id="tb" aria-label="Equipo Derecha"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORMAT (Bo1/Bo3/Bo5) & VETO MODE SELECTOR -->
+      <div class="tactical-bar">
+        <div class="tac-group">
+          <span class="tac-label">Formato de Serie:</span>
+          <div class="seg-group" id="formatGroup">
+            <button type="button" class="seg-btn" data-fmt="1">Bo1</button>
+            <button type="button" class="seg-btn active" data-fmt="3">Bo3</button>
+            <button type="button" class="seg-btn" data-fmt="5">Bo5</button>
+          </div>
+
+          <span class="tac-label" style="margin-left:8px">Protocolo de Veto / Mapa:</span>
+          <select id="mapSel" class="map-select" aria-label="Seleccionar Protocolo de Veto o Mapa">
+            <option value="AUTO">1v1 + Veto Oficial de Coaches (Auto)</option>
+            <option value="Ascent">Forzar Mapa 1: Ascent</option>
+            <option value="Lotus">Forzar Mapa 1: Lotus</option>
+            <option value="Haven">Forzar Mapa 1: Haven</option>
+            <option value="Bind">Forzar Mapa 1: Bind</option>
+            <option value="Split">Forzar Mapa 1: Split</option>
+            <option value="Sunset">Forzar Mapa 1: Sunset</option>
+            <option value="Abyss">Forzar Mapa 1: Abyss</option>
+          </select>
+        </div>
+        <span class="map-mod-pill" id="mapModInfo">Protocolo VCT: Duelo 1v1 define Equipo A/B + Secuencia de 7 pasos de Coaches</span>
+      </div>
+
+      <div class="deck-actions">
+        <div class="btn-group">
+          <button type="button" class="p" id="go">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Simular Serie Completa
+          </button>
+          <button type="button" id="st">Ronda a ronda (+1)</button>
+          <button type="button" id="liveBtn">▶ Auto-Play Vivo</button>
+        </div>
+        <div class="btn-group">
+          <button type="button" id="cal">⚡ Calibrar (500 series)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CALIBRATION BANNER -->
+    <div id="msg"></div>
+
+    <!-- LIVE SCOREBOARD, 1V1 DUEL, VETO BOARD & TELEMETRY -->
+    <div id="out"></div>
+
+    <!-- VLR ROSTER & COACH INTERACTIVE DATABASE -->
+    <section class="box" id="database">
+      <div class="box-head">
+        <div>
+          <h2>Plantillas VCT 2027 (12 Equipos), Rotación 6th-Man &amp; Base de Datos VLR.gg</h2>
+          <small class="mut">Edita cualquier atributo en vivo o usa el botón <b>⇄ Titular / 6TH SUB</b> para cambiar el quinteto inicial. Incluye FUT Esports y G2 Esports.</small>
+        </div>
+        <button type="button" id="resetDbBtn" style="font-size:11px;padding:6px 11px">↺ Restaurar Base VLR</button>
+      </div>
+
+      <div class="db-controls">
+        <div class="region-tabs" id="regionTabs">
+          <button type="button" class="tab-btn active" data-reg="ALL">Todos (12)</button>
+          <button type="button" class="tab-btn" data-reg="AMERICAS">Americas (5)</button>
+          <button type="button" class="tab-btn" data-reg="EMEA">EMEA (5)</button>
+          <button type="button" class="tab-btn" data-reg="PACIFIC">Pacific (1)</button>
+          <button type="button" class="tab-btn" data-reg="CHINA">China (1)</button>
+        </div>
+        <input type="search" id="dbSearch" class="search-input" placeholder="Buscar jugador, rol o equipo...">
+      </div>
+
+      <div class="sc" id="ros"></div>
+    </section>
+
+    <footer class="closing">
+      <span>Proyecto de fans sin fines de lucro, no afiliado ni respaldado por Riot Games ni por ninguna organización o jugador.</span>
+      <span class="mono">VCT SIM 2027 · 1V1 + 7-STEP VETO · RATING 2.0 · BO3/BO5 ENGINE</span>
+    </footer>
+  </main>
+
+  <p id="dataDate" style="text-align:center;font-size:12px;opacity:.6;margin:24px 0"></p>
+  <script>
+    // Carga datos (data/*.json) y luego motor e interfaz, en orden.
+    (async () => {
+      try {
+        const [teams, coaches] = await Promise.all(
+          ["data/teams.json", "data/coaches.json"].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); }))
+        );
+        window.DATA = { teams, coaches };
+        for (const src of ["js/engine.js", "js/ui.js"]) {
+          await new Promise((ok, fail) => {
+            const s = document.createElement("script");
+            s.src = src; s.onload = ok; s.onerror = () => fail(new Error(src));
+            document.body.appendChild(s);
+          });
+        }
+        document.getElementById("dataDate").textContent = "Datos actualizados: " + DATA_UPDATED + " · Proyecto de fans, sin fines comerciales";
+      } catch (e) {
+        document.body.insertAdjacentHTML("afterbegin", '<p style="padding:16px;color:#f55">No se pudieron cargar los archivos (' + e.message + '). Abre el sitio desde un servidor (Vercel o <code>npx serve</code>), no con doble clic.</p>');
+      }
+    })();
+  </script>
+</body>
+</html>

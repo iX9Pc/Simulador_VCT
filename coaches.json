@@ -1,0 +1,98 @@
+{
+ "Sentinels": {
+  "n": "Ewok",
+  "macro": 86,
+  "micro": 80,
+  "adapt": 82,
+  "dev": 80,
+  "disc": 90
+ },
+ "NRG": {
+  "n": "bonkar",
+  "macro": 90,
+  "micro": 86,
+  "adapt": 88,
+  "dev": 85,
+  "disc": 90
+ },
+ "G2 Esports": {
+  "n": "JoshRT",
+  "macro": 89,
+  "micro": 88,
+  "adapt": 89,
+  "dev": 86,
+  "disc": 91
+ },
+ "100 Thieves": {
+  "n": "Nbs",
+  "macro": 84,
+  "micro": 83,
+  "adapt": 84,
+  "dev": 85,
+  "disc": 86
+ },
+ "Leviatán": {
+  "n": "Onur",
+  "macro": 84,
+  "micro": 90,
+  "adapt": 80,
+  "dev": 92,
+  "disc": 94
+ },
+ "Fnatic": {
+  "n": "ANGE1",
+  "macro": 88,
+  "micro": 78,
+  "adapt": 90,
+  "dev": 76,
+  "disc": 70
+ },
+ "FUT Esports": {
+  "n": "GAIS",
+  "macro": 84,
+  "micro": 86,
+  "adapt": 85,
+  "dev": 83,
+  "disc": 85
+ },
+ "Gentle Mates": {
+  "n": "kaplan",
+  "macro": 86,
+  "micro": 84,
+  "adapt": 86,
+  "dev": 80,
+  "disc": 84
+ },
+ "Karmine Corp": {
+  "n": "ZE1SH",
+  "macro": 80,
+  "micro": 78,
+  "adapt": 76,
+  "dev": 78,
+  "disc": 82
+ },
+ "Team Vitality": {
+  "n": "Scuttt",
+  "macro": 74,
+  "micro": 76,
+  "adapt": 72,
+  "dev": 74,
+  "disc": 78
+ },
+ "T1": {
+  "n": "Sacy",
+  "macro": 84,
+  "micro": 82,
+  "adapt": 85,
+  "dev": 82,
+  "disc": 86
+ },
+ "Xi Lai Gaming": {
+  "n": "hvoya",
+  "macro": 80,
+  "micro": 84,
+  "adapt": 82,
+  "dev": 80,
+  "disc": 82
+ }
+}
