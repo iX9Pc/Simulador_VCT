@@ -540,6 +540,7 @@ const $ = s => document.querySelector(s);
       }
       h += `</div></div></div></div>`;
       $("#out").innerHTML = h;
+      if (typeof renderStory === "function") renderStory(M, S, isSeriesSummary, done);
     }
 
     function pair() {

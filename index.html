@@ -135,6 +135,7 @@
 
     <!-- CALIBRATION BANNER -->
     <div id="msg"></div>
+    <div id="preview"></div>
 
     <!-- LIVE SCOREBOARD, 1V1 DUEL, VETO BOARD & TELEMETRY -->
     <div id="out"></div>
@@ -178,7 +179,7 @@
           ["data/teams.json", "data/coaches.json"].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); }))
         );
         window.DATA = { teams, coaches };
-        for (const src of ["js/engine.js", "js/ui.js"]) {
+        for (const src of ["js/engine.js", "js/ui.js", "js/story.js"]) {
           await new Promise((ok, fail) => {
             const s = document.createElement("script");
             s.src = src; s.onload = ok; s.onerror = () => fail(new Error(src));
