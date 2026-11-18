@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>VCT SIM // 2027 Tactical Broadcast &amp; VLR Engine</title>
-  <meta name="description" content="Simulador táctico de VALORANT Champions Tour 2027 con plantillas VLR.gg, 1v1 de apertura, veto táctico de coaches y series Bo1/Bo3/Bo5.">
+  <title>VCT Sim 2027 · Simulador de VALORANT con proplayers</title>
+  <meta name="description" content="Simulador de series de VALORANT con jugadores profesionales: rondas, economía, veto de mapas y estadísticas.">
   <meta name="robots" content="noindex">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,6 94,50 50,94 6,50' fill='none' stroke='%23FF4655' stroke-width='8'/%3E%3Crect x='40' y='40' width='20' height='20' fill='%2300E5FF'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="theme.css">
 </head>
 <body>
 
@@ -25,16 +26,16 @@
           </svg>
         </span>
         <span class="brand-text">
-          <span class="brand-title">VCT <span>SIM</span> // 2027</span>
-          <span class="brand-sub">Official VLR Broadcast &amp; Tactical Engine</span>
+          <span class="brand-title">VCT Sim</span>
+          <span class="brand-sub">Simulador con proplayers</span>
         </span>
       </a>
       <nav class="nav-links" aria-label="Secciones principales">
         <a href="#simulador" class="nav-link">Simulador</a>
-        <a href="#out" class="nav-link">Marcador &amp; Veto</a>
-        <a href="#database" class="nav-link">Base VLR (12 Equipos)</a>
+        <a href="#out" class="nav-link">Resultado</a>
+        <a href="#database" class="nav-link">Equipos y jugadores</a>
         <button type="button" class="theme-btn" id="themeToggle" title="Cambiar tema claro/oscuro">
-          <span id="themeLabel">MODO: DARK</span>
+          <span id="themeLabel">Tema oscuro</span>
         </button>
       </nav>
     </div>
@@ -44,21 +45,21 @@
     <!-- COMPACT HERO -->
     <section class="hero" id="simulador">
       <div>
-        <div class="hero-kicker">VCT 2027 // 1V1 DUEL, COACH VETO &amp; PRO ROSTER ENGINE</div>
-        <h1>VCT <span>Broadcast</span> Simulator</h1>
-        <p class="hero-sub">Simulación táctica ronda a ronda con Duelo 1v1 de apertura para definir Equipo A/B, pizarra oficial de vetos y picks dirigida por los Coaches, series Bo1/Bo3/Bo5 continuas y datos de VLR.gg.</p>
+        <div class="hero-kicker">Temporada 2027</div>
+        <h1>Simulador de partidas</h1>
+        <p class="hero-sub">Elige dos equipos y simula una serie al mejor de 1, 3 o 5 mapas, con veto de mapas, economía por ronda y estadísticas por jugador.</p>
       </div>
       <div class="hero-telemetry">
         <div class="tele-item">
-          <small>Franquicias</small>
-          <strong>12 Equipos</strong>
+          <small>Equipos</small>
+          <strong>12</strong>
         </div>
         <div class="tele-item">
-          <small>Base VLR.gg</small>
-          <strong>62 Pros</strong>
+          <small>Jugadores</small>
+          <strong>62</strong>
         </div>
         <div class="tele-item">
-          <small>Techo AIM</small>
+          <small>Mejor AIM</small>
           <strong style="color:var(--gold)">OXY · 97</strong>
         </div>
       </div>
@@ -95,7 +96,7 @@
       <!-- FORMAT (Bo1/Bo3/Bo5) & VETO MODE SELECTOR -->
       <div class="tactical-bar">
         <div class="tac-group">
-          <span class="tac-label">Formato de Serie:</span>
+          <span class="tac-label">Formato de serie</span>
           <div class="seg-group" id="formatGroup">
             <button type="button" class="seg-btn" data-fmt="1">Bo1</button>
             <button type="button" class="seg-btn active" data-fmt="3">Bo3</button>
@@ -114,7 +115,7 @@
             <option value="Abyss">Forzar Mapa 1: Abyss</option>
           </select>
         </div>
-        <span class="map-mod-pill" id="mapModInfo">Protocolo VCT: Duelo 1v1 define Equipo A/B + Secuencia de 7 pasos de Coaches</span>
+        <span class="map-mod-pill" id="mapModInfo">Un duelo 1v1 define el Equipo A y B; luego los coaches vetan y eligen mapas</span>
       </div>
 
       <div class="deck-actions">
@@ -127,7 +128,7 @@
           <button type="button" id="liveBtn">▶ Auto-Play Vivo</button>
         </div>
         <div class="btn-group">
-          <button type="button" id="cal">⚡ Calibrar (500 series)</button>
+          <button type="button" id="cal">Calibrar (500 series)</button>
         </div>
       </div>
     </section>
@@ -142,10 +143,10 @@
     <section class="box" id="database">
       <div class="box-head">
         <div>
-          <h2>Plantillas VCT 2027 (12 Equipos), Rotación 6th-Man &amp; Base de Datos VLR.gg</h2>
-          <small class="mut">Edita cualquier atributo en vivo o usa el botón <b>⇄ Titular / 6TH SUB</b> para cambiar el quinteto inicial. Incluye FUT Esports y G2 Esports.</small>
+          <h2>Equipos y jugadores</h2>
+          <small class="mut">Edita los atributos de cualquier jugador o usa <b>⇄ Titular / Suplente</b> para cambiar el quinteto inicial. Datos base de vlr.gg.</small>
         </div>
-        <button type="button" id="resetDbBtn" style="font-size:11px;padding:6px 11px">↺ Restaurar Base VLR</button>
+        <button type="button" id="resetDbBtn" style="font-size:11px;padding:6px 11px">Restaurar datos originales</button>
       </div>
 
       <div class="db-controls">
@@ -164,7 +165,7 @@
 
     <footer class="closing">
       <span>Proyecto de fans sin fines de lucro, no afiliado ni respaldado por Riot Games ni por ninguna organización o jugador.</span>
-      <span class="mono">VCT SIM 2027 · 1V1 + 7-STEP VETO · RATING 2.0 · BO3/BO5 ENGINE</span>
+      <span class="mono">VCT Sim 2027</span>
     </footer>
   </main>
 

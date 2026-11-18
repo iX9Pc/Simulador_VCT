@@ -317,7 +317,7 @@ const $ = s => document.querySelector(s);
         : `MAPA ${currentMapIdx + 1}/${SERIES.maps.length}: ${M.mapName.toUpperCase()} (Pick: ${M.pickedBy}) · SERIE [${liveWins[0]}-${liveWins[1]}] · ${done ? "FINAL (" + R.length + " RONDAS)" : "EN VIVO · R" + maxR + "/" + R.length}`;
 
       const splitSubtitle = isSeriesSummary
-        ? `TOTAL RONDAS JUGADAS: ${SERIES.maps.reduce((a, m) => a + m.rounds.length, 0)} EN ${SERIES.maps.length} MAPAS`
+        ? `Rondas jugadas: ${SERIES.maps.reduce((a, m) => a + m.rounds.length, 0)} EN ${SERIES.maps.length} MAPAS`
         : getHalfSplits(M, maxR);
 
       h += `
@@ -482,11 +482,11 @@ const $ = s => document.querySelector(s);
       }
 
       const ic = {
-        ace: "🏆 ACE / CLUTCH ÉLITE",
+        ace: "🏆 Ace / clutch",
         cl: "🧊 CLUTCH",
         mk: "💥 MULTIKILL",
-        up: "💸 THRIFTY / ECO UPSET",
-        to: "⏸️ TIMEOUT TÁCTICO"
+        up: "💸 Sorpresa en eco",
+        to: "⏸️ Pausa táctica"
       };
 
       h += `<div class="box">
@@ -685,7 +685,7 @@ const $ = s => document.querySelector(s);
       $("#msg").innerHTML = `
       <div class="cal-card">
         <div class="cal-top">
-          <span><b>CALIBRACIÓN MONTE CARLO (${N} SERIES BO${currentFormat} CON 1V1 + VETO DE COACHES)</b> · ${p[0].name} vs ${p[1].name}</span>
+          <span><b>Calibración: ${N} series Bo${currentFormat}</b> · ${p[0].name} vs ${p[1].name}</span>
           <span class="mono"><b class="ca">${p[0].name} ${pctA}%</b> — <b class="cb">${pctB}% ${p[1].name}</b></span>
         </div>
         <div class="cal-bar">
@@ -858,7 +858,7 @@ const $ = s => document.querySelector(s);
       const root = document.documentElement;
       const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
       root.setAttribute("data-theme", next);
-      $("#themeLabel").textContent = "MODO: " + next.toUpperCase();
+      $("#themeLabel").textContent = next === "dark" ? "Tema oscuro" : "Tema claro";
     };
 
     renderDatabase();
