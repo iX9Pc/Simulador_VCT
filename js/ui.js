@@ -276,6 +276,7 @@ window.jumpToRound = function(rn) {
     el.open = true;
     el.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
+  if (window.Radar2D) window.Radar2D.selectRound(rn, true);
 };
 
 function renderAxisBadges(compObj) {
