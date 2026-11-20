@@ -1758,6 +1758,140 @@ footer.closing {
   background: var(--gold-soft);
 }
 
+/* ===== MÓDULO P4: COMPARTIR (LINK / PNG), HISTORIAL, FORMA Y CUSTOM TEAMS ===== */
+.share-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 2px;
+  margin-bottom: 10px;
+}
+
+.share-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mut);
+}
+
+.shared-card {
+  background: var(--card);
+  border: 1px solid var(--gold);
+  border-radius: 2px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.streak-pip {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  line-height: 16px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 2px;
+  margin-left: 3px;
+  border: 1px solid var(--bd);
+}
+
+.streak-pip.is-w {
+  color: var(--ok);
+  border-color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.streak-pip.is-l {
+  color: var(--vct-red);
+  border-color: var(--vct-red);
+  background: var(--a-soft);
+}
+
+.custom-saved-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.custom-team-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: var(--bg);
+  border: 1px solid var(--bd-hi);
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+.custom-builder {
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 2px;
+  padding: 12px;
+}
+
+.cb-grid-top {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.cb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cb-field .search-input,
+.cb-field .map-select {
+  min-width: 0;
+  width: 100%;
+}
+
+.cb-color {
+  width: 100%;
+  height: 30px;
+  padding: 2px;
+  background: var(--card);
+  border: 1px solid var(--bd-hi);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.cb-inline-nums {
+  display: flex;
+  gap: 4px;
+}
+
+.cb-inp {
+  background: var(--card);
+  border: 1px solid var(--bd);
+  color: var(--fg);
+  padding: 3px 6px;
+  border-radius: 2px;
+  font-size: 12px;
+  width: 105px;
+}
+
+.cb-mini-sel {
+  font-size: 11.5px;
+  padding: 3px 6px;
+  width: 135px;
+  text-transform: none;
+  font-family: "Barlow", sans-serif;
+  font-weight: 500;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

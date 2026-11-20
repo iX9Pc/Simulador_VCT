@@ -839,7 +839,9 @@ function simMatch(tLeft, tRight, mapSpec) {
         isOpBoost: ag.isOpBoost,
         hushMastery: ag.hushMastery,
         ecoBoost: ag.ecoBoost,
-        form: 1 + gauss() * ((.015 + (100 - p.cons) / 1250 + (100 - p.conf) / 1250 * (1 - (t.coach.dev - 70) / 150)) * (1 - (t.coach.disc - 70) / 250))
+        form: 1
+          + ((typeof window !== "undefined" && typeof window.getPersistentFormBonus === "function") ? window.getPersistentFormBonus(p.n) : 0)
+          + gauss() * ((.015 + (100 - p.cons) / 1250 + (100 - p.conf) / 1250 * (1 - (t.coach.dev - 70) / 150)) * (1 - (t.coach.disc - 70) / 250))
       };
     })
   }));

@@ -105,6 +105,7 @@ function applyDynamicTeamColors() {
   }
 }
 
+let _bootDone = false;
 let SERIES = null;
 let liveTimer = null, currentFormat = 3;
 
@@ -634,6 +635,9 @@ function render() {
       `</div></details>`;
   }
   h += `</div></div></div></div>`;
+  if (done && typeof window.renderShareBarHTML === "function") {
+    h = window.renderShareBarHTML(SERIES, M, S, isSeriesSummary) + h;
+  }
   $("#out").innerHTML = h;
   if (typeof renderStory === "function") renderStory(M, S, isSeriesSummary, done);
 }
@@ -664,6 +668,7 @@ function advanceLiveRound() {
     SERIES.liveShown++;
     if (SERIES.liveShown >= activeM.rounds.length && SERIES.liveMapIdx === SERIES.maps.length - 1) {
       SERIES.liveFinished = true;
+      if (typeof window.recordCompletedSeries === "function") window.recordCompletedSeries(SERIES);
       SERIES.revealedMaps = SERIES.maps.length;
       stopLive();
     }
@@ -713,6 +718,9 @@ $("#go").onclick = () => {
   const p = pair();
   if (!p) return;
   SERIES = initSeriesState(buildSeries(p[0], p[1], currentFormat, false), false);
+  if (_bootDone && typeof window.recordCompletedSeries === "function") {
+    window.recordCompletedSeries(SERIES);
+  }
   render();
 };
 
@@ -849,6 +857,7 @@ window.toggleSubStatus = function(team, idx) {
 
 $("#resetDbBtn").onclick = () => {
   TEAMS = JSON.parse(JSON.stringify(DEFAULT_TEAMS));
+  if (typeof window.reapplyCustomTeams === "function") window.reapplyCustomTeams();
   saveTeams();
   applyDynamicTeamColors();
   renderDatabase();
@@ -1027,3 +1036,23 @@ updateDynamicCounters();
 
 renderDatabase();
 $("#go").click();
+_bootDone = true;
+
+window.refreshTeamSelects = function(selectInA = null) {
+  const selA = $("#ta"), selB = $("#tb");
+  if (!selA || !selB) return;
+  const prevA = selectInA || selA.value;
+  const prevB = selB.value;
+  selA.innerHTML = "";
+  selB.innerHTML = "";
+  for (const t of Object.keys(TEAMS)) {
+    selA.add(new Option(t, t));
+    selB.add(new Option(t, t));
+  }
+  if (TEAMS[prevA]) selA.value = prevA;
+  if (TEAMS[prevB] && prevB !== selA.value) selB.value = prevB;
+  else selB.selectedIndex = selA.selectedIndex === 0 ? 1 : 0;
+  applyDynamicTeamColors();
+  updateDynamicCounters();
+  renderDatabase();
+};

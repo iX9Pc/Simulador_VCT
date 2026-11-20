@@ -34,6 +34,7 @@
         <a href="#torneo" class="nav-link">Torneos</a>
         <a href="#out" class="nav-link">Boxscore</a>
         <a href="#database" class="nav-link">Base de Datos</a>
+        <a href="#social" class="nav-link">Historial &amp; Custom</a>
         <button type="button" class="theme-btn mono" id="themeToggle" title="Alternar esquema de color">
           <span id="themeLabel">DARK</span>
         </button>
@@ -112,6 +113,8 @@
 
     <!-- MÓDULO DE TORNEOS (GRUPOS, CALENDARIO, PLAYOFFS BO3/BO5 Y MVP) -->
     <section class="box" id="torneo" aria-label="Simulador de Torneos VCT"></section>
+    <!-- MÓDULO P4: PERSISTENCIA, FORMA, EQUIPOS CUSTOM Y COMPARTIR -->
+    <section class="box" id="social" aria-label="Historial, forma persistente y equipos personalizados"></section>
 
     <section class="box" id="database">
       <div class="box-head">
@@ -149,7 +152,7 @@
           ["data/teams.json", "data/coaches.json"].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); }))
         );
         window.DATA = { teams, coaches };
-        for (const src of ["js/engine.js", "js/ui.js", "js/story.js", "js/tournament.js"]) {
+        for (const src of ["js/engine.js", "js/ui.js", "js/story.js", "js/tournament.js", "js/social.js"]) {
           await new Promise((ok, fail) => {
             const s = document.createElement("script");
             s.src = src; s.onload = ok; s.onerror = () => fail(new Error(src));
