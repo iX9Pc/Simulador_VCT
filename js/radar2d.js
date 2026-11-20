@@ -1,4 +1,4 @@
-// ===== MÓDULO P6.1: VISOR TÁCTICO 2D CON NAVMESH POR PÍXELES + A* REAL =====
+// ===== MÓDULO P6.1: VISOR TÁCTICO 2D CON AUTO-ORIENTACIÓN + NAVMESH POR PÍXELES =====
 (function () {
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -40,7 +40,76 @@
     return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
   }
 
-  // ===== CARGA DE MINIMAPAS + METADATOS OFICIALES (CALLOUTS Y TRANSFORMACIÓN) =====
+  // Transforma coordenadas normalizadas (u, v) en [0..1] según k pasos de 90° horarios
+  function rotateUV(u, v, k) {
+    const step = ((k % 4) + 4) % 4;
+    if (step === 1) return [1 - v, u];
+    if (step === 2) return [1 - u, 1 - v];
+    if (step === 3) return [v, 1 - u];
+    return [u, v];
+  }
+
+  // Calcula la rotación cardinal exacta (0, 1, 2, 3) para dejar DEF arriba y ATK abajo
+  function detectMapRotationSteps(apiMeta) {
+    if (!apiMeta || !Array.isArray(apiMeta.callouts) || !apiMeta.xMultiplier) return 0;
+
+    const rawUV = loc => [
+      loc.y * apiMeta.xMultiplier + apiMeta.xScalarToAdd,
+      loc.x * apiMeta.yMultiplier + apiMeta.yScalarToAdd
+    ];
+
+    const avg = list => {
+      if (!list.length) return null;
+      return [
+        list.reduce((s, p) => s + p[0], 0) / list.length,
+        list.reduce((s, p) => s + p[1], 0) / list.length
+      ];
+    };
+
+    const atkPts = [], defPts = [], siteA = [], siteOther = [];
+    apiMeta.callouts.forEach(co => {
+      if (!co.location) return;
+      const uv = rawUV(co.location);
+      const reg = (co.regionName || "").toLowerCase();
+      const sup = (co.superRegionName || "").toUpperCase();
+
+      if (sup.includes("ATTACKER") || reg.includes("attacker")) atkPts.push(uv);
+      else if (sup.includes("DEFENDER") || reg.includes("defender")) defPts.push(uv);
+      else if (reg === "site" && sup === "A") siteA.push(uv);
+      else if (reg === "site" && (sup === "B" || sup === "C")) siteOther.push(uv);
+    });
+
+    const atk = avg(atkPts);
+    const def = avg(defPts);
+
+    // Prioridad 1: vector DEF -> ATK apuntando hacia abajo (+Y)
+    if (atk && def) {
+      const dx = atk[0] - def[0];
+      const dy = atk[1] - def[1];
+      if (Math.hypot(dx, dy) >= 0.14) {
+        const scores = [dy, dx, -dy, -dx]; // dy tras rotar k pasos de 90° CW
+        let bestK = 0;
+        for (let k = 1; k < 4; k++) if (scores[k] > scores[bestK]) bestK = k;
+        return bestK;
+      }
+    }
+
+    // Prioridad 2 (ej. Fracture): vector Site B/C -> Site A apuntando a la derecha (+X)
+    const aPt = avg(siteA);
+    const oPt = avg(siteOther);
+    if (aPt && oPt) {
+      const sdx = aPt[0] - oPt[0];
+      const sdy = aPt[1] - oPt[1];
+      const scores = [sdx, -sdy, -sdx, sdy]; // dx tras rotar k pasos de 90° CW
+      let bestK = 0;
+      for (let k = 1; k < 4; k++) if (scores[k] > scores[bestK]) bestK = k;
+      return bestK;
+    }
+
+    return 0;
+  }
+
+  // ===== CARGA DE MINIMAPAS + METADATOS OFICIALES =====
   const mapAssetCache = {};
   let apiMapsPromise = null;
 
@@ -71,8 +140,8 @@
     return apiMapsPromise;
   }
 
-  // ===== CONSTRUCCIÓN DE NAVMESH DESDE LOS PÍXELES DEL MINIMAPA =====
-  function buildNavFromImage(im, rotRad, apiMeta) {
+  // ===== CONSTRUCCIÓN DE NAVMESH DESDE LOS PÍXELES DEL MINIMAPA YA ROTADO =====
+  function buildNavFromImage(im, rotSteps, apiMeta) {
     const off = document.createElement("canvas");
     off.width = GRID;
     off.height = GRID;
@@ -81,7 +150,7 @@
     octx.clearRect(0, 0, GRID, GRID);
     octx.save();
     octx.translate(GRID / 2, GRID / 2);
-    if (rotRad) octx.rotate(rotRad);
+    if (rotSteps) octx.rotate(rotSteps * (Math.PI / 2));
     octx.drawImage(im, -GRID / 2, -GRID / 2, GRID, GRID);
     octx.restore();
 
@@ -101,17 +170,19 @@
       const g = imgData[i * 4 + 1];
       const b = imgData[i * 4 + 2];
       const a = imgData[i * 4 + 3];
-      // Todo píxel opaco pertenece al mapa; transparente = vacío o exterior
       if (a > 110) {
-        rawWalk[i] = 1;
-        // Los sites en los minimapas oficiales tienen tinte oliva/amarillento
-        if (r > b + 12 && g > b + 12 && r > 75 && g > 75) {
-          sitePixel[i] = 1;
+        // Excluir las líneas verdes brillantes externas de teleports en Bind para no caminar por el cable TP
+        const isTpLine = g > r + 40 && g > b + 15 && r < 70;
+        if (!isTpLine) {
+          rawWalk[i] = 1;
+          if (r > b + 12 && g > b + 12 && r > 75 && g > 75) {
+            sitePixel[i] = 1;
+          }
         }
       }
     }
 
-    // Quedarnos con la componente conexa principal (elimina artefactos aislados)
+    // Componente conexa principal (suelo caminable real)
     const visited = new Uint8Array(total);
     let bestComp = [];
     const dirs4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -140,7 +211,7 @@
     const walk = new Uint8Array(total);
     bestComp.forEach(idx => { walk[idx] = 1; });
 
-    // Distancia de cada celda caminable al vacío/pared más cercano (BFS multi-fuente)
+    // Distancia al muro/vacío más cercano
     const wallDist = new Int16Array(total);
     wallDist.fill(-1);
     const q = new Int32Array(total);
@@ -174,7 +245,7 @@
       if (walk[y0 * GRID + x0] && wallDist[y0 * GRID + x0] >= minDist) return [x0, y0];
 
       let best = null, bestD2 = Infinity;
-      for (let rad = 1; rad <= 22; rad++) {
+      for (let rad = 1; rad <= 24; rad++) {
         for (let dy = -rad; dy <= rad; dy++) {
           for (let dx = -rad; dx <= rad; dx++) {
             if (Math.abs(dx) !== rad && Math.abs(dy) !== rad) continue;
@@ -194,7 +265,6 @@
       return [fb % GRID, (fb / GRID) | 0];
     };
 
-    // Extraer puntos clave reales desde los callouts oficiales de valorant-api.com
     const sites = [];
     let atkPt = null, defPt = null, midPt = null;
     const chokesBySite = { A: [], B: [], C: [] };
@@ -204,9 +274,7 @@
       const toGrid = loc => {
         const u = loc.y * apiMeta.xMultiplier + apiMeta.xScalarToAdd;
         const v = loc.x * apiMeta.yMultiplier + apiMeta.yScalarToAdd;
-        // Rotación +90° horario: (u, v) -> (1 - v, u)
-        const rx = rotRad ? (1 - v) : u;
-        const ry = rotRad ? u : v;
+        const [rx, ry] = rotateUV(u, v, rotSteps);
         return [rx * GRID, ry * GRID];
       };
 
@@ -237,9 +305,11 @@
 
       const avgSnap = arr => {
         if (!arr.length) return null;
-        const ax = arr.reduce((s, p) => s + p[0], 0) / arr.length;
-        const ay = arr.reduce((s, p) => s + p[1], 0) / arr.length;
-        return snap(ax, ay, 2);
+        return snap(
+          arr.reduce((s, p) => s + p[0], 0) / arr.length,
+          arr.reduce((s, p) => s + p[1], 0) / arr.length,
+          2
+        );
       };
 
       atkPt = avgSnap(atkAcc);
@@ -247,7 +317,6 @@
       midPt = avgSnap(midAcc);
     }
 
-    // Fallback automático por píxeles si faltara algún punto o callout
     if (!atkPt || !defPt) {
       let minY = GRID, maxY = 0;
       const topPts = [], botPts = [];
@@ -273,7 +342,6 @@
     if (!midPt) midPt = snap(GRID / 2, GRID / 2, 2);
 
     if (!sites.length) {
-      // Detectar blobs de píxeles amarillos/oliva de los sites directamente
       const sVis = new Uint8Array(total);
       const blobs = [];
       for (let i = 0; i < total; i++) {
@@ -294,7 +362,7 @@
         }
         if (cnt >= 14) blobs.push({ x: sx / cnt, y: sy / cnt });
       }
-      blobs.sort((a, b) => b.x - a.x); // A suele quedar a la derecha
+      blobs.sort((a, b) => b.x - a.x);
       const labels = blobs.length >= 3 ? ["A", "B", "C"] : ["A", "B"];
       blobs.slice(0, 3).forEach((bl, idx) => {
         sites.push({ id: labels[idx] || "A", pt: snap(bl.x, bl.y, 2) });
@@ -306,7 +374,6 @@
       sites.push({ id: "A", pt: snap(GRID * 0.78, GRID * 0.36, 2) });
     }
 
-    // Completar choke y retake de cada site (siempre en suelo caminable)
     sites.forEach(s => {
       const chList = chokesBySite[s.id] || [];
       const rtList = retakesBySite[s.id] || [];
@@ -323,40 +390,51 @@
 
   function getMapAsset(mapName, onReady) {
     const key = (mapName || "Ascent").toLowerCase();
-    if (mapAssetCache[key]) return mapAssetCache[key];
+    if (mapAssetCache[key]) {
+      const existing = mapAssetCache[key];
+      if (existing.ready) return existing;
+      if (onReady && !existing.failed) existing.listeners.push(onReady);
+      return existing;
+    }
 
-    const entry = { img: null, rot: 0, nav: null, ready: false, failed: false };
+    const entry = { img: null, rotSteps: 0, nav: null, ready: false, failed: false, listeners: [] };
+    if (onReady) entry.listeners.push(onReady);
     mapAssetCache[key] = entry;
 
-    const loadUrl = (url, rot, apiMeta, isFallback) => {
+    const notify = () => {
+      const list = entry.listeners.splice(0, entry.listeners.length);
+      list.forEach(fn => { try { fn(entry); } catch (e) {} });
+    };
+
+    fetchApiMaps().then(dict => {
+      const meta = dict[key];
+      if (!meta || !meta.url) {
+        entry.failed = true;
+        notify();
+        return;
+      }
+
+      const rotSteps = detectMapRotationSteps(meta);
       const im = new Image();
       im.crossOrigin = "anonymous";
       im.onload = () => {
         entry.img = im;
-        entry.rot = rot;
-        entry.nav = buildNavFromImage(im, rot, apiMeta);
+        entry.rotSteps = rotSteps;
+        entry.nav = buildNavFromImage(im, rotSteps, meta);
         entry.ready = true;
-        if (onReady) onReady();
+        notify();
       };
       im.onerror = () => {
-        if (!isFallback) {
-          fetchApiMaps().then(dict => {
-            if (dict[key]) loadUrl(dict[key].url, Math.PI / 2, dict[key], true);
-            else entry.failed = true;
-          });
-        } else {
-          entry.failed = true;
-        }
+        entry.failed = true;
+        notify();
       };
-      im.src = url;
-    };
+      im.src = meta.url;
+    });
 
-    // Usa primero maps/<mapa>.png si existe en local; si no, valorant-api.com rotado +90° CW
-    loadUrl(`maps/${key}.png`, 0, null, false);
     return entry;
   }
 
-  // ===== LÍNEA DE VISIÓN (BRESENHAM) Y A* SOBRE LA MALLA REAL =====
+  // ===== LÍNEA DE VISIÓN Y A* SOBRE EL NAVMESH =====
   function hasLineOfSight(nav, x0, y0, x1, y1, minDist = 1) {
     let ix0 = Math.round(x0), iy0 = Math.round(y0);
     const ix1 = Math.round(x1), iy1 = Math.round(y1);
@@ -390,13 +468,10 @@
     cameFrom.fill(-1);
     const closed = new Uint8Array(total);
 
-    // Min-heap simple para velocidad
-    const heapIdx = [];
-    const heapF = [];
+    const heapIdx = [], heapF = [];
     const pushHeap = (idx, f) => {
       let i = heapIdx.length;
-      heapIdx.push(idx);
-      heapF.push(f);
+      heapIdx.push(idx); heapF.push(f);
       while (i > 0) {
         const p = (i - 1) >> 1;
         if (heapF[p] <= heapF[i]) break;
@@ -407,11 +482,9 @@
     };
     const popHeap = () => {
       const top = heapIdx[0];
-      const lastI = heapIdx.pop();
-      const lastF = heapF.pop();
+      const lastI = heapIdx.pop(), lastF = heapF.pop();
       if (heapIdx.length) {
-        heapIdx[0] = lastI;
-        heapF[0] = lastF;
+        heapIdx[0] = lastI; heapF[0] = lastF;
         let i = 0, len = heapIdx.length;
         while (true) {
           const l = (i << 1) + 1, r = l + 1;
@@ -452,12 +525,10 @@
         const ni = ny * GRID + nx;
         if (!nav.walk[ni] || closed[ni]) continue;
 
-        // Prohibir cortar esquinas en diagonal a través de un vacío
         if (dx !== 0 && dy !== 0) {
           if (!nav.walk[cy * GRID + nx] || !nav.walk[ny * GRID + cx]) continue;
         }
 
-        // Penalización suave cerca de paredes para caminar por el centro de pasillos
         const wd = nav.wallDist[ni];
         const wallPen = wd <= 1 ? 4.0 : wd === 2 ? 0.7 : 0;
         const ng = cg + stepC + wallPen;
@@ -474,13 +545,9 @@
 
     const raw = [];
     let c = goalIdx;
-    while (c !== -1) {
-      raw.push([c % GRID, (c / GRID) | 0]);
-      c = cameFrom[c];
-    }
+    while (c !== -1) { raw.push([c % GRID, (c / GRID) | 0]); c = cameFrom[c]; }
     raw.reverse();
 
-    // Suavizado respetando siempre línea de visión sin paredes ni vacíos
     const smooth = [raw[0]];
     let anchor = 0;
     while (anchor < raw.length - 1) {
@@ -520,16 +587,12 @@
     let acc = 0;
     for (let i = 1; i < path.length; i++) {
       acc += lens[i - 1];
-      actor.keys.push({
-        t: startT + span * (acc / totalLen),
-        x: path[i][0],
-        y: path[i][1]
-      });
+      actor.keys.push({ t: startT + span * (acc / totalLen), x: path[i][0], y: path[i][1] });
     }
   }
 
   function pickWalkableNear(nav, center, radius, rng, minDist = 2) {
-    for (let tries = 0; tries < 24; tries++) {
+    for (let tries = 0; tries < 28; tries++) {
       const ang = rng() * Math.PI * 2;
       const r = rng() * radius;
       const tx = Math.round(center[0] + Math.cos(ang) * r);
@@ -541,7 +604,6 @@
     return nav.snap(center[0], center[1], minDist);
   }
 
-  // Elige una posición para el killer que tenga línea de visión real hacia la víctima
   function pickSightlineSpot(nav, victimPt, rng) {
     for (let tries = 0; tries < 36; tries++) {
       const ang = rng() * Math.PI * 2;
@@ -550,9 +612,7 @@
       const ky = Math.round(victimPt[1] + Math.sin(ang) * dist);
       if (kx < 1 || ky < 1 || kx >= GRID - 1 || ky >= GRID - 1) continue;
       if (nav.wallDist[ky * GRID + kx] < 2) continue;
-      if (hasLineOfSight(nav, kx, ky, victimPt[0], victimPt[1], 1)) {
-        return [kx, ky];
-      }
+      if (hasLineOfSight(nav, kx, ky, victimPt[0], victimPt[1], 1)) return [kx, ky];
     }
     return pickWalkableNear(nav, victimPt, 4, rng, 2);
   }
@@ -561,7 +621,7 @@
   let state = {
     matchRef: null, maxR: 0, roundNum: 1, plan: null,
     time: 0, playing: false, speed: 1, rafId: null, lastTs: 0,
-    canvas: null, ctx: null, builtWithNav: false
+    canvas: null, ctx: null, builtWithNav: false, pendingAutoPlay: false
   };
 
   function getAtkTeamIdx(M, roundNum) {
@@ -577,7 +637,6 @@
     const atkTi = getAtkTeamIdx(M, R.n);
     const defTi = 1 - atkTi;
 
-    // Si el navmesh aún no terminó de cargar, devuelve un plan temporal mínimo
     if (!nav) {
       return {
         mapName: M.mapName, nav: null, round: R, atkTi, defTi,
@@ -596,7 +655,7 @@
 
       M.teams[ti].units.forEach((u, i) => {
         const id = `${ti}-${i}`;
-        const sp = pickWalkableNear(nav, baseSpawn, 4.5, rng, 2);
+        const sp = pickWalkableNear(nav, baseSpawn, 5, rng, 2);
         actors[id] = {
           id, ti, isAtk,
           name: u.p.n,
@@ -612,7 +671,7 @@
         if (isAtk) openAnchor = i <= 2 ? targetSite.choke : i === 3 ? nav.midPt : altSite.choke;
         else openAnchor = i <= 1 ? targetSite.pt : i === 2 ? nav.midPt : altSite.pt;
 
-        const openPt = pickWalkableNear(nav, openAnchor, 4.5, rng, 2);
+        const openPt = pickWalkableNear(nav, openAnchor, 5, rng, 2);
         appendAStarKeys(actors[id], nav, openPt, 2.1);
       });
     }
@@ -643,7 +702,7 @@
       else if (idx <= 2) anchor = rng() < 0.5 ? targetSite.choke : targetSite.pt;
       else anchor = rng() < 0.75 ? targetSite.pt : targetSite.retake;
 
-      const vPt = pickWalkableNear(nav, anchor, 4.5, rng, 2);
+      const vPt = pickWalkableNear(nav, anchor, 5, rng, 2);
       const kPt = pickSightlineSpot(nav, vPt, rng);
 
       appendAStarKeys(victim, nav, vPt, curT);
@@ -682,7 +741,7 @@
         appendAStarKeys(a, nav, targetSite.pt, endT);
       } else {
         const destAnchor = plantTime !== null ? targetSite.pt : targetSite.retake;
-        const holdPt = pickWalkableNear(nav, destAnchor, 5.5, rng, 2);
+        const holdPt = pickWalkableNear(nav, destAnchor, 7.5, rng, 2);
         appendAStarKeys(a, nav, holdPt, endT);
       }
     });
@@ -748,56 +807,48 @@
 
     const C = getThemeColors();
     const W = cssW, H = cssH;
-    const pad = W * 0.03;
-    const size = W * 0.94;
+    const pad = W * 0.04;
+    const size = W * 0.92;
     const sx = gx => pad + (gx / GRID) * size;
     const sy = gy => pad + (gy / GRID) * size;
 
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
 
-    const mapAsset = getMapAsset(plan.mapName, () => {
-      // Reconstruir coreografía en cuanto el navmesh real esté listo
-      if (state.matchRef && !state.builtWithNav) {
-        const wasPlaying = state.playing;
-        loadRound(state.roundNum, wasPlaying);
-      } else {
-        drawFrame();
-      }
-    });
-
-    if (mapAsset.ready && mapAsset.img) {
-      ctx.save();
-      ctx.translate(W / 2, H / 2);
-      if (mapAsset.rot) ctx.rotate(mapAsset.rot);
-      ctx.filter = C.isLight
-        ? "invert(0.88) hue-rotate(180deg) contrast(1.05) opacity(0.88)"
-        : "brightness(0.88) contrast(1.12) saturate(0.85)";
-      ctx.drawImage(mapAsset.img, -size / 2, -size / 2, size, size);
-      ctx.restore();
-    } else {
+    const mapAsset = mapAssetCache[(plan.mapName || "Ascent").toLowerCase()];
+    if (!mapAsset || !mapAsset.ready || !mapAsset.img) {
       ctx.fillStyle = C.mut;
       ctx.font = '600 11px "JetBrains Mono", monospace';
       ctx.textAlign = "center";
-      ctx.fillText(mapAsset.failed ? `MINIMAPA ${plan.mapName.toUpperCase()} NO DISPONIBLE` : `CARGANDO NAVMESH ${plan.mapName.toUpperCase()}...`, W / 2, H / 2);
+      ctx.fillText(mapAsset && mapAsset.failed ? `MINIMAPA ${plan.mapName.toUpperCase()} NO DISPONIBLE` : `CARGANDO MINIMAPA ${plan.mapName.toUpperCase()}...`, W / 2, H / 2);
       ctx.restore();
+      updateHudReadout(C);
       return;
     }
+
+    // Dibujar minimapa oficial con la rotación exacta calculada
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    if (mapAsset.rotSteps) ctx.rotate(mapAsset.rotSteps * (Math.PI / 2));
+    ctx.filter = C.isLight
+      ? "invert(0.88) hue-rotate(180deg) contrast(1.05) opacity(0.88)"
+      : "brightness(0.88) contrast(1.12) saturate(0.85)";
+    ctx.drawImage(mapAsset.img, -size / 2, -size / 2, size, size);
+    ctx.restore();
 
     if (!plan.nav) {
       ctx.restore();
+      updateHudReadout(C);
       return;
     }
 
-    // Etiquetas limpias de Sites (A / B / C)
+    // Etiquetas de Sites (A / B / C)
     ctx.fillStyle = C.fg;
     ctx.globalAlpha = 0.72;
     ctx.font = '700 13px "Barlow Condensed", sans-serif';
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    plan.nav.sites.forEach(s => {
-      ctx.fillText(s.id, sx(s.pt[0]), sy(s.pt[1]));
-    });
+    plan.nav.sites.forEach(s => ctx.fillText(s.id, sx(s.pt[0]), sy(s.pt[1])));
     ctx.globalAlpha = 1;
 
     // Spike plantada
@@ -827,7 +878,7 @@
       ctx.restore();
     }
 
-    // Trazadores de duelos (con línea de visión real)
+    // Trazadores de duelos
     plan.events.forEach(ev => {
       const dt = time - ev.t;
       if (dt >= 0 && dt <= 0.45) {
@@ -851,7 +902,7 @@
       }
     });
 
-    // Bajas (X fijas sobre suelo caminable)
+    // Bajas (X)
     Object.values(plan.actors).forEach(a => {
       if (time >= a.deadAt && a.deathPos) {
         const x = sx(a.deathPos.x), y = sy(a.deathPos.y);
@@ -867,7 +918,7 @@
       }
     });
 
-    // Jugadores vivos con separación validada contra el navmesh (nunca empuja hacia un vacío)
+    // Jugadores vivos con separación validada contra el navmesh
     const aliveList = Object.values(plan.actors)
       .filter(a => time < a.deadAt)
       .map(a => ({ a, pos: sampleActorPos(a, time) }));
@@ -877,18 +928,20 @@
       return ix >= 1 && iy >= 1 && ix < GRID - 1 && iy < GRID - 1 && plan.nav.wallDist[iy * GRID + ix] >= 1;
     };
 
-    for (let i = 0; i < aliveList.length; i++) {
-      for (let j = i + 1; j < aliveList.length; j++) {
-        const p1 = aliveList[i].pos, p2 = aliveList[j].pos;
-        const dx = p2.x - p1.x, dy = p2.y - p1.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist < 3.4) {
-          const push = (3.4 - dist) / 2;
-          const ang = dist > 0.01 ? Math.atan2(dy, dx) : (i + j);
-          const nx1 = p1.x - Math.cos(ang) * push, ny1 = p1.y - Math.sin(ang) * push;
-          const nx2 = p2.x + Math.cos(ang) * push, ny2 = p2.y + Math.sin(ang) * push;
-          if (isSafeCell(nx1, ny1)) { p1.x = nx1; p1.y = ny1; }
-          if (isSafeCell(nx2, ny2)) { p2.x = nx2; p2.y = ny2; }
+    for (let pass = 0; pass < 2; pass++) {
+      for (let i = 0; i < aliveList.length; i++) {
+        for (let j = i + 1; j < aliveList.length; j++) {
+          const p1 = aliveList[i].pos, p2 = aliveList[j].pos;
+          const dx = p2.x - p1.x, dy = p2.y - p1.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 4.2) {
+            const push = (4.2 - dist) / 2;
+            const ang = dist > 0.01 ? Math.atan2(dy, dx) : (i * 1.7 + j);
+            const nx1 = p1.x - Math.cos(ang) * push, ny1 = p1.y - Math.sin(ang) * push;
+            const nx2 = p2.x + Math.cos(ang) * push, ny2 = p2.y + Math.sin(ang) * push;
+            if (isSafeCell(nx1, ny1)) { p1.x = nx1; p1.y = ny1; }
+            if (isSafeCell(nx2, ny2)) { p2.x = nx2; p2.y = ny2; }
+          }
         }
       }
     }
@@ -988,7 +1041,7 @@
   }
 
   function startLoop() {
-    if (!state.plan) return;
+    if (!state.plan || !state.builtWithNav) return;
     if (state.time >= state.plan.duration - 0.05) state.time = 0;
     state.playing = true;
     state.lastTs = 0;
@@ -1043,15 +1096,19 @@
     if (!state.matchRef || !state.maxR) return;
     stopLoop();
     state.roundNum = clamp(rn, 1, state.maxR);
-    const R = state.matchRef.rounds[state.roundNum - 1];
+    state.pendingAutoPlay = !!autoPlay;
+    const targetMatch = state.matchRef;
+    const R = targetMatch.rounds[state.roundNum - 1];
     if (!R) return;
 
-    const mapAsset = getMapAsset(state.matchRef.mapName, () => {
-      if (state.matchRef && !state.builtWithNav) loadRound(state.roundNum, autoPlay);
+    const mapAsset = getMapAsset(targetMatch.mapName, () => {
+      if (state.matchRef === targetMatch && !state.builtWithNav) {
+        loadRound(state.roundNum, state.pendingAutoPlay);
+      }
     });
 
-    state.builtWithNav = !!(mapAsset && mapAsset.nav);
-    state.plan = buildRoundChoreography(state.matchRef, R, mapAsset ? mapAsset.nav : null);
+    state.builtWithNav = !!(mapAsset && mapAsset.ready && mapAsset.nav);
+    state.plan = buildRoundChoreography(targetMatch, R, state.builtWithNav ? mapAsset.nav : null);
     state.time = autoPlay ? 0 : state.plan.duration;
     renderShell();
     if (autoPlay && state.builtWithNav) startLoop();
