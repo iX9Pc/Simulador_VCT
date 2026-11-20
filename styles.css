@@ -2269,6 +2269,12 @@ footer.closing {
   margin-bottom: 16px;
 }
 
+/* FIX LOGO 100 THIEVES EN MODO OSCURO ("100" BLANCO + "T" Y CÍRCULO ROJOS) */
+:root[data-theme="dark"] img[src*="100T.png" i],
+:root[data-theme="dark"] img.logo-100t {
+  filter: invert(1) hue-rotate(180deg) saturate(4.2) contrast(1.08);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
