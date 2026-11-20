@@ -2256,14 +2256,13 @@
           </div>
         </div>
         <div class="mgr-header-kpis mono">
-          <div class="mgr-kpi-box"><small>GUARDADO</small><b class="kd-pos">${M.lastSavedAt || "AUTO"}</b></div>
-          <button type="button" class="t-btn-sm mono t-btn-live" onclick="mgrExportSave()" title="Descarga tu partida en .json para respaldo o pasarla a amigos">Exportar .json</button>
-          <button type="button" class="t-btn-sm mono" onclick="mgrImportSave()" title="Carga una partida .json tuya o de un amigo">Importar .json</button>
-          <button type="button" class="t-btn-sm mono mgr-end-btn" onclick="mgrEndCareer()" title="Termina esta carrera y vuelve a elegir club desde cero">Terminar Carrera</button>
           <div class="mgr-kpi-box"><small>OVR</small><b>${ovr}</b></div>
           <div class="mgr-kpi-box"><small>PRESUPUESTO</small><b class="${club.budget >= 0 ? 'kd-pos' : 'kd-neg'}">${fmtMoney(club.budget)}</b></div>
           <div class="mgr-kpi-box"><small>DIRECTIVA${M.graceWeeks > 0 ? ` (G:${M.graceWeeks}S)` : ""}</small><b class="${M.boardConfidence >= 35 ? 'kd-pos' : M.boardConfidence <= 0 ? 'kd-neg' : ''}">${M.boardConfidence > 0 ? "+" : ""}${M.boardConfidence}</b></div>
           <div class="mgr-kpi-box"><small>REP</small><b style="color:var(--vct-cyan)">${rep}</b></div>
+          <div class="mgr-kpi-box"><small>GUARDADO</small><b class="kd-pos">${M.lastSavedAt || "AUTO"}</b></div>
+          <button type="button" class="t-btn-sm mono t-btn-live" onclick="mgrExportSave()" title="Descarga tu partida en .json para respaldo o pasarla a amigos">Exportar .json</button>
+          <button type="button" class="t-btn-sm mono" onclick="mgrImportSave()" title="Carga una partida .json tuya o de un amigo">Importar .json</button>
           <button type="button" class="t-btn-sm mono mgr-end-btn" onclick="mgrEndCareer()" title="Termina esta carrera y vuelve a elegir club desde cero">Terminar Carrera</button>
         </div>
       </div>
