@@ -83,7 +83,17 @@ function applyDynamicTeamColors() {
 }
 
 let SERIES = null;
-let shown = 0, liveTimer = null, currentFormat = 3;
+let liveTimer = null, currentFormat = 3;
+
+function initSeriesState(series, startProgressive) {
+  const lastIdx = Math.max(0, series.maps.length - 1);
+  series.liveFinished = !startProgressive;
+  series.liveMapIdx = startProgressive ? 0 : lastIdx;
+  series.liveShown = startProgressive ? 0 : series.maps[lastIdx].rounds.length;
+  series.revealedMaps = startProgressive ? 1 : series.maps.length;
+  series.activeTab = startProgressive ? 0 : (series.format > 1 ? "SERIES" : 0);
+  return series;
+}
 
 function stopLive() {
   if (liveTimer) {
@@ -97,13 +107,12 @@ function stopLive() {
   }
 }
 
-function getLiveSeriesWins(series, currentMapIdx, currentShownRounds) {
-  if (series.activeTab === "SERIES") return series.seriesScore;
+function getLiveSeriesWins(series) {
+  if (series.liveFinished) return series.seriesScore;
   let w0 = 0, w1 = 0;
-  const limit = series.revealedMaps || series.maps.length;
-  for (let i = 0; i < limit; i++) {
+  for (let i = 0; i <= series.liveMapIdx && i < series.maps.length; i++) {
     const m = series.maps[i];
-    if (i < currentMapIdx || (i === currentMapIdx && currentShownRounds >= m.rounds.length)) {
+    if (i < series.liveMapIdx || series.liveShown >= m.rounds.length) {
       if (m.sc[0] > m.sc[1]) w0++;
       else w1++;
     }
@@ -162,7 +171,7 @@ function computeSeriesStats(series) {
     S[ti + "-" + i] = { k: 0, d: 0, a: 0, fb: 0, fd: 0, cl: 0, kastRounds: 0, totalRounds: 0, formSum: 0, u, ti };
   }));
 
-  const playedCount = series.revealedMaps || series.maps.length;
+  const playedCount = series.liveFinished ? series.maps.length : series.revealedMaps;
   for (let idx = 0; idx < playedCount; idx++) {
     const m = series.maps[idx];
     const mStats = computeStatsForMatch(m, m.rounds.length);
@@ -212,11 +221,15 @@ function getHalfSplits(M, maxR) {
 window.selectSeriesTab = function(tab) {
   stopLive();
   if (!SERIES) return;
-  if (tab !== "SERIES" && tab >= SERIES.revealedMaps) return;
-  SERIES.activeTab = tab;
-  if (tab !== "SERIES") {
-    shown = SERIES.maps[tab].rounds.length;
+  if (tab === "SERIES") {
+    if (!SERIES.liveFinished) return;
+    SERIES.activeTab = "SERIES";
+    render();
+    return;
   }
+  if (typeof tab !== "number" || tab < 0 || tab >= SERIES.maps.length) return;
+  if (!SERIES.liveFinished && tab > SERIES.liveMapIdx) return;
+  SERIES.activeTab = tab;
   render();
 };
 
@@ -235,16 +248,18 @@ function render() {
   }
 
   const isSeriesSummary = SERIES.format > 1 && SERIES.activeTab === "SERIES";
-  const currentMapIdx = isSeriesSummary ? (SERIES.revealedMaps - 1) : (SERIES.activeTab || 0);
+  const currentMapIdx = isSeriesSummary ? (SERIES.maps.length - 1) : (typeof SERIES.activeTab === "number" ? SERIES.activeTab : 0);
   const M = SERIES.maps[currentMapIdx];
-  const maxR = isSeriesSummary ? M.rounds.length : shown;
+  const isViewedMapFinished = SERIES.liveFinished || currentMapIdx < SERIES.liveMapIdx || (currentMapIdx === SERIES.liveMapIdx && SERIES.liveShown >= M.rounds.length);
+  const maxR = (isSeriesSummary || isViewedMapFinished) ? M.rounds.length : Math.min(SERIES.liveShown, M.rounds.length);
   const S = isSeriesSummary ? computeSeriesStats(SERIES) : computeStatsForMatch(M, maxR);
   const R = M.rounds;
   const cur = isSeriesSummary ? SERIES.seriesScore : (maxR ? R[maxR - 1].score : [0, 0]);
-  const done = isSeriesSummary ? true : (maxR == R.length);
+  const done = isSeriesSummary ? true : isViewedMapFinished;
   const nm = id => S[id].u.p.n;
   const w = cur[0] > cur[1] ? 0 : 1;
   const t0 = M.teams[0], t1 = M.teams[1];
+  const liveWins = getLiveSeriesWins(SERIES);
 
   let h = "";
 
@@ -282,22 +297,25 @@ function render() {
   }
 
   if (SERIES.format > 1) {
-    const seriesCompletelyDone = SERIES.revealedMaps >= SERIES.maps.length && (isSeriesSummary || shown >= SERIES.maps[SERIES.maps.length - 1].rounds.length);
-    const liveWins = getLiveSeriesWins(SERIES, currentMapIdx, maxR);
     h += `<div class="series-tabs">
-      <button type="button" class="series-tab ${isSeriesSummary ? 'active' : ''} ${!seriesCompletelyDone ? 'unplayed' : ''}" onclick="selectSeriesTab('SERIES')" title="${seriesCompletelyDone ? 'Estadísticas globales de la serie' : 'Disponible al concluir la serie'}">
+      <button type="button" class="series-tab ${isSeriesSummary ? 'active' : ''} ${!SERIES.liveFinished ? 'unplayed' : ''}" onclick="selectSeriesTab('SERIES')" title="${SERIES.liveFinished ? 'Estadísticas globales de la serie' : 'Disponible al concluir la serie'}">
         GLOBAL SERIE BO${SERIES.format} [${liveWins[0]}-${liveWins[1]}]
       </button>`;
 
     SERIES.maps.forEach((mObj, idx) => {
-      const isRevealed = idx < SERIES.revealedMaps;
-      const isFinishedMap = idx < currentMapIdx || (idx === currentMapIdx && done) || isSeriesSummary;
+      const isRevealed = SERIES.liveFinished || idx <= SERIES.liveMapIdx;
+      const isFinishedMap = SERIES.liveFinished || idx < SERIES.liveMapIdx || (idx === SERIES.liveMapIdx && SERIES.liveShown >= mObj.rounds.length);
       const mw = !isFinishedMap ? "var(--mut)" : (mObj.sc[0] > mObj.sc[1] ? "var(--a)" : "var(--b)");
-      const scoreLabel = !isRevealed
-        ? "PENDIENTE"
-        : isFinishedMap
-          ? `${mObj.sc[0]}-${mObj.sc[1]}`
-          : `${maxR ? mObj.rounds[maxR - 1].score[0] : 0}-${maxR ? mObj.rounds[maxR - 1].score[1] : 0} · R${maxR}`;
+
+      let scoreLabel = "PENDIENTE";
+      if (isFinishedMap) {
+        scoreLabel = `${mObj.sc[0]}-${mObj.sc[1]}`;
+      } else if (isRevealed) {
+        const liveR = Math.min(SERIES.liveShown, mObj.rounds.length);
+        scoreLabel = liveR > 0
+          ? `${mObj.rounds[liveR - 1].score[0]}-${mObj.rounds[liveR - 1].score[1]} · R${liveR}`
+          : "0-0";
+      }
 
       h += `<button type="button" class="series-tab ${SERIES.activeTab === idx ? 'active' : ''} ${!isRevealed ? 'unplayed' : ''}" onclick="selectSeriesTab(${idx})">
         <span class="map-win-dot" style="background:${mw}"></span>
@@ -307,7 +325,6 @@ function render() {
     h += `</div>`;
   }
 
-  const liveWins = getLiveSeriesWins(SERIES, currentMapIdx, maxR);
   const mapHeaderLabel = isSeriesSummary
     ? `GLOBAL BO${SERIES.format} · ${SERIES.maps.map(m => `${m.mapName} ${m.sc[0]}-${m.sc[1]}`).join(" / ")}`
     : `MAPA ${currentMapIdx + 1}/${SERIES.maps.length}: ${M.mapName.toUpperCase()} (PICK: ${M.pickedBy}) · SERIE [${liveWins[0]}-${liveWins[1]}] · ${done ? "FINAL (" + R.length + " RND)" : "VIVO R" + maxR + "/" + R.length}`;
@@ -559,44 +576,42 @@ function pair() {
   ];
 }
 
-function stepOneRoundInSeries() {
-  const p = pair();
-  if (!p) {
+// AVANZA UNA RONDA EN MODO EN VIVO Y DETIENE AL COMPLETAR LA SERIE (SIN BUCLE)
+function advanceLiveRound() {
+  if (!SERIES || SERIES.liveFinished) {
     stopLive();
     return false;
   }
 
-  const isFinishedAllMaps = SERIES && (
-    SERIES.activeTab === "SERIES" ||
-    (SERIES.activeTab === SERIES.maps.length - 1 &&
-     SERIES.revealedMaps === SERIES.maps.length &&
-     shown >= SERIES.maps[SERIES.maps.length - 1].rounds.length)
-  );
+  SERIES.activeTab = SERIES.liveMapIdx;
+  const activeM = SERIES.maps[SERIES.liveMapIdx];
 
-  if (!SERIES || isFinishedAllMaps) {
-    SERIES = buildSeries(p[0], p[1], currentFormat, true);
-    shown = 1;
+  if (SERIES.liveShown < activeM.rounds.length) {
+    SERIES.liveShown++;
+    if (SERIES.liveShown >= activeM.rounds.length && SERIES.liveMapIdx === SERIES.maps.length - 1) {
+      SERIES.liveFinished = true;
+      SERIES.revealedMaps = SERIES.maps.length;
+      stopLive();
+    }
     render();
-    return true;
+    return !SERIES.liveFinished;
   }
 
-  const curMapIdx = typeof SERIES.activeTab === "number" ? SERIES.activeTab : 0;
-  const activeM = SERIES.maps[curMapIdx];
-
-  if (shown < activeM.rounds.length) {
-    shown++;
+  if (SERIES.liveMapIdx + 1 < SERIES.maps.length) {
+    SERIES.liveMapIdx++;
+    SERIES.revealedMaps = Math.max(SERIES.revealedMaps, SERIES.liveMapIdx + 1);
+    SERIES.activeTab = SERIES.liveMapIdx;
+    SERIES.liveShown = 1;
+    if (SERIES.liveShown >= SERIES.maps[SERIES.liveMapIdx].rounds.length && SERIES.liveMapIdx === SERIES.maps.length - 1) {
+      SERIES.liveFinished = true;
+      stopLive();
+    }
     render();
-    return true;
+    return !SERIES.liveFinished;
   }
 
-  if (curMapIdx + 1 < SERIES.maps.length) {
-    SERIES.activeTab = curMapIdx + 1;
-    SERIES.revealedMaps = Math.max(SERIES.revealedMaps, curMapIdx + 2);
-    shown = 1;
-    render();
-    return true;
-  }
-
+  SERIES.liveFinished = true;
+  SERIES.revealedMaps = SERIES.maps.length;
   stopLive();
   render();
   return false;
@@ -623,14 +638,18 @@ $("#go").onclick = () => {
   stopLive();
   const p = pair();
   if (!p) return;
-  SERIES = buildSeries(p[0], p[1], currentFormat, false);
-  shown = SERIES.maps[0].rounds.length;
+  SERIES = initSeriesState(buildSeries(p[0], p[1], currentFormat, false), false);
   render();
 };
 
 $("#st").onclick = () => {
   stopLive();
-  stepOneRoundInSeries();
+  const p = pair();
+  if (!p) return;
+  if (!SERIES || SERIES.liveFinished) {
+    SERIES = initSeriesState(buildSeries(p[0], p[1], currentFormat, true), true);
+  }
+  advanceLiveRound();
 };
 
 $("#liveBtn").onclick = () => {
@@ -641,25 +660,20 @@ $("#liveBtn").onclick = () => {
   const p = pair();
   if (!p) return;
 
-  const isFinishedAllMaps = SERIES && (
-    SERIES.activeTab === "SERIES" ||
-    (SERIES.activeTab === SERIES.maps.length - 1 &&
-     SERIES.revealedMaps === SERIES.maps.length &&
-     shown >= SERIES.maps[SERIES.maps.length - 1].rounds.length)
-  );
-
-  if (!SERIES || isFinishedAllMaps) {
-    SERIES = buildSeries(p[0], p[1], currentFormat, true);
-    shown = 0;
+  if (!SERIES || SERIES.liveFinished) {
+    SERIES = initSeriesState(buildSeries(p[0], p[1], currentFormat, true), true);
+  } else {
+    SERIES.activeTab = SERIES.liveMapIdx;
   }
 
   const btn = $("#liveBtn");
   btn.classList.add("live-active");
   btn.textContent = "Pausar";
 
+  if (!advanceLiveRound()) return;
+
   liveTimer = setInterval(() => {
-    const cont = stepOneRoundInSeries();
-    if (!cont) {
+    if (!advanceLiveRound()) {
       stopLive();
     }
   }, 340);
