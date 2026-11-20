@@ -2275,6 +2275,78 @@ footer.closing {
   filter: invert(1) hue-rotate(180deg) saturate(4.2) contrast(1.08);
 }
 
+/* ===== PANEL DE APRENDIZAJE DE ROLES Y AGENTES (PLANTILLA) ===== */
+.mgr-learn-box {
+  margin-top: 12px;
+}
+
+.mgr-agent-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 280px;
+}
+
+.mgr-ag-chip {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  color: var(--fg);
+}
+
+.mgr-ag-chip.is-hush {
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
+.mgr-learn-select {
+  width: 215px;
+  font-size: 11px;
+}
+
+.mgr-learn-prog {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 250px;
+}
+
+.mgr-learn-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+}
+
+.mgr-learn-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mgr-learn-track {
+  flex: 1;
+  height: 7px;
+  background: var(--card);
+  border: 1px solid var(--bd-hi);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.mgr-learn-track i {
+  display: block;
+  height: 100%;
+  transition: width 0.2s ease;
+}
+
+.mgr-tag.tag-maestría {
+  border-color: var(--vct-cyan);
+  color: var(--vct-cyan);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

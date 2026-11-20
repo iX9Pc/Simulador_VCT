@@ -1,4 +1,4 @@
-// ===== MÓDULO P5 v3: MODO MANAGER VCT (33 SEMANAS CON VIAJES, POSTULACIÓN, GRACIA DIRECTIVA Y 9 ENTRENAMIENTOS) =====
+// ===== MÓDULO P5: MODO MANAGER VCT (33 SEMANAS, SAVE .JSON, POSTULACIÓN, ACADEMIA Y MAESTRÍA DE ROLES/AGENTES) =====
 (function () {
   const SAVE_KEY = "vct_sim_manager_career_v3";
   const mEsc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -72,7 +72,7 @@
     { n: "FrosT",    macro: 82, micro: 85, adapt: 84, dev: 84, disc: 79, fee: 45000 }
   ];
 
-  // ===== 9 MODOS DE ENTRENAMIENTO SEMANAL =====
+  // ===== 10 MODOS DE ENTRENAMIENTO SEMANAL =====
   const TRAINING_MODES = {
     balanced: {
       id: "balanced",
@@ -154,6 +154,267 @@
     hush:     { label: "Maestría Hush",   keys: ["entry", "fd", "aim"], trainsHush: true }
   };
 
+  // ===== SISTEMA DE APRENDIZAJE DE ROLES Y AGENTES (1 A 4 SEMANAS) =====
+  const AGENT_COMPLEXITY = {
+    "Brimstone": 1, "Clove": 1, "Phoenix": 1, "Reyna": 1, "Sage": 1, "Gekko": 1,
+    "Jett": 2, "Iso": 2, "Omen": 2, "Fade": 2, "Breach": 2, "Skye": 2, "KAY/O": 2,
+    "Tejo": 2, "Killjoy": 2, "Chamber": 2, "Deadlock": 2, "Vyse": 2, "Harbor": 2,
+    "Raze": 3, "Yoru": 3, "Neon": 3, "Waylay": 3, "Hush": 3, "Sova": 3,
+    "Viper": 3, "Astra": 3, "Miks": 3, "Cypher": 3, "Veto": 3
+  };
+
+  const ROLE_DISTANCE = {
+    "Duelista":    { Duelista: 0, Iniciador: 1, Controlador: 2, Centinela: 2, Flex: 1 },
+    "Iniciador":   { Duelista: 1, Iniciador: 0, Controlador: 1, Centinela: 1, Flex: 1 },
+    "Controlador": { Duelista: 2, Iniciador: 1, Controlador: 0, Centinela: 1, Flex: 1 },
+    "Centinela":   { Duelista: 2, Iniciador: 1, Controlador: 1, Centinela: 0, Flex: 1 },
+    "Flex":        { Duelista: 1, Iniciador: 1, Controlador: 1, Centinela: 1, Flex: 0 }
+  };
+
+  const LEARNABLE_ROLES = ["Duelista", "Iniciador", "Controlador", "Centinela", "Flex", "IGL"];
+
+  function getPlayerRoleDistance(player, targetRole) {
+    const parsed = (typeof parsePlayerRoles === "function") ? parsePlayerRoles(player.r) : { primary: "Flex", secondary: null };
+    if (parsed.primary === targetRole || parsed.secondary === targetRole) return 0;
+    const d1 = (ROLE_DISTANCE[parsed.primary] && ROLE_DISTANCE[parsed.primary][targetRole] !== undefined)
+      ? ROLE_DISTANCE[parsed.primary][targetRole] : 1;
+    const d2 = (parsed.secondary && ROLE_DISTANCE[parsed.secondary] && ROLE_DISTANCE[parsed.secondary][targetRole] !== undefined)
+      ? ROLE_DISTANCE[parsed.secondary][targetRole] : 9;
+    return Math.min(d1, d2);
+  }
+
+  function getKnownAgentsForPlayer(p) {
+    const base = (typeof PLAYER_AGENTS === "object" && PLAYER_AGENTS[p.n]) ? PLAYER_AGENTS[p.n] : [];
+    const learned = Array.isArray(p.learnedAgents) ? p.learnedAgents : [];
+    return [...new Set([...learned, ...base])].filter(a => typeof AGENTS === "object" && AGENTS[a]);
+  }
+
+  function calcLearningWeeks(p, type, target) {
+    if (type === "agent") {
+      const ag = (typeof AGENTS === "object" && AGENTS[target]) ? AGENTS[target] : null;
+      if (!ag) return 2;
+      if (target === "Hush") {
+        const curHush = Math.max((typeof HUSH_MASTERY === "object" && HUSH_MASTERY[p.n]) || 0, p._hushMastery || 0);
+        if (curHush >= 0.5 && curHush < 0.9) return 2;
+        const dist = getPlayerRoleDistance(p, "Duelista");
+        return clamp(3 + dist, 3, 4);
+      }
+      const comp = AGENT_COMPLEXITY[target] || 2;
+      const dist = getPlayerRoleDistance(p, ag.role);
+      return clamp(comp + dist, 1, 4);
+    }
+
+    if (target === "IGL") {
+      return p.igl >= 76 ? 2 : p.igl >= 66 ? 3 : 4;
+    }
+    const dist = getPlayerRoleDistance(p, target);
+    if (target === "Flex") return 3;
+    return clamp(dist === 0 ? 1 : dist === 1 ? 2 : 4, 2, 4);
+  }
+
+  function syncLearnedPoolsFromCareer(career) {
+    if (!career || !career.clubs || typeof PLAYER_AGENTS !== "object") return;
+    for (const cName in career.clubs) {
+      (career.clubs[cName].players || []).forEach(p => {
+        if (Array.isArray(p.learnedAgents) && p.learnedAgents.length) {
+          const cur = PLAYER_AGENTS[p.n] ? PLAYER_AGENTS[p.n].slice() : [];
+          p.learnedAgents.forEach(a => { if (!cur.includes(a)) cur.unshift(a); });
+          PLAYER_AGENTS[p.n] = cur;
+        }
+      });
+    }
+  }
+
+  function advancePlayerLearning(p, club) {
+    if (!p.learning || p.injuredWeeks > 0) return;
+    p.learning.done = Math.min(p.learning.total, (p.learning.done || 0) + 1);
+    if (p.learning.done < p.learning.total) return;
+
+    const { type, target } = p.learning;
+    p.learning = null;
+
+    if (type === "agent") {
+      p.learnedAgents = Array.isArray(p.learnedAgents) ? p.learnedAgents : [];
+      if (!p.learnedAgents.includes(target)) p.learnedAgents.unshift(target);
+      if (typeof PLAYER_AGENTS === "object") {
+        const cur = PLAYER_AGENTS[p.n] ? PLAYER_AGENTS[p.n].slice() : [];
+        if (!cur.includes(target)) PLAYER_AGENTS[p.n] = [target, ...cur];
+      }
+      if (target === "Hush") {
+        p._hushMastery = 1.0;
+        p.hushProgress = 100;
+      }
+      p.morale = clamp((p.morale || 75) + 4, 15, 100);
+      addInbox("MAESTRÍA", `${p.n} domina a ${target}`, `${p.n} completó su entrenamiento y añadió a ${target} a su pool competitivo de confort.`);
+    } else if (type === "role") {
+      p.learnedRoles = Array.isArray(p.learnedRoles) ? p.learnedRoles : [];
+      if (!p.learnedRoles.includes(target)) p.learnedRoles.push(target);
+
+      const primary = (p.r || "Flex").split("/")[0].trim();
+      if (target === "IGL") {
+        if (!p.r.toLowerCase().includes("igl")) p.r = `${primary}/IGL`;
+        const gain = Math.min(90, Math.max(p.igl + 5, 78)) - p.igl;
+        if (gain > 0) {
+          p.igl += gain;
+          p.deltas.igl = (p.deltas.igl || 0) + gain;
+        }
+      } else {
+        if (primary.toLowerCase() !== target.toLowerCase()) {
+          p.r = `${primary}/${target}`;
+        }
+        if (typeof PLAYER_AGENTS === "object" && typeof ROLE_DEFAULT_AGENTS === "object") {
+          const cur = PLAYER_AGENTS[p.n] ? PLAYER_AGENTS[p.n].slice() : [];
+          const starterAgents = (ROLE_DEFAULT_AGENTS[target] || []).slice(0, 2);
+          starterAgents.forEach(a => {
+            if (!cur.includes(a)) cur.push(a);
+            p.learnedAgents = Array.isArray(p.learnedAgents) ? p.learnedAgents : [];
+            if (!p.learnedAgents.includes(a)) p.learnedAgents.push(a);
+          });
+          PLAYER_AGENTS[p.n] = cur;
+        }
+        const roleStatKey = target === "Duelista" ? "entry" : target === "Centinela" ? "clutch" : target === "Flex" ? "cons" : "util";
+        if (typeof p[roleStatKey] === "number" && p[roleStatKey] < 95) {
+          p[roleStatKey] = Math.min(95, p[roleStatKey] + 2);
+          p.deltas[roleStatKey] = (p.deltas[roleStatKey] || 0) + 2;
+        }
+      }
+      p.morale = clamp((p.morale || 75) + 5, 15, 100);
+      addInbox("MAESTRÍA", `${p.n} aprendió el rol ${target}`, `${p.n} amplió su versatilidad táctica (nuevo perfil: ${p.r}) gracias al trabajo con DT ${club.coach.n}.`);
+    }
+  }
+
+  window.mgrStartLearning = function (idx, encodedVal) {
+    if (!M || !encodedVal) return;
+    const p = M.clubs[M.userTeam].players[idx];
+    if (!p) return;
+    const [type, target] = encodedVal.split("::");
+    if (!type || !target) return;
+
+    if (p.learning && p.learning.done > 0) {
+      if (!confirm(`${p.n} ya lleva ${p.learning.done}/${p.learning.total} semanas aprendiendo ${p.learning.target}. ¿Reemplazar por ${target}?`)) {
+        renderManager();
+        return;
+      }
+    }
+
+    const total = calcLearningWeeks(p, type, target);
+    p.learning = { type, target, done: 0, total };
+    saveCareer();
+    renderManager();
+  };
+
+  window.mgrCancelLearning = function (idx) {
+    if (!M) return;
+    const p = M.clubs[M.userTeam].players[idx];
+    if (!p || !p.learning) return;
+    p.learning = null;
+    saveCareer();
+    renderManager();
+  };
+
+  function renderLearningTableHTML(club) {
+    if (typeof AGENTS !== "object") return "";
+    const agentsByRole = { Duelista: [], Iniciador: [], Controlador: [], Centinela: [] };
+    for (const agName in AGENTS) {
+      const r = AGENTS[agName].role;
+      if (agentsByRole[r]) agentsByRole[r].push(agName);
+    }
+
+    const buildOptions = p => {
+      const known = getKnownAgentsForPlayer(p);
+      const hasFullHush = Math.max((typeof HUSH_MASTERY === "object" && HUSH_MASTERY[p.n]) || 0, p._hushMastery || 0) >= 0.9;
+      const curRoles = (p.r || "").toLowerCase();
+
+      let opts = `<option value="">-- Elegir Rol o Agente --</option>`;
+
+      const roleOpts = LEARNABLE_ROLES.filter(r => {
+        if (r === "IGL") return !curRoles.includes("igl");
+        return getPlayerRoleDistance(p, r) > 0;
+      }).map(r => {
+        const w = calcLearningWeeks(p, "role", r);
+        const sel = (p.learning && p.learning.type === "role" && p.learning.target === r) ? "selected" : "";
+        return `<option value="role::${mEsc(r)}" ${sel}>Rol: ${mEsc(r)} (${w} sem)</option>`;
+      }).join("");
+      if (roleOpts) opts += `<optgroup label="ROLES NUEVOS (2–4 SEM)">${roleOpts}</optgroup>`;
+
+      for (const rKey of ["Duelista", "Iniciador", "Controlador", "Centinela"]) {
+        const agOpts = agentsByRole[rKey]
+          .filter(ag => ag === "Hush" ? !hasFullHush : !known.includes(ag))
+          .map(ag => {
+            const w = calcLearningWeeks(p, "agent", ag);
+            const sel = (p.learning && p.learning.type === "agent" && p.learning.target === ag) ? "selected" : "";
+            return `<option value="agent::${mEsc(ag)}" ${sel}>${mEsc(ag)} (${w} sem)</option>`;
+          }).join("");
+        if (agOpts) opts += `<optgroup label="AGENTES · ${rKey.toUpperCase()}">${agOpts}</optgroup>`;
+      }
+      return opts;
+    };
+
+    return `
+      <div class="mgr-panel mgr-learn-box">
+        <div class="t-group-head">
+          <b class="mono">APRENDIZAJE DE ROLES &amp; MAESTRÍA DE AGENTES (MÁX. 4 SEMANAS)</b>
+          <span class="mono mut" style="font-size:10.5px">Duración según distancia de rol y complejidad del agente · Avanza 1 sem/turno</span>
+        </div>
+        <div class="sc">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Jugador</th>
+                <th style="text-align:left">Pool de Agentes Actual</th>
+                <th style="text-align:left">Asignar Rol / Agente</th>
+                <th style="text-align:left">Progreso de Maestría</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${club.players.map((p, idx) => {
+                const known = getKnownAgentsForPlayer(p);
+                const l = p.learning;
+                const isInj = p.injuredWeeks > 0;
+                let progHTML = `<span class="mono mut" style="font-size:11px">Sin aprendizaje asignado</span>`;
+
+                if (l) {
+                  const pct = Math.round((l.done / l.total) * 100);
+                  const rem = Math.max(0, l.total - l.done);
+                  const typeTag = l.type === "role" ? "ROL" : "AGENTE";
+                  const fillCol = isInj ? "var(--vct-red)" : (l.target === "Hush" ? "var(--purple)" : "var(--ok)");
+                  progHTML = `<div class="mgr-learn-prog">
+                    <div class="mgr-learn-meta mono">
+                      <span><span class="igl-tag" style="margin:0 5px 0 0">${typeTag}</span><b>${mEsc(l.target)}</b></span>
+                      <span class="${isInj ? 'kd-neg' : 'mut'}">${isInj ? "PAUSADO (LESIÓN)" : `${l.done}/${l.total} SEM · ${rem === 1 ? "Falta 1 sem" : `Faltan ${rem} sem`} (${pct}%)`}</span>
+                    </div>
+                    <div class="mgr-learn-row">
+                      <div class="mgr-learn-track"><i style="width:${pct}%;background:${fillCol}"></i></div>
+                      <button type="button" class="t-btn-sm mono" onclick="mgrCancelLearning(${idx})" title="Cancelar aprendizaje">Cancelar</button>
+                    </div>
+                  </div>`;
+                }
+
+                return `<tr>
+                  <td style="text-align:left">
+                    <b>${mEsc(p.n)}</b>
+                    <small class="mut" style="display:block">${getRoleIcon(p.r)} ${mEsc(p.r)}</small>
+                  </td>
+                  <td style="text-align:left">
+                    <div class="mgr-agent-pills mono">
+                      ${known.slice(0, 6).map(a => `<span class="mgr-ag-chip ${a === 'Hush' ? 'is-hush' : ''}">${mEsc(a)}</span>`).join("")}
+                      ${known.length > 6 ? `<span class="mut" style="font-size:10px">+${known.length - 6}</span>` : ""}
+                    </div>
+                  </td>
+                  <td style="text-align:left">
+                    <select class="cb-mini-sel mono mgr-learn-select" onchange="mgrStartLearning(${idx}, this.value)">
+                      ${buildOptions(p)}
+                    </select>
+                  </td>
+                  <td style="text-align:left">${progHTML}</td>
+                </tr>`;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
   const INJURIES_CATALOG = [
     { name: "Tendinitis de muñeca",    minW: 2, maxW: 3 },
     { name: "Sobrecarga cervical",     minW: 1, maxW: 2 },
@@ -215,6 +476,9 @@
       injuredWeeks: 0,
       injuryType: "",
       plan: raw.plan || "balanced",
+      learning: null,
+      learnedAgents: [],
+      learnedRoles: [],
       xp: 0,
       _hushMastery: hushInit,
       hushProgress: Math.round(hushInit * 100),
@@ -313,7 +577,7 @@
     const c = M.career || { wins: 0, losses: 0, regionalTitles: 0, mastersTitles: 0, championsTitles: 0 };
     const total = c.wins + c.losses;
     const wr = total >= 3 ? (c.wins / total) : 0.5;
-    const wrBonus = total >= 3 ? (wr - 0.5) * 38 : 0; // -19 a +19
+    const wrBonus = total >= 3 ? (wr - 0.5) * 38 : 0;
     const trophyBonus = (c.regionalTitles * 7) + (c.mastersTitles * 14) + (c.championsTitles * 24);
     const streakBonus = Math.min(8, Math.max(0, (M.bestStreak || 0) - 2) * 1.5);
     const boardFactor = (M.boardConfidence - 50) * 0.14;
@@ -323,13 +587,12 @@
   function getClubRequiredRep(clubName) {
     const cl = M.clubs[clubName];
     const ovr = calcRosterOvr(cl.players, cl.coach);
-    // Clubes top (OVR 90+) exigen rep 74-82; clubes medios (OVR 85) exigen ~58; clubes bajos (OVR 80) exigen ~42
     return clamp(Math.round(40 + (ovr - 79) * 3.4), 38, 86);
   }
 
-  // ===== ESTADO DE LA CARRERA =====
+  // ===== ESTADO DE LA CARRERA Y PERSISTENCIA (AUTOGUARDADO + .JSON) =====
   let M = null;
-  let activeTab = "hub"; // hub | squad | academy | market | calendar | clubs | finance
+  let activeTab = "hub";
   let marketFilter = { source: "ALL", role: "ALL", query: "", view: "players" };
   let clubsFilter = { reg: "ALL", selectedClub: null };
 
@@ -347,7 +610,6 @@
 
   window.mgrExportSave = function () {
     if (!M) return;
-    // Guardar pools de agentes de canteranos para que al importar en otra PC se mantengan exactos
     const academyAgentPools = {};
     if (typeof PLAYER_AGENTS === "object") {
       for (const c in M.clubs) {
@@ -392,6 +654,7 @@
             Object.assign(PLAYER_AGENTS, parsed.academyAgentPools);
           }
           M = careerData;
+          syncLearnedPoolsFromCareer(M);
           activeTab = "hub";
           saveCareer();
           renderManager();
@@ -422,6 +685,7 @@
             for (const c in M.clubs) M.clubs[c].players.forEach(ensureAg);
             (M.academy || []).forEach(ensureAg);
           }
+          syncLearnedPoolsFromCareer(M);
         }
       }
     } catch (e) { M = null; }
@@ -441,11 +705,6 @@
   }
 
   // ===== CALENDARIO ANUAL DE 33 SEMANAS (2 SEMANAS DE VIAJE ANTES DE CADA MASTERS Y CHAMPIONS) =====
-  // W1: Pretemporada
-  // W2-W6: Stage 1 Liga | W7-W8: Stage 1 Playoffs | W9-W10: Viaje y Descanso Pre-Masters 1 | W11-W13: Masters 1
-  // W14: Ventana Mitad de Año
-  // W15-W19: Stage 2 Liga | W20-W21: Stage 2 Playoffs | W22-W23: Viaje y Descanso Pre-Masters 2 | W24-W26: Masters 2
-  // W27-W28: Viaje y Descanso Pre-Champions | W29-W32: VALORANT Champions (Top 16) | W33: Cierre y Gala
   function isTravelWeek(w) {
     return w === 9 || w === 10 || w === 22 || w === 23 || w === 27 || w === 28;
   }
@@ -493,8 +752,8 @@
       });
     });
 
-    const poWeek = startWeek + 5;      // Stage 1: W7-W8 | Stage 2: W20-W21
-    const msWeek = poWeek + 4;         // +2 semanas de viaje -> Stage 1: W11-W13 | Stage 2: W24-W26
+    const poWeek = startWeek + 5;
+    const msWeek = poWeek + 4;
 
     const playoffs = [
       { id: `S${M.season}-ST${stageNum}-SF1`, week: poWeek,     stage: `stage${stageNum}_po`, roundKey: "SF", label: `Stage ${stageNum} Playoffs · Semifinal 1 (1° vs 4°)`, teamA: null, teamB: null, fmt: 3, played: false, scoreA: 0, scoreB: 0, winner: null, mapsLine: "", nextId: `S${M.season}-ST${stageNum}-GF`, nextSlot: 0 },
@@ -537,9 +796,9 @@
     const vctPoints = {};
     for (const c in M.clubs) vctPoints[c] = 0;
 
-    const st1 = buildRegionalLeagueForStage(1, 2);       // W2..W13 (viaje W9-W10)
-    const st2 = buildRegionalLeagueForStage(2, 15);      // W15..W26 (viaje W22-W23)
-    const champions = buildChampionsBracket(seasonYear); // W29..W32 (viaje W27-W28)
+    const st1 = buildRegionalLeagueForStage(1, 2);
+    const st2 = buildRegionalLeagueForStage(2, 15);
+    const champions = buildChampionsBracket(seasonYear);
 
     const myOvr = calcRosterOvr(M.clubs[M.userTeam].players, M.clubs[M.userTeam].coach);
     const objective = myOvr >= 88.5
@@ -578,9 +837,9 @@
     M = {
       userTeam: teamName,
       season: 2027,
-      week: 1, // 1..33
-      boardConfidence: 65, // Arranque alto por confianza al ficharte
-      graceWeeks: 8,       // 8 semanas de tolerancia directiva al empezar o cambiar de club
+      week: 1,
+      boardConfidence: 65,
+      graceWeeks: 8,
       fired: false,
       winStreak: 0,
       bestStreak: 0,
@@ -590,7 +849,7 @@
         wins: 0, losses: 0,
         regionalTitles: 0, mastersTitles: 0, championsTitles: 0,
         clubsManaged: [teamName],
-        applyCooldown: {} // clubName -> season*100 + week
+        applyCooldown: {}
       },
       clubs,
       freeAgents: FREE_AGENTS_SEED.map(p => enrichPlayer(p, true)),
@@ -830,7 +1089,6 @@
       } else {
         M.career.losses++;
         M.winStreak = 0;
-        // Período de gracia: la directiva tolera mucho más las derrotas iniciales
         const baseLoss = matchStage === "champions" ? 3 : 4;
         const actualLoss = M.graceWeeks > 0 ? 1 : baseLoss;
         M.boardConfidence = clamp(M.boardConfidence - actualLoss, -100, 100);
@@ -914,7 +1172,6 @@
 
         const discFactor = 1 - Math.max(0, club.coach.disc - 75) / 160;
         let fDelta = mode.fatigueDelta > 0 ? Math.round(mode.fatigueDelta * discFactor) : mode.fatigueDelta;
-        // Semanas de viaje y descanso pre-Masters/Champions bajan la fatiga adicionalmente
         if (travel) fDelta -= 15;
         p.fatigue = clamp(p.fatigue + fDelta, 0, 100);
         p.morale = clamp(p.morale + mode.moraleDelta + (travel ? 2 : 0), 15, 100);
@@ -923,11 +1180,12 @@
         grantPlayerProgression(p, club.coach, baseXp * (p.sub ? 0.65 : 1.0), mode.focus, isUser, false, mode.hushMult || 1.0);
 
         checkPlayerInjury(club, p, travel ? mode.injuryMult * 0.35 : mode.injuryMult * 0.75, isUser);
+        if (isUser) advancePlayerLearning(p, club);
       });
     }
   }
 
-  // ===== TRANSICIONES DE TORNEOS =====
+  // ===== TRANSICIONES DE TORNEOS (PREMIOS OFICIALES: $350K MASTERS / $1M CHAMPIONS) =====
   function computeStageStandings(stageObj) {
     const tbl = {};
     stageObj.leagueTeams.forEach(t => { tbl[t] = { team: t, pj: 0, g: 0, p: 0, mw: 0, ml: 0, pts: 0 }; });
@@ -1079,7 +1337,6 @@
   }
 
   function checkBoardFiring() {
-    // Durante el período de gracia la directiva nunca te despide
     if (M.graceWeeks > 0) return;
     if (M.boardConfidence <= -30 && !M.fired) {
       M.fired = true;
@@ -1262,13 +1519,13 @@
     }
   }
 
-  // ===== TRANSICIÓN A UN NUEVO CLUB (POR OFERTA O POSTULACIÓN ACEPTADA) =====
+  // ===== TRANSICIÓN A UN NUEVO CLUB =====
   function switchManagerToClub(targetClubName, sourceLabel) {
     const oldTeam = M.userTeam;
     M.userTeam = targetClubName;
     M.fired = false;
-    M.boardConfidence = 68; // La nueva directiva confía en ti y te da margen real
-    M.graceWeeks = 8;       // 8 semanas de período de gracia completo
+    M.boardConfidence = 68;
+    M.graceWeeks = 8;
     M.winStreak = 0;
     M.pendingJobOffers = [];
     M.pendingOffer = null;
@@ -1312,7 +1569,6 @@
     const req = getClubRequiredRep(targetClub);
     const diff = rep - req;
 
-    // Probabilidad según tu reputación frente a la exigencia del club
     let accepted = false;
     if (diff >= 2) accepted = true;
     else if (diff >= -5) accepted = Math.random() < (0.55 + diff * 0.08);
@@ -1322,7 +1578,7 @@
       if (!confirm(`¡${targetClub} ACEPTÓ tu postulación! (Tu Rep: ${rep} vs Req: ${req}).\n¿Quieres dejar ${M.userTeam} y asumir ahora con +68 de confianza y 8 semanas de gracia?`)) return;
       switchManagerToClub(targetClub, `Postulación aceptada · Rep ${rep}`);
     } else {
-      cdMap[targetClub] = nowTick + 4; // 4 semanas de enfriamiento
+      cdMap[targetClub] = nowTick + 4;
       addInbox("POSTULACIÓN", `${targetClub} rechazó tu candidatura`, `Tu reputación actual (${rep}) no convenció a la junta de ${targetClub} (exigen ~${req}). Mejora tu win rate o gana títulos y vuelve a intentarlo en 4 semanas.`);
       saveCareer();
       renderManager();
@@ -1602,7 +1858,7 @@
       <div class="box-head">
         <div>
           <h2>Modo Manager VCT 2027 · Elige tu Franquicia</h2>
-          <small class="mut">Temporadas de 33 semanas (Stage 1 + Viaje + Masters 1 + Stage 2 + Viaje + Masters 2 + Viaje + VALORANT Champions), postulación a clubes, academia, sponsors y 9 planes de entrenamiento.</small>
+          <small class="mut">Temporadas de 33 semanas (Stage 1 + Viaje + Masters 1 + Stage 2 + Viaje + Masters 2 + Viaje + VALORANT Champions), postulación a clubes, academia, sponsors y 10 planes de entrenamiento.</small>
         </div>
         <div class="btn-group">
           <button type="button" class="t-btn-sm mono t-btn-live" onclick="mgrImportSave()">Cargar Partida (.json)</button>
@@ -1868,7 +2124,8 @@
             }).join("")}
           </tbody>
         </table>
-      </div>`;
+      </div>
+      ${renderLearningTableHTML(club)}`;
   }
 
   function renderAcademyTab() {
@@ -2074,7 +2331,6 @@
       </div>`;
   }
 
-  // ===== CLUBES, ROSTERS & POSTULACIÓN A OTROS EQUIPOS =====
   function renderClubsTab() {
     const clubList = Object.keys(M.clubs)
       .filter(c => clubsFilter.reg === "ALL" || M.clubs[c].reg === clubsFilter.reg)
