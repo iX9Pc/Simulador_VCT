@@ -30,26 +30,48 @@ window.handleLogoError = function(imgEl) {
   imgEl.src = "data:image/svg+xml;utf8," + encodeURIComponent(svg);
 };
 
+window.handleRoleIconError = function(imgEl) {
+  const file = imgEl.getAttribute("data-file");
+  const step = parseInt(imgEl.getAttribute("data-step") || "0", 10);
+  const altPaths = ["./" + file, "img/" + file, "assets/" + file, "roles/" + file, "icons/" + file];
+  if (step < altPaths.length) {
+    imgEl.setAttribute("data-step", String(step + 1));
+    imgEl.src = altPaths[step];
+    return;
+  }
+  imgEl.onerror = null;
+  imgEl.style.display = "none";
+};
+
 function renderTeamLogo(teamName, cls = "") {
   const m = TEAM_META[teamName] || { logo: "vct.png", code: teamName.slice(0, 3).toUpperCase(), color: "#E5484D", logoCls: "" };
   return `<img src="${m.logo}" alt="${teamName}" class="${cls} ${m.logoCls || ""}" data-file="${m.logo}" data-code="${m.code}" data-color="${m.color}" data-step="0" onerror="handleLogoError(this)">`;
 }
 
 function getRoleIcon(roleStr) {
-  const r = roleStr.toLowerCase();
-  if (r.includes("duelista")) {
-    return `<svg class="role-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L19 21L12 17L5 21L12 2Z"/></svg>`;
+  const r = (roleStr || "").toLowerCase();
+  let file = "duelista.png", label = "Flex";
+  if (r.startsWith("iniciador") || (!r.startsWith("duelista") && !r.startsWith("controlador") && !r.startsWith("centinela") && r.includes("iniciador"))) {
+    file = "iniciador.png"; label = "Iniciador";
+  } else if (r.startsWith("controlador") || (!r.startsWith("duelista") && !r.startsWith("centinela") && r.includes("controlador"))) {
+    file = "controlador.png"; label = "Controlador";
+  } else if (r.startsWith("centinela") || (!r.startsWith("duelista") && r.includes("centinela"))) {
+    file = "centinela.png"; label = "Centinela";
+  } else if (r.includes("duelista")) {
+    file = "duelista.png"; label = "Duelista";
+  } else {
+    return `<svg class="role-ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-label="Flex"><polygon points="12 2 22 12 12 22 2 12"/></svg>`;
   }
-  if (r.includes("iniciador")) {
-    return `<svg class="role-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
-  }
-  if (r.includes("controlador")) {
-    return `<svg class="role-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>`;
-  }
-  if (r.includes("centinela")) {
-    return `<svg class="role-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
-  }
-  return `<svg class="role-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 12 12 22 2 12"/></svg>`;
+  return `<img src="${file}" alt="${label}" title="${label}" class="role-ico" data-file="${file}" data-step="0" onerror="handleRoleIconError(this)">`;
+}
+
+function syncMapSelector() {
+  const sel = $("#mapSel");
+  if (!sel) return;
+  const prev = sel.value || "AUTO";
+  sel.innerHTML = `<option value="AUTO">1v1 + Veto Oficial de Coaches (Auto)</option>` +
+    Object.keys(MAP_POOL).map(m => `<option value="${m}">Forzar Mapa 1: ${m}</option>`).join("");
+  if (prev === "AUTO" || MAP_POOL[prev]) sel.value = prev;
 }
 
 function applyDynamicTeamColors() {
@@ -123,7 +145,7 @@ function getLiveSeriesWins(series) {
 function computeStatsForMatch(M, maxRounds) {
   const S = {};
   M.teams.forEach((t, ti) => t.units.forEach((u, i) => {
-    S[ti + "-" + i] = { k: 0, d: 0, a: 0, fb: 0, fd: 0, cl: 0, kastRounds: 0, u, ti };
+    S[ti + "-" + i] = { k: 0, d: 0, a: 0, fb: 0, fd: 0, cl: 0, kastRounds: 0, u, ti, agents: [u.agent] };
   }));
 
   for (let r = 0; r < maxRounds; r++) {
@@ -168,7 +190,7 @@ function computeSeriesStats(series) {
   const firstM = series.maps[0];
   const S = {};
   firstM.teams.forEach((t, ti) => t.units.forEach((u, i) => {
-    S[ti + "-" + i] = { k: 0, d: 0, a: 0, fb: 0, fd: 0, cl: 0, kastRounds: 0, totalRounds: 0, formSum: 0, u, ti };
+    S[ti + "-" + i] = { k: 0, d: 0, a: 0, fb: 0, fd: 0, cl: 0, kastRounds: 0, totalRounds: 0, formSum: 0, u, ti, agents: [] };
   }));
 
   const playedCount = series.liveFinished ? series.maps.length : series.revealedMaps;
@@ -186,6 +208,8 @@ function computeSeriesStats(series) {
       S[id].kastRounds += mStats[id].kastRounds;
       S[id].totalRounds += rLen;
       S[id].formSum += mStats[id].u.form;
+      const ag = mStats[id].u.agent;
+      if (ag && !S[id].agents.includes(ag)) S[id].agents.push(ag);
     }
   }
 
@@ -368,6 +392,30 @@ function render() {
     </div>
   </div>`;
 
+  // BARRA DE COMPOSICIONES DE AGENTES DEL MAPA ACTUAL
+  if (!isSeriesSummary && M.comps) {
+    const renderCompSide = (teamObj, compObj, colorCls) => {
+      const chips = compObj.assignments.map(a =>
+        `<span class="agent-chip ${a.isOpBoost ? 'is-op' : ''}" title="${a.playerName} · ${a.agent} (${a.role}) · Fit Mapa ${a.mapFit}">
+          ${getRoleIcon(a.role)}<span>${a.agent}</span>
+        </span>`
+      ).join("");
+      const tags = compObj.tags.length ? `<span class="comp-tags mono">${compObj.tags.join(" · ")}</span>` : "";
+      return `<div class="comp-side">
+        <div class="comp-head">
+          <b class="${colorCls}">${teamObj.name}</b>
+          <span class="mono comp-fit">SINERGIA ${compObj.compScore}</span>
+          ${tags}
+        </div>
+        <div class="comp-chips">${chips}</div>
+      </div>`;
+    };
+    h += `<div class="comp-bar">
+      ${renderCompSide(t0, M.comps[0], "ca")}
+      ${renderCompSide(t1, M.comps[1], "cb")}
+    </div>`;
+  }
+
   let mvp = null;
   if (done) mvp = Object.values(S).filter(s => s.ti == w).sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating))[0];
 
@@ -429,6 +477,7 @@ function render() {
           <thead>
             <tr>
               <th>Jugador</th>
+              <th style="text-align:left">Agente</th>
               <th title="VLR Rating 2.0">R 2.0</th>
               <th title="Average Combat Score">ACS</th>
               <th>K</th>
@@ -453,6 +502,9 @@ function render() {
       const ratCls = ratVal >= 1.18 ? "rat-elite" : ratVal >= 1.02 ? "rat-good" : "mut";
       const acsColor = s.acs >= 245 ? "var(--gold)" : s.acs >= 195 ? "var(--ok)" : "var(--mut)";
       const isIGL = s.u.p.r.includes("IGL") || s.u.p.igl >= 85;
+      const agentDisplay = isSeriesSummary
+        ? `<span class="agent-tag mono">${(s.agents || [s.u.agent]).join(" / ")}</span>`
+        : `<span class="agent-tag mono ${s.u.isOpBoost ? 'is-op' : ''}">${getRoleIcon(s.u.agentRole || s.u.p.r)} ${s.u.agent}${s.u.isOpBoost ? ' [OP]' : ''}</span>`;
 
       h += `<tr>
         <td>
@@ -464,6 +516,7 @@ function render() {
             </span>
           </div>
         </td>
+        <td style="text-align:left">${agentDisplay}</td>
         <td class="mono ${ratCls}">${s.rating}</td>
         <td class="mono">
           <div class="acs-cell">
@@ -576,7 +629,6 @@ function pair() {
   ];
 }
 
-// AVANZA UNA RONDA EN MODO EN VIVO Y DETIENE AL COMPLETAR LA SERIE (SIN BUCLE)
 function advanceLiveRound() {
   if (!SERIES || SERIES.liveFinished) {
     stopLive();
@@ -629,7 +681,7 @@ document.querySelectorAll("#formatGroup .seg-btn").forEach(btn => {
 $("#mapSel").onchange = () => {
   const v = $("#mapSel").value;
   $("#mapModInfo").textContent = v === "AUTO"
-    ? "Protocolo VCT: 1v1 define Equipo A/B + Veto de 7 pasos"
+    ? "Protocolo VCT: 1v1 define Equipo A/B + Veto de 7 pasos (con sinergia de agentes)"
     : MAP_POOL[v].desc;
   $("#go").click();
 };
@@ -723,6 +775,7 @@ $("#swapBtn").onclick = () => {
 $("#ta").onchange = () => { applyDynamicTeamColors(); $("#go").click(); };
 $("#tb").onchange = () => { applyDynamicTeamColors(); $("#go").click(); };
 
+syncMapSelector();
 for (const t of Object.keys(TEAMS)) {
   $("#ta").add(new Option(t, t));
   $("#tb").add(new Option(t, t));
@@ -787,7 +840,7 @@ function renderDatabase() {
       <tr>
         <th>Jugador</th>
         <th>Estado</th>
-        <th>Rol Táctico</th>
+        <th>Rol &amp; Pool de Agentes</th>
         <th title="Puntería y Duelos (0-99)">AIM</th>
         <th title="Primer Duelo / Apertura (0-99)">FD</th>
         <th title="Resolución de Clutches 1vX (0-99)">CLU</th>
@@ -807,21 +860,34 @@ function renderDatabase() {
 
     const matchingPlayers = TEAMS[t]
       .map((p, idx) => ({ p, idx }))
-      .filter(({ p }) => !q || p.n.toLowerCase().includes(q) || p.r.toLowerCase().includes(q) || t.toLowerCase().includes(q));
+      .filter(({ p }) => {
+        if (!q) return true;
+        const pool = getPlayerAgents(p).join(" ").toLowerCase();
+        return p.n.toLowerCase().includes(q) || p.r.toLowerCase().includes(q) || t.toLowerCase().includes(q) || pool.includes(q);
+      });
 
     if (!matchingPlayers.length) continue;
 
     const c = COACH[t];
     const hasBench = TEAMS[t].length > 5;
+    const mp = getTeamMapProfile(t);
+    const bestStr = mp.best.map(x => `${x.mapName} (${x.score})`).join(", ");
+    const worstStr = `${mp.worst.mapName} (${mp.worst.score})`;
+
     r += `<tr class="team-group-row">
       <td colspan="12" class="r">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          ${renderTeamLogo(t, "mini-team-logo")}
-          <span class="region-tag">${meta.reg}</span>
-          <b style="color:var(--fg);font-size:14px">${t}</b>
-          <span class="mono" style="font-size:11px;color:var(--mut)">
-            DT <b style="color:var(--fg)">${c.n}</b> · MAC ${c.macro} · MIC ${c.micro} · ADP ${c.adapt} · DEV ${c.dev} · DISC ${c.disc} · <b style="color:var(--fg)">OVR ${getTeamOvr(t)}</b>
-          </span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            ${renderTeamLogo(t, "mini-team-logo")}
+            <span class="region-tag">${meta.reg}</span>
+            <b style="color:var(--fg);font-size:14px">${t}</b>
+            <span class="mono" style="font-size:11px;color:var(--mut)">
+              DT <b style="color:var(--fg)">${c.n}</b> · MAC ${c.macro} · MIC ${c.micro} · ADP ${c.adapt} · DEV ${c.dev} · DISC ${c.disc} · <b style="color:var(--fg)">OVR ${getTeamOvr(t)}</b>
+            </span>
+          </div>
+          <div class="mono" style="font-size:10.5px;color:var(--mut)">
+            <span style="color:var(--ok)">FUERTES: ${bestStr}</span> · <span style="color:var(--vct-red)">DÉBIL: ${worstStr}</span>
+          </div>
         </div>
       </td>
     </tr>`;
@@ -832,11 +898,12 @@ function renderDatabase() {
             ${p.sub ? '6TH SUB ⇄' : 'TITULAR ⇄'}
           </button>`
         : `<span class="sub-swap-btn is-starter" style="cursor:default">TITULAR</span>`;
+      const topAgents = getPlayerAgents(p).slice(0, 3).join(", ");
 
       r += `<tr>
         <td><b>${p.n}</b></td>
         <td style="text-align:left">${statusBtn}</td>
-        <td class="r">${getRoleIcon(p.r)} ${p.r}</td>
+        <td class="r">${getRoleIcon(p.r)} ${p.r} <span class="mono mut" style="font-size:10.5px;margin-left:6px">[${topAgents}]</span></td>
         ${formatStatCell(t, idx, "aim", p.aim)}
         ${formatStatCell(t, idx, "fd", p.fd)}
         ${formatStatCell(t, idx, "clutch", p.clutch)}
