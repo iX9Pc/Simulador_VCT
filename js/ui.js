@@ -50,7 +50,7 @@ function renderTeamLogo(teamName, cls = "") {
 
 function getRoleIcon(roleStr) {
   const r = (roleStr || "").toLowerCase();
-  let file = "duelista.png", label = "Flex";
+  let file = null, label = "Flex";
   if (r.startsWith("iniciador") || (!r.startsWith("duelista") && !r.startsWith("controlador") && !r.startsWith("centinela") && r.includes("iniciador"))) {
     file = "iniciador.png"; label = "Iniciador";
   } else if (r.startsWith("controlador") || (!r.startsWith("duelista") && !r.startsWith("centinela") && r.includes("controlador"))) {
@@ -59,10 +59,11 @@ function getRoleIcon(roleStr) {
     file = "centinela.png"; label = "Centinela";
   } else if (r.includes("duelista")) {
     file = "duelista.png"; label = "Duelista";
-  } else {
-    return `<svg class="role-ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-label="Flex"><polygon points="12 2 22 12 12 22 2 12"/></svg>`;
   }
-  return `<img src="${file}" alt="${label}" title="${label}" class="role-ico" data-file="${file}" data-step="0" onerror="handleRoleIconError(this)">`;
+  if (!file) {
+    return `<svg class="role-ico-svg" width="13" height="13" style="width:13px;height:13px;flex-shrink:0;display:inline-block;vertical-align:-2px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-label="Flex"><polygon points="12 2 22 12 12 22 2 12"/></svg>`;
+  }
+  return `<img src="${file}" alt="${label}" title="${label}" width="13" height="13" class="role-ico" data-file="${file}" data-step="0" onerror="handleRoleIconError(this)">`;
 }
 
 function syncMapSelector() {
@@ -265,6 +266,23 @@ window.jumpToRound = function(rn) {
   }
 };
 
+function renderAxisBadges(compObj) {
+  if (!compObj || !compObj.bonuses) return "";
+  const mapLabels = [
+    ["MAC", compObj.bonuses.macro],
+    ["UTI", compObj.bonuses.util],
+    ["ENT", compObj.bonuses.entrada],
+    ["DEF", compObj.bonuses.defensa],
+    ["FLX", compObj.bonuses.flex]
+  ];
+  return `<div class="comp-axes mono">` + mapLabels.map(([lab, val]) => {
+    const pct = (val * 100).toFixed(1);
+    const cls = val > 0.004 ? "kd-pos" : val < -0.004 ? "kd-neg" : "mut";
+    const sign = val > 0 ? "+" : "";
+    return `<span class="axis-pill ${cls}">${lab} ${sign}${pct}%</span>`;
+  }).join("") + `</div>`;
+}
+
 function render() {
   if (!SERIES || !SERIES.maps.length) {
     $("#out").innerHTML = "";
@@ -392,22 +410,24 @@ function render() {
     </div>
   </div>`;
 
-  // BARRA DE COMPOSICIONES DE AGENTES DEL MAPA ACTUAL
+  // BARRA DE COMPOSICIONES Y 5 EJES TÁCTICOS DEL MAPA ACTUAL
   if (!isSeriesSummary && M.comps) {
     const renderCompSide = (teamObj, compObj, colorCls) => {
-      const chips = compObj.assignments.map(a =>
-        `<span class="agent-chip ${a.isOpBoost ? 'is-op' : ''}" title="${a.playerName} · ${a.agent} (${a.role}) · Fit Mapa ${a.mapFit}">
+      const chips = compObj.assignments.map(a => {
+        const hiCls = a.isOpBoost ? "is-op" : (a.hushMastery >= 0.9 ? "is-hush" : "");
+        return `<span class="agent-chip ${hiCls}" title="${a.playerName} · ${a.agent} (${a.role}) · Fit Mapa ${a.mapFit}">
           ${getRoleIcon(a.role)}<span>${a.agent}</span>
-        </span>`
-      ).join("");
+        </span>`;
+      }).join("");
       const tags = compObj.tags.length ? `<span class="comp-tags mono">${compObj.tags.join(" · ")}</span>` : "";
       return `<div class="comp-side">
         <div class="comp-head">
           <b class="${colorCls}">${teamObj.name}</b>
-          <span class="mono comp-fit">SINERGIA ${compObj.compScore}</span>
+          <span class="mono comp-fit">COMP ${compObj.compScore}</span>
           ${tags}
         </div>
         <div class="comp-chips">${chips}</div>
+        ${renderAxisBadges(compObj)}
       </div>`;
     };
     h += `<div class="comp-bar">
@@ -502,9 +522,11 @@ function render() {
       const ratCls = ratVal >= 1.18 ? "rat-elite" : ratVal >= 1.02 ? "rat-good" : "mut";
       const acsColor = s.acs >= 245 ? "var(--gold)" : s.acs >= 195 ? "var(--ok)" : "var(--mut)";
       const isIGL = s.u.p.r.includes("IGL") || s.u.p.igl >= 85;
+      const tagCls = s.u.isOpBoost ? "is-op" : (s.u.hushMastery >= 0.9 ? "is-hush" : "");
+      const suffix = s.u.isOpBoost ? " [OP]" : (s.u.hushMastery >= 0.9 ? " [M]" : "");
       const agentDisplay = isSeriesSummary
         ? `<span class="agent-tag mono">${(s.agents || [s.u.agent]).join(" / ")}</span>`
-        : `<span class="agent-tag mono ${s.u.isOpBoost ? 'is-op' : ''}">${getRoleIcon(s.u.agentRole || s.u.p.r)} ${s.u.agent}${s.u.isOpBoost ? ' [OP]' : ''}</span>`;
+        : `<span class="agent-tag mono ${tagCls}">${getRoleIcon(s.u.agentRole || s.u.p.r)} ${s.u.agent}${suffix}</span>`;
 
       h += `<tr>
         <td>
@@ -681,7 +703,7 @@ document.querySelectorAll("#formatGroup .seg-btn").forEach(btn => {
 $("#mapSel").onchange = () => {
   const v = $("#mapSel").value;
   $("#mapModInfo").textContent = v === "AUTO"
-    ? "Protocolo VCT: 1v1 define Equipo A/B + Veto de 7 pasos (con sinergia de agentes)"
+    ? "Protocolo VCT: 1v1 define Equipo A/B + Veto de 7 pasos (con sinergia de 30 agentes)"
     : MAP_POOL[v].desc;
   $("#go").click();
 };
@@ -899,9 +921,10 @@ function renderDatabase() {
           </button>`
         : `<span class="sub-swap-btn is-starter" style="cursor:default">TITULAR</span>`;
       const topAgents = getPlayerAgents(p).slice(0, 3).join(", ");
+      const hushTag = HUSH_MASTERY[p.n] >= 0.9 ? `<span class="igl-tag" style="color:var(--purple);border-color:var(--purple)">HUSH</span>` : "";
 
       r += `<tr>
-        <td><b>${p.n}</b></td>
+        <td><b>${p.n}</b>${hushTag}</td>
         <td style="text-align:left">${statusBtn}</td>
         <td class="r">${getRoleIcon(p.r)} ${p.r} <span class="mono mut" style="font-size:10.5px;margin-left:6px">[${topAgents}]</span></td>
         ${formatStatCell(t, idx, "aim", p.aim)}

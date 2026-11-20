@@ -8,7 +8,7 @@ for (const k in DATA.teams.teams) {
 }
 const COACH = DATA.coaches;
 const DATA_UPDATED = DATA.teams.updated;
-const STORAGE_KEY = "vct_sim_2027_rosters_v7";
+const STORAGE_KEY = "vct_sim_2027_rosters_v8";
 let TEAMS = JSON.parse(JSON.stringify(DEFAULT_TEAMS));
 try {
   const saved = typeof localStorage !== "undefined" && localStorage.getItem(STORAGE_KEY);
@@ -22,203 +22,286 @@ function saveTeams() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(TEAMS)); } catch (e) {}
 }
 
-// ===== POOL DE 7 MAPAS COMPETITIVOS (INCLUYE BREEZE DE LARGA DISTANCIA) =====
-const MAP_POOL = {
-  "Ascent": { desc: "Ascent · Control de medio y Operator (+AIM/FD, Defensor)", aim: 1.05, fd: 1.07, util: 0.99, entry: 1.00, clu: 1.00, igl: 1.03, atkBias: 0.97, defBias: 1.03, longRange: true,  preferWall: false },
-  "Bind":   { desc: "Bind · Teleporters y utilidad pesada (+ENT/UTI, Raze/Viper/Brim)", aim: 0.99, fd: 1.02, util: 1.10, entry: 1.09, clu: 1.01, igl: 1.02, atkBias: 1.01, defBias: 0.99, longRange: false, preferWall: true  },
-  "Breeze": { desc: "Breeze · Duelos de larga distancia y Operator (+AIM/FD, Chamber/Jett/Viper)", aim: 1.09, fd: 1.10, util: 0.96, entry: 1.00, clu: 1.01, igl: 1.00, atkBias: 1.02, defBias: 0.98, longRange: true,  preferWall: true  },
-  "Haven":  { desc: "Haven · 3 sitios, rotaciones rápidas y OP (+IGL/CLU/FD)", aim: 1.02, fd: 1.03, util: 1.04, entry: 1.01, clu: 1.08, igl: 1.09, atkBias: 1.03, defBias: 0.97, longRange: true,  preferWall: false },
-  "Lotus":  { desc: "Lotus · 3 sitios, ejecuciones y utilidad pesada (+UTI/IGL/ENT)", aim: 0.98, fd: 0.99, util: 1.12, entry: 1.05, clu: 1.02, igl: 1.11, atkBias: 1.04, defBias: 0.96, longRange: false, preferWall: true  },
-  "Split":  { desc: "Split · Combate cerrado y choke points (+ENT/UTI, Defensor)", aim: 1.03, fd: 1.03, util: 1.06, entry: 1.07, clu: 1.03, igl: 1.01, atkBias: 0.96, defBias: 1.04, longRange: false, preferWall: false },
-  "Sunset": { desc: "Sunset · Pelea constante de medio y retakes (+ENT/CLU/Cypher)", aim: 1.02, fd: 1.03, util: 1.04, entry: 1.07, clu: 1.07, igl: 1.01, atkBias: 1.02, defBias: 0.98, longRange: false, preferWall: false }
+// ===== CONFIGURACIÓN DEL SISTEMA DE BONUS POR COMPOSICIÓN =====
+const COMP_CONFIG = {
+  rol_puntos: {
+    "Duelista":    { macro: 0, util: 0, entrada: 3,  defensa: -1, flex: 0 },
+    "Iniciador":   { macro: 1, util: 3, entrada: 1,  defensa: 0,  flex: 1 },
+    "Controlador": { macro: 3, util: 2, entrada: 0,  defensa: 1,  flex: 0 },
+    "Centinela":   { macro: 0, util: 1, entrada: -1, defensa: 3,  flex: 0 },
+    "Flex":        { macro: 1, util: 1, entrada: 1,  defensa: 1,  flex: 2 }
+  },
+  ideal: { macro: 5, util: 7, entrada: 4, defensa: 4, flex: 3 },
+  decrecimiento: [1.0, 0.6, 0.25],
+  rol_secundario: 0.5,
+  factor_eje: 0.013,
+  tope_eje: 0.08,
+  bonus_equilibrio: 0.02,
+  mapa_mult: 0.10
 };
 
-// ===== CATÁLOGO DE AGENTES Y META POR MAPA (0-99) =====
+// ===== POOL DE 7 MAPAS COMPETITIVOS + PESOS POR EJE (±10%) =====
+const MAP_POOL = {
+  "Ascent": {
+    desc: "Ascent · Control de medio y Operator (+AIM/FD, Defensor)",
+    aim: 1.05, fd: 1.07, util: 0.99, entry: 1.00, clu: 1.00, igl: 1.03,
+    atkBias: 0.97, defBias: 1.03, longRange: true, preferWall: false,
+    axisMult: { macro: 1.08, util: 1.00, entrada: 0.96, defensa: 1.08, flex: 1.00 }
+  },
+  "Bind": {
+    desc: "Bind · Teleporters y utilidad pesada (+Macro/Entrada, Raze/Viper/Brim)",
+    aim: 0.99, fd: 1.02, util: 1.10, entry: 1.09, clu: 1.01, igl: 1.02,
+    atkBias: 1.01, defBias: 0.99, longRange: false, preferWall: true,
+    axisMult: { macro: 1.10, util: 1.05, entrada: 1.10, defensa: 0.94, flex: 0.98 }
+  },
+  "Breeze": {
+    desc: "Breeze · Larga distancia y Operator (+AIM/FD, Chamber/Jett/Viper)",
+    aim: 1.09, fd: 1.10, util: 0.96, entry: 1.00, clu: 1.01, igl: 1.00,
+    atkBias: 1.02, defBias: 0.98, longRange: true, preferWall: true,
+    axisMult: { macro: 1.08, util: 0.92, entrada: 1.06, defensa: 0.95, flex: 1.04 }
+  },
+  "Haven": {
+    desc: "Haven · 3 sitios, rotaciones rápidas y OP (+Macro/Defensa/Flex)",
+    aim: 1.02, fd: 1.03, util: 1.04, entry: 1.01, clu: 1.08, igl: 1.09,
+    atkBias: 1.03, defBias: 0.97, longRange: true, preferWall: false,
+    axisMult: { macro: 1.08, util: 1.04, entrada: 1.00, defensa: 1.04, flex: 1.08 }
+  },
+  "Lotus": {
+    desc: "Lotus · 3 sitios, ejecuciones y utilidad pesada (+Utilidad/Macro/Entrada)",
+    aim: 0.98, fd: 0.99, util: 1.12, entry: 1.05, clu: 1.02, igl: 1.11,
+    atkBias: 1.04, defBias: 0.96, longRange: false, preferWall: true,
+    axisMult: { macro: 1.08, util: 1.10, entrada: 1.06, defensa: 0.94, flex: 1.02 }
+  },
+  "Split": {
+    desc: "Split · Combate cerrado y choke points (+Macro/Entrada/Defensa)",
+    aim: 1.03, fd: 1.03, util: 1.06, entry: 1.07, clu: 1.03, igl: 1.01,
+    atkBias: 0.96, defBias: 1.04, longRange: false, preferWall: false,
+    axisMult: { macro: 1.08, util: 1.02, entrada: 1.10, defensa: 1.06, flex: 0.96 }
+  },
+  "Sunset": {
+    desc: "Sunset · Pelea constante de medio y retakes (+Defensa/Utilidad)",
+    aim: 1.02, fd: 1.03, util: 1.04, entry: 1.07, clu: 1.07, igl: 1.01,
+    atkBias: 1.02, defBias: 0.98, longRange: false, preferWall: false,
+    axisMult: { macro: 0.98, util: 1.10, entrada: 1.02, defensa: 1.10, flex: 1.02 }
+  }
+};
+
+// ===== TODOS LOS 30 AGENTES JUGABLES DE VALORANT (INCLUYE HUSH, MIKS Y VETO) =====
 const AGENTS = {
-  // Duelistas
+  // Duelistas (9)
+  "Phoenix":   { role: "Duelista",    op: false, ecoBoost: 1.02, maps: { Ascent: 82, Bind: 84, Breeze: 72, Haven: 85, Lotus: 80, Split: 84, Sunset: 86 } },
   "Jett":      { role: "Duelista",    op: true,  ecoBoost: 1.00, maps: { Ascent: 96, Bind: 76, Breeze: 97, Haven: 93, Lotus: 82, Split: 85, Sunset: 82 } },
+  "Reyna":     { role: "Duelista",    op: false, ecoBoost: 1.03, maps: { Ascent: 78, Bind: 76, Breeze: 82, Haven: 80, Lotus: 78, Split: 80, Sunset: 81 } },
   "Raze":      { role: "Duelista",    op: false, ecoBoost: 1.00, maps: { Ascent: 79, Bind: 98, Breeze: 71, Haven: 80, Lotus: 96, Split: 98, Sunset: 92 } },
-  "Neon":      { role: "Duelista",    op: false, ecoBoost: 1.02, maps: { Ascent: 83, Bind: 84, Breeze: 86, Haven: 96, Lotus: 94, Split: 89, Sunset: 96 } },
   "Yoru":      { role: "Duelista",    op: true,  ecoBoost: 1.02, maps: { Ascent: 86, Bind: 94, Breeze: 95, Haven: 91, Lotus: 87, Split: 90, Sunset: 85 } },
-  "Waylay":    { role: "Duelista",    op: true,  ecoBoost: 1.00, maps: { Ascent: 90, Bind: 84, Breeze: 89, Haven: 90, Lotus: 88, Split: 88, Sunset: 89 } },
+  "Neon":      { role: "Duelista",    op: false, ecoBoost: 1.02, maps: { Ascent: 83, Bind: 84, Breeze: 86, Haven: 96, Lotus: 94, Split: 89, Sunset: 96 } },
   "Iso":       { role: "Duelista",    op: false, ecoBoost: 1.04, maps: { Ascent: 85, Bind: 80, Breeze: 85, Haven: 92, Lotus: 86, Split: 82, Sunset: 84 } },
-  // Iniciadores
+  "Waylay":    { role: "Duelista",    op: true,  ecoBoost: 1.00, maps: { Ascent: 90, Bind: 84, Breeze: 89, Haven: 90, Lotus: 88, Split: 88, Sunset: 89 } },
+  "Hush":      { role: "Duelista",    op: false, ecoBoost: 1.03, hush: true, maps: { Ascent: 90, Bind: 92, Breeze: 84, Haven: 93, Lotus: 95, Split: 96, Sunset: 95 } },
+
+  // Iniciadores (7)
   "Sova":      { role: "Iniciador",   op: false, ecoBoost: 1.00, maps: { Ascent: 98, Bind: 78, Breeze: 98, Haven: 96, Lotus: 83, Split: 74, Sunset: 89 } },
-  "Fade":      { role: "Iniciador",   op: false, ecoBoost: 1.00, maps: { Ascent: 84, Bind: 93, Breeze: 76, Haven: 83, Lotus: 96, Split: 91, Sunset: 89 } },
-  "Tejo":      { role: "Iniciador",   op: false, ecoBoost: 1.02, maps: { Ascent: 86, Bind: 94, Breeze: 83, Haven: 92, Lotus: 94, Split: 91, Sunset: 90 } },
   "Breach":    { role: "Iniciador",   op: false, ecoBoost: 1.00, maps: { Ascent: 80, Bind: 83, Breeze: 70, Haven: 94, Lotus: 90, Split: 93, Sunset: 93 } },
-  "KAY/O":     { role: "Iniciador",   op: false, ecoBoost: 1.00, maps: { Ascent: 95, Bind: 78, Breeze: 89, Haven: 87, Lotus: 81, Split: 85, Sunset: 85 } },
   "Skye":      { role: "Iniciador",   op: false, ecoBoost: 1.00, maps: { Ascent: 80, Bind: 95, Breeze: 87, Haven: 85, Lotus: 83, Split: 93, Sunset: 82 } },
+  "KAY/O":     { role: "Iniciador",   op: false, ecoBoost: 1.00, maps: { Ascent: 95, Bind: 78, Breeze: 89, Haven: 87, Lotus: 81, Split: 85, Sunset: 85 } },
+  "Fade":      { role: "Iniciador",   op: false, ecoBoost: 1.00, maps: { Ascent: 84, Bind: 93, Breeze: 76, Haven: 83, Lotus: 96, Split: 91, Sunset: 89 } },
   "Gekko":     { role: "Iniciador",   op: false, ecoBoost: 1.01, maps: { Ascent: 83, Bind: 92, Breeze: 79, Haven: 83, Lotus: 88, Split: 86, Sunset: 93 } },
-  // Controladores
-  "Omen":      { role: "Controlador", op: false, ecoBoost: 1.01, maps: { Ascent: 98, Bind: 82, Breeze: 80, Haven: 97, Lotus: 97, Split: 96, Sunset: 95 } },
-  "Viper":     { role: "Controlador", op: false, ecoBoost: 1.00, maps: { Ascent: 79, Bind: 97, Breeze: 99, Haven: 83, Lotus: 95, Split: 90, Sunset: 85 }, wall: true },
+  "Tejo":      { role: "Iniciador",   op: false, ecoBoost: 1.02, maps: { Ascent: 86, Bind: 94, Breeze: 83, Haven: 92, Lotus: 94, Split: 91, Sunset: 90 } },
+
+  // Controladores (7)
   "Brimstone": { role: "Controlador", op: false, ecoBoost: 1.00, maps: { Ascent: 78, Bind: 97, Breeze: 70, Haven: 78, Lotus: 76, Split: 82, Sunset: 78 } },
+  "Omen":      { role: "Controlador", op: false, ecoBoost: 1.01, maps: { Ascent: 98, Bind: 82, Breeze: 80, Haven: 97, Lotus: 97, Split: 96, Sunset: 95 } },
+  "Viper":     { role: "Controlador", op: false, ecoBoost: 1.00, wall: true, maps: { Ascent: 79, Bind: 97, Breeze: 99, Haven: 83, Lotus: 95, Split: 90, Sunset: 85 } },
   "Astra":     { role: "Controlador", op: false, ecoBoost: 1.00, maps: { Ascent: 85, Bind: 86, Breeze: 79, Haven: 89, Lotus: 88, Split: 94, Sunset: 85 } },
+  "Harbor":    { role: "Controlador", op: false, ecoBoost: 1.00, wall: true, maps: { Ascent: 78, Bind: 84, Breeze: 90, Haven: 80, Lotus: 83, Split: 81, Sunset: 82 } },
   "Clove":     { role: "Controlador", op: false, ecoBoost: 1.03, maps: { Ascent: 84, Bind: 82, Breeze: 78, Haven: 85, Lotus: 86, Split: 87, Sunset: 89 } },
-  "Harbor":    { role: "Controlador", op: false, ecoBoost: 1.00, maps: { Ascent: 78, Bind: 84, Breeze: 90, Haven: 80, Lotus: 83, Split: 81, Sunset: 82 }, wall: true },
-  // Centinelas
-  "Chamber":   { role: "Centinela",   op: true,  ecoBoost: 1.13, maps: { Ascent: 82, Bind: 85, Breeze: 98, Haven: 88, Lotus: 90, Split: 79, Sunset: 86 } },
+  "Miks":      { role: "Controlador", op: false, ecoBoost: 1.02, maps: { Ascent: 86, Bind: 92, Breeze: 77, Haven: 88, Lotus: 91, Split: 93, Sunset: 92 } },
+
+  // Centinelas (7)
+  "Sage":      { role: "Centinela",   op: false, ecoBoost: 1.00, maps: { Ascent: 80, Bind: 83, Breeze: 74, Haven: 82, Lotus: 79, Split: 89, Sunset: 84 } },
   "Cypher":    { role: "Centinela",   op: false, ecoBoost: 1.00, maps: { Ascent: 89, Bind: 90, Breeze: 95, Haven: 94, Lotus: 88, Split: 96, Sunset: 98 } },
   "Killjoy":   { role: "Centinela",   op: false, ecoBoost: 1.00, maps: { Ascent: 97, Bind: 83, Breeze: 79, Haven: 92, Lotus: 95, Split: 84, Sunset: 81 } },
+  "Chamber":   { role: "Centinela",   op: true,  ecoBoost: 1.13, maps: { Ascent: 82, Bind: 85, Breeze: 98, Haven: 88, Lotus: 90, Split: 79, Sunset: 86 } },
+  "Deadlock":  { role: "Centinela",   op: false, ecoBoost: 1.00, maps: { Ascent: 87, Bind: 91, Breeze: 76, Haven: 83, Lotus: 85, Split: 90, Sunset: 85 } },
   "Vyse":      { role: "Centinela",   op: false, ecoBoost: 1.00, maps: { Ascent: 90, Bind: 92, Breeze: 80, Haven: 91, Lotus: 90, Split: 94, Sunset: 89 } },
-  "Deadlock":  { role: "Centinela",   op: false, ecoBoost: 1.00, maps: { Ascent: 87, Bind: 91, Breeze: 76, Haven: 83, Lotus: 85, Split: 90, Sunset: 85 } }
+  "Veto":      { role: "Centinela",   op: false, ecoBoost: 1.02, maps: { Ascent: 90, Bind: 93, Breeze: 84, Haven: 91, Lotus: 94, Split: 93, Sunset: 91 } }
+};
+
+// ===== MAESTRÍA DE HUSH (RESTRINGIDO A QUIENES YA LO MASTERIZARON) =====
+// 1.0 = Maestría completa | 0.55 = Maestría parcial (en menor medida)
+const HUSH_MASTERY = {
+  "spike": 1.0,
+  "spikezin": 1.0,
+  "OXY": 1.0,
+  "zekken": 1.0,
+  "Timotino": 1.0,
+  "tkzin": 1.0,
+  "primmie": 1.0,
+  "BuZz": 1.0,
+  "aspas": 0.55
 };
 
 // ===== POOLS DE AGENTES CARACTERÍSTICOS POR JUGADOR (VCT 2026-2027) =====
 const PLAYER_AGENTS = {
   // Sentinels
-  "OXY": ["Jett", "Neon", "Raze", "Chamber", "Yoru"],
-  "canezerra": ["Yoru", "Raze", "KAY/O", "Gekko", "Neon"],
+  "OXY": ["Hush", "Jett", "Neon", "Raze", "Chamber", "Yoru"],
+  "canezerra": ["Yoru", "Raze", "KAY/O", "Gekko", "Neon", "Phoenix"],
   "brawk": ["Sova", "Fade", "Tejo", "Breach", "Skye"],
-  "keiko": ["Omen", "Viper", "Brimstone", "Clove", "Astra"],
-  "johnqt": ["Cypher", "Vyse", "Killjoy", "Viper", "Fade"],
-  "Zellsis": ["KAY/O", "Breach", "Killjoy", "Viper", "Deadlock"],
+  "keiko": ["Omen", "Viper", "Miks", "Brimstone", "Clove", "Astra"],
+  "johnqt": ["Cypher", "Veto", "Vyse", "Killjoy", "Viper", "Fade"],
+  "Zellsis": ["KAY/O", "Breach", "Killjoy", "Viper", "Deadlock", "Sage"],
   // NRG
-  "zekken": ["Raze", "Neon", "Jett", "Yoru", "Waylay"],
+  "zekken": ["Hush", "Raze", "Neon", "Jett", "Yoru", "Waylay"],
   "mada": ["Jett", "Chamber", "Omen", "Yoru", "Raze"],
-  "skuba": ["Viper", "Cypher", "Omen", "Brimstone", "Killjoy"],
+  "skuba": ["Viper", "Cypher", "Omen", "Brimstone", "Killjoy", "Veto"],
   "eeiu": ["Sova", "Fade", "Tejo", "Skye", "Gekko"],
   "Ethan": ["KAY/O", "Breach", "Omen", "Yoru", "Skye"],
   // G2 Esports
   "HYUNMIN": ["Jett", "Neon", "Raze", "Waylay", "Yoru"],
   "Sato": ["Raze", "Yoru", "KAY/O", "Gekko", "Breach"],
   "trent": ["Sova", "Tejo", "Fade", "Viper", "Breach"],
-  "kiNgg": ["Omen", "Viper", "Astra", "Brimstone", "Harbor"],
-  "leaf": ["Chamber", "Viper", "Cypher", "Killjoy", "Vyse"],
+  "kiNgg": ["Omen", "Viper", "Miks", "Astra", "Brimstone", "Harbor"],
+  "leaf": ["Chamber", "Viper", "Veto", "Cypher", "Killjoy", "Vyse"],
   // 100 Thieves
   "Cryocells": ["Chamber", "Jett", "Brimstone", "Yoru", "Astra"],
-  "Asuna": ["Raze", "Neon", "KAY/O", "Gekko", "Skye"],
-  "Timotino": ["Yoru", "Neon", "Raze", "Waylay", "Iso"],
-  "bang": ["Omen", "Viper", "Astra", "Brimstone", "Clove"],
+  "Asuna": ["Raze", "Neon", "KAY/O", "Gekko", "Skye", "Phoenix"],
+  "Timotino": ["Hush", "Yoru", "Neon", "Raze", "Waylay", "Iso"],
+  "bang": ["Omen", "Viper", "Miks", "Astra", "Brimstone", "Clove"],
   "vora": ["Sova", "Fade", "Tejo", "Breach", "KAY/O"],
   // Leviatán
   "Neon": ["Neon", "Jett", "Raze", "Yoru"],
-  "spike": ["Raze", "Yoru", "KAY/O", "Gekko"],
+  "spike": ["Hush", "Raze", "Yoru", "KAY/O", "Gekko"],
   "blowz": ["Sova", "Fade", "Tejo", "Breach"],
-  "erde": ["Omen", "Viper", "Brimstone", "Astra"],
-  "lukxo": ["Cypher", "Killjoy", "Chamber", "Vyse"],
+  "erde": ["Omen", "Viper", "Miks", "Brimstone", "Astra"],
+  "lukxo": ["Cypher", "Veto", "Killjoy", "Chamber", "Vyse"],
   // LOUD
   "DaviH": ["Jett", "Raze", "Neon", "Chamber"],
-  "tkzin": ["Raze", "Yoru", "Gekko", "KAY/O"],
+  "tkzin": ["Hush", "Raze", "Yoru", "Gekko", "KAY/O"],
   "artzin": ["Fade", "Sova", "Breach", "Tejo"],
-  "basic": ["Omen", "Viper", "Brimstone", "Astra"],
-  "cortezia": ["Cypher", "Killjoy", "Viper", "Vyse"],
+  "basic": ["Omen", "Viper", "Miks", "Brimstone", "Astra"],
+  "cortezia": ["Cypher", "Veto", "Killjoy", "Viper", "Vyse"],
   // Fnatic
   "kaajak": ["Jett", "Neon", "Raze", "Chamber", "Waylay"],
   "marteen": ["Yoru", "Raze", "Jett", "Iso", "Neon"],
   "Cloud": ["Sova", "Fade", "Tejo", "Skye", "Breach"],
-  "valyn": ["Omen", "Astra", "Brimstone", "Viper", "Clove"],
-  "Minny": ["Cypher", "Killjoy", "Vyse", "Viper"],
+  "valyn": ["Omen", "Astra", "Miks", "Brimstone", "Viper", "Clove"],
+  "Minny": ["Cypher", "Killjoy", "Veto", "Vyse", "Viper"],
   // FUT Esports
-  "aspas": ["Jett", "Raze", "Neon", "Waylay", "Chamber"],
-  "Wo0t": ["Yoru", "Raze", "KAY/O", "Iso", "Breach"],
+  "aspas": ["Jett", "Raze", "Neon", "Waylay", "Hush", "Chamber"],
+  "Wo0t": ["Yoru", "Raze", "KAY/O", "Iso", "Breach", "Phoenix"],
   "batujnax": ["Sova", "Fade", "Tejo", "Skye"],
-  "hezacoil": ["Omen", "Viper", "Brimstone", "Astra"],
-  "yetujey": ["Cypher", "Killjoy", "Vyse", "Chamber"],
+  "hezacoil": ["Omen", "Viper", "Miks", "Brimstone", "Astra"],
+  "yetujey": ["Cypher", "Veto", "Killjoy", "Vyse", "Chamber"],
   // Gentle Mates
   "kozzy": ["Neon", "Raze", "Jett", "Yoru"],
-  "Alfajer": ["Killjoy", "Cypher", "Chamber", "Iso", "Vyse"],
-  "Boaster": ["Omen", "Astra", "Brimstone", "Viper"],
-  "Ruxic": ["Viper", "Omen", "Clove", "KAY/O", "Fade"],
+  "Alfajer": ["Killjoy", "Cypher", "Chamber", "Veto", "Iso", "Vyse"],
+  "Boaster": ["Omen", "Astra", "Brimstone", "Viper", "Miks"],
+  "Ruxic": ["Viper", "Omen", "Miks", "Clove", "KAY/O", "Fade"],
   "MAGNUM": ["Sova", "Fade", "Tejo", "Cypher", "Breach"],
   // Karmine Corp
   "LewN": ["Jett", "Neon", "Raze", "Chamber"],
   "N4RRATE": ["Fade", "Sova", "Gekko", "Raze", "Tejo"],
-  "avez": ["Omen", "Viper", "Brimstone", "Astra"],
+  "avez": ["Omen", "Viper", "Miks", "Brimstone", "Astra"],
   "dos9": ["Viper", "Omen", "Clove", "Harbor"],
-  "SUYGETSU": ["Cypher", "Viper", "Killjoy", "Vyse"],
-  "sheydos": ["Fade", "Sova", "Cypher", "Viper"],
+  "SUYGETSU": ["Cypher", "Viper", "Veto", "Killjoy", "Vyse"],
+  "sheydos": ["Fade", "Sova", "Cypher", "Viper", "Sage"],
   // Team Vitality
   "jawgemo": ["Raze", "Yoru", "Neon", "Jett", "Omen"],
   "Jamppi": ["Sova", "Breach", "KAY/O", "Chamber", "Tejo"],
   "Sayonara": ["Yoru", "Neon", "Iso", "Fade", "Gekko"],
-  "PROFEK": ["Omen", "Viper", "Brimstone", "Astra"],
-  "Chronicle": ["Viper", "Cypher", "Breach", "Tejo", "Killjoy"],
+  "PROFEK": ["Omen", "Viper", "Miks", "Brimstone", "Astra"],
+  "Chronicle": ["Viper", "Cypher", "Veto", "Breach", "Tejo", "Killjoy", "Sage"],
   // Team Heretics
   "Jamelinho213": ["Jett", "Neon", "Raze", "Yoru"],
-  "hiro": ["Cypher", "Viper", "Fade", "Killjoy"],
+  "hiro": ["Cypher", "Viper", "Fade", "Killjoy", "Veto"],
   "RieNs": ["Sova", "Fade", "Tejo", "Skye"],
-  "chloric": ["Omen", "Viper", "Brimstone", "Astra"],
-  "benjyfishy": ["Cypher", "Killjoy", "Vyse", "Chamber"],
+  "chloric": ["Omen", "Viper", "Miks", "Brimstone", "Astra"],
+  "benjyfishy": ["Cypher", "Killjoy", "Veto", "Vyse", "Chamber"],
   // T1
-  "BuZz": ["Jett", "Raze", "Neon", "Chamber"],
+  "BuZz": ["Hush", "Jett", "Raze", "Neon", "Chamber"],
   "iZu": ["Yoru", "Iso", "Chamber", "Raze", "Cypher"],
-  "TenZ": ["Omen", "Gekko", "KAY/O", "Jett", "Clove"],
+  "TenZ": ["Omen", "Gekko", "KAY/O", "Jett", "Clove", "Miks"],
   "crashies": ["Sova", "Fade", "Tejo", "Skye"],
   "stax": ["Breach", "Omen", "Viper", "Brimstone", "KAY/O"],
   // Paper Rex
   "something": ["Jett", "Yoru", "Chamber", "Gekko", "Reyna"],
-  "primmie": ["Iso", "Chamber", "Jett", "Clove", "Neon"],
-  "f0rsakeN": ["Omen", "Yoru", "Harbor", "Breach", "Cypher"],
+  "primmie": ["Hush", "Iso", "Chamber", "Jett", "Clove", "Neon"],
+  "f0rsakeN": ["Omen", "Miks", "Yoru", "Harbor", "Breach", "Cypher"],
   "invy": ["Sova", "Fade", "KAY/O", "Breach", "Tejo"],
-  "PatMen": ["Viper", "Fade", "Cypher", "Brimstone", "Omen"],
+  "PatMen": ["Viper", "Fade", "Cypher", "Brimstone", "Omen", "Sage"],
   // Gen.G
   "t3xture": ["Jett", "Raze", "Neon", "Chamber"],
-  "Dambi": ["Neon", "Raze", "Yoru", "Breach"],
+  "Dambi": ["Neon", "Raze", "Yoru", "Breach", "Phoenix"],
   "Ray": ["Sova", "Fade", "Tejo", "Skye"],
-  "Karon": ["Omen", "Viper", "Brimstone", "Astra"],
+  "Karon": ["Omen", "Viper", "Miks", "Brimstone", "Astra"],
   "MaKo": ["Viper", "Omen", "Astra", "Brimstone"],
   "Xiesta": ["Yoru", "Raze", "KAY/O", "Fade"],
   // Xi Lai Gaming
   "ZmjjKK": ["Jett", "Neon", "Raze", "Chamber", "Waylay"],
   "Zeus": ["Raze", "Yoru", "Neon", "KAY/O"],
-  "d4v41": ["Skye", "Fade", "Viper", "Vyse", "Sova"],
-  "happywei": ["Omen", "Viper", "Brimstone", "Astra"],
-  "WsLeo": ["Cypher", "Killjoy", "Chamber", "Vyse"],
+  "d4v41": ["Skye", "Fade", "Viper", "Vyse", "Sova", "Sage"],
+  "happywei": ["Omen", "Viper", "Miks", "Brimstone", "Astra"],
+  "WsLeo": ["Cypher", "Veto", "Killjoy", "Chamber", "Vyse"],
   // EDward Gaming
   "stew": ["Jett", "Neon", "Raze", "Chamber"],
   "Jieni7": ["Yoru", "Raze", "Neon", "Iso"],
   "Rossy": ["Sova", "Fade", "Breach", "Tejo"],
-  "iamgrq": ["Omen", "Viper", "Brimstone", "Astra"],
-  "zjc": ["Cypher", "Killjoy", "Vyse", "Viper"],
+  "iamgrq": ["Omen", "Viper", "Miks", "Brimstone", "Astra"],
+  "zjc": ["Cypher", "Veto", "Killjoy", "Vyse", "Viper"],
   // Bilibili Gaming
   "whzy": ["Jett", "Raze", "Neon", "Chamber"],
   "alvinboy": ["Yoru", "KAY/O", "Gekko", "Fade"],
   "nephh": ["Breach", "Sova", "Tejo", "KAY/O"],
-  "Smoggy": ["Omen", "Viper", "Clove", "Brimstone"],
-  "Knight": ["Cypher", "Killjoy", "Viper", "Vyse"],
+  "Smoggy": ["Omen", "Viper", "Miks", "Clove", "Brimstone"],
+  "Knight": ["Cypher", "Veto", "Killjoy", "Viper", "Vyse"],
   // Weibo Gaming
-  "babybay": ["Jett", "Neon", "Raze", "Chamber"],
+  "babybay": ["Jett", "Neon", "Raze", "Chamber", "Phoenix"],
   "Yoyo": ["Raze", "Yoru", "Gekko", "KAY/O"],
   "heybay": ["Sova", "Fade", "Breach", "Tejo"],
   "Satoshi": ["Omen", "Viper", "Brimstone", "Astra"],
-  "Erv": ["Cypher", "Killjoy", "Vyse", "Deadlock"],
+  "Erv": ["Cypher", "Killjoy", "Veto", "Vyse", "Deadlock"],
   "Razziss": ["Jett", "Raze", "Neon", "Yoru"],
   // TYLOO
   "splash": ["Jett", "Neon", "Raze", "Chamber"],
   "slowly": ["Yoru", "Raze", "KAY/O", "Fade"],
   "SiuFatBB": ["Sova", "Breach", "Tejo", "Fade"],
-  "xihe": ["Omen", "Viper", "Brimstone", "Astra"],
-  "hfmi0dzjc9z7": ["Cypher", "Killjoy", "Vyse", "Chamber"],
+  "xihe": ["Omen", "Viper", "Miks", "Brimstone", "Astra"],
+  "hfmi0dzjc9z7": ["Cypher", "Killjoy", "Veto", "Vyse", "Chamber"],
   // Trace Esports
   "Kai": ["Jett", "Chamber", "Neon", "Raze"],
   "nobody": ["Sova", "Fade", "Tejo", "Gekko"],
-  "Nicc": ["Omen", "Viper", "Brimstone", "Astra"],
-  "CHICHOO": ["Viper", "Cypher", "Killjoy", "Omen"],
+  "Nicc": ["Omen", "Viper", "Miks", "Brimstone", "Astra"],
+  "CHICHOO": ["Viper", "Cypher", "Veto", "Killjoy", "Omen"],
   "FengF": ["Raze", "Yoru", "KAY/O", "Breach"],
   "Abo": ["Yoru", "Raze", "Fade", "Cypher"]
 };
 
 const ROLE_DEFAULT_AGENTS = {
-  "Duelista": ["Jett", "Raze", "Neon", "Yoru", "Waylay", "Iso"],
-  "Iniciador": ["Sova", "Fade", "Tejo", "Breach", "KAY/O", "Skye", "Gekko"],
-  "Controlador": ["Omen", "Viper", "Brimstone", "Astra", "Clove", "Harbor"],
-  "Centinela": ["Cypher", "Killjoy", "Chamber", "Vyse", "Deadlock"],
-  "Flex": ["Yoru", "KAY/O", "Viper", "Fade", "Breach", "Gekko", "Raze"]
+  "Duelista":    ["Jett", "Raze", "Neon", "Yoru", "Waylay", "Iso", "Phoenix", "Reyna"],
+  "Iniciador":   ["Sova", "Fade", "Tejo", "Breach", "KAY/O", "Skye", "Gekko"],
+  "Controlador": ["Omen", "Viper", "Miks", "Brimstone", "Astra", "Clove", "Harbor"],
+  "Centinela":   ["Cypher", "Killjoy", "Veto", "Chamber", "Vyse", "Deadlock", "Sage"],
+  "Flex":        ["Yoru", "KAY/O", "Viper", "Fade", "Breach", "Gekko", "Raze", "Miks"]
 };
 
+function parsePlayerRoles(roleStr) {
+  const parts = (roleStr || "").split("/").map(s => s.trim().toLowerCase());
+  const mapToken = t => {
+    if (t.includes("duelista")) return "Duelista";
+    if (t.includes("iniciador")) return "Iniciador";
+    if (t.includes("controlador")) return "Controlador";
+    if (t.includes("centinela")) return "Centinela";
+    if (t.includes("flex")) return "Flex";
+    return null;
+  };
+  const parsed = parts.map(mapToken).filter(Boolean);
+  const primary = parsed[0] || "Flex";
+  const secondary = parsed.find(x => x !== primary) || null;
+  return { primary, secondary };
+}
+
 function getPrimaryRoleFromStr(roleStr) {
-  const r = (roleStr || "").toLowerCase();
-  if (r.startsWith("duelista")) return "Duelista";
-  if (r.startsWith("iniciador")) return "Iniciador";
-  if (r.startsWith("controlador")) return "Controlador";
-  if (r.startsWith("centinela")) return "Centinela";
-  if (r.includes("duelista")) return "Duelista";
-  if (r.includes("iniciador")) return "Iniciador";
-  if (r.includes("controlador")) return "Controlador";
-  if (r.includes("centinela")) return "Centinela";
-  return "Flex";
+  return parsePlayerRoles(roleStr).primary;
 }
 
 function getPlayerAgents(player) {
@@ -230,14 +313,117 @@ function getPlayerAgents(player) {
   return merged;
 }
 
-// ===== DRAFT INTELIGENTE DE COMPOSICIÓN (5 AGENTES ÚNICOS + SINERGIA DE MAPA) =====
+// ===== EVALUADOR DE COMPOSICIÓN DE 5 EJES (SEGÚN SISTEMA DE BONUS VCT) =====
+function evaluateTeamComposition(teamObj, assignments, mapName) {
+  const starters = teamObj.players.filter(p => !p.sub).slice(0, 5);
+  const coach = teamObj.coach;
+  const mapInfo = MAP_POOL[mapName] || MAP_POOL["Ascent"];
+  const mapAxisMult = mapInfo.axisMult || { macro: 1, util: 1, entrada: 1, defensa: 1, flex: 1 };
+
+  const roleCounts = { Duelista: 0, Iniciador: 0, Controlador: 0, Centinela: 0, Flex: 0 };
+  const secCounts = { Duelista: 0, Iniciador: 0, Controlador: 0, Centinela: 0, Flex: 0 };
+  const pts = { macro: 0, util: 0, entrada: 0, defensa: 0, flex: 0 };
+
+  const addRolePoints = (roleName, weight) => {
+    const tbl = COMP_CONFIG.rol_puntos[roleName];
+    if (!tbl) return;
+    for (const ax in pts) pts[ax] += tbl[ax] * weight;
+  };
+
+  assignments.forEach((a, idx) => {
+    const p = starters[idx];
+    const agRole = a.role; // Duelista, Iniciador, Controlador, Centinela
+    const occ = roleCounts[agRole] || 0;
+    const dec = COMP_CONFIG.decrecimiento[Math.min(occ, COMP_CONFIG.decrecimiento.length - 1)];
+    roleCounts[agRole] = occ + 1;
+    addRolePoints(agRole, dec);
+
+    // Capa 1: Roles secundarios al 50% (incluye rasgo Flex de jugadores duales/Flex)
+    const { primary, secondary } = parsePlayerRoles(p.r);
+    const secRole = secondary && secondary !== agRole ? secondary : (primary === "Flex" ? "Flex" : null);
+    if (secRole && COMP_CONFIG.rol_puntos[secRole]) {
+      const sOcc = secCounts[secRole] || 0;
+      const sDec = COMP_CONFIG.decrecimiento[Math.min(sOcc, COMP_CONFIG.decrecimiento.length - 1)];
+      secCounts[secRole] = sOcc + 1;
+      addRolePoints(secRole, COMP_CONFIG.rol_secundario * sDec);
+    }
+  });
+
+  // Atributos promedio relevantes de los jugadores para escalar cada eje
+  const avgAttr = fn => starters.reduce((sum, p) => sum + fn(p), 0) / starters.length;
+  const maxIgl = Math.max(...starters.map(p => p.igl));
+  const axisAttrs = {
+    macro:   (maxIgl + coach.macro) / 2,
+    util:    avgAttr(p => p.util),
+    entrada: avgAttr(p => (p.entry + p.aim) / 2),
+    defensa: avgAttr(p => (p.clutch + p.cons) / 2),
+    flex:    (coach.adapt + avgAttr(p => p.cons)) / 2
+  };
+
+  // Equilibrio 1-1-1-1-1: cubre los 4 roles base y no sobreapila 3 del mismo rol
+  const hasCore4 = roleCounts.Duelista >= 1 && roleCounts.Iniciador >= 1 && roleCounts.Controlador >= 1 && roleCounts.Centinela >= 1;
+  const isBalanced = hasCore4 && Math.max(roleCounts.Duelista, roleCounts.Iniciador, roleCounts.Controlador, roleCounts.Centinela) <= 2;
+
+  const bonuses = {};
+  for (const ax of ["macro", "util", "entrada", "defensa", "flex"]) {
+    const diff = pts[ax] - COMP_CONFIG.ideal[ax];
+    let val = diff * COMP_CONFIG.factor_eje * (1 + axisAttrs[ax] / 200);
+    // Capa 2: El mapa modifica los pesos (±10%)
+    val *= (mapAxisMult[ax] || 1.0);
+    // Capa 3: El DT amplifica o mitiga
+    if (ax === "macro" && val > 0) {
+      val *= 1 + Math.max(0, (coach.macro - 80) / 100);
+    }
+    if (val < 0) {
+      // ADP alto reduce penalización de composiciones extremas
+      const adpMit = Math.max(0.58, 1 - Math.max(0, coach.adapt - 75) / 95);
+      val *= adpMit;
+      if (ax === "defensa" || ax === "macro") {
+        const discMit = Math.max(0.72, 1 - Math.max(0, coach.disc - 75) / 140);
+        val *= discMit;
+      }
+    }
+    // Tope estricto ±8%
+    bonuses[ax] = Math.max(-COMP_CONFIG.tope_eje, Math.min(COMP_CONFIG.tope_eje, val));
+  }
+
+  const eqBonus = isBalanced ? COMP_CONFIG.bonus_equilibrio : 0;
+  // Varianza por agresividad (composiciones con alta entrada generan rondas más explosivas)
+  const varianceBoost = Math.max(0, bonuses.entrada) * 0.45;
+
+  // Etiqueta de arquetipo táctico (reglas de sinergia)
+  let archetype = "ESTÁNDAR";
+  if (roleCounts.Controlador >= 2 && roleCounts.Duelista >= 2) archetype = "2 CTRL + 2 DUEL";
+  else if (roleCounts.Controlador >= 2) archetype = "DOBLE CONTROLADOR";
+  else if (roleCounts.Duelista >= 2) archetype = "DOBLE DUELISTA";
+  else if (roleCounts.Iniciador >= 2) archetype = "DOBLE INICIADOR";
+  else if (roleCounts.Centinela >= 2) archetype = "DOBLE CENTINELA";
+  else if (isBalanced) archetype = "1-1-1-1-1 EQUILIBRIO";
+
+  const warnings = [];
+  if (roleCounts.Controlador === 0) warnings.push("Sin Controlador");
+  if (roleCounts.Centinela === 0 && secCounts.Centinela === 0) warnings.push("Sin Centinela");
+  if (roleCounts.Iniciador === 0 && secCounts.Iniciador === 0) warnings.push("Sin Iniciador");
+
+  return {
+    roleCounts,
+    pts,
+    bonuses,
+    eqBonus,
+    varianceBoost,
+    isBalanced,
+    archetype,
+    warnings
+  };
+}
+
+// ===== DRAFT INTELIGENTE DE COMPOSICIÓN (5 AGENTES ÚNICOS + HUSH MASTERY + SINERGIA) =====
 function draftTeamComp(teamObj, mapName) {
   const m = MAP_POOL[mapName] || MAP_POOL["Ascent"];
   const starters = teamObj.players.filter(p => !p.sub).slice(0, 5);
   const used = new Set();
   const roleCount = { Duelista: 0, Iniciador: 0, Controlador: 0, Centinela: 0 };
 
-  // Orden de prioridad en el draft: Controladores y Centinelas/Iniciadores clave primero, luego Duelistas y Flex
   const priorityOrder = starters
     .map((p, origIdx) => {
       const pr = getPrimaryRoleFromStr(p.r);
@@ -254,7 +440,6 @@ function draftTeamComp(teamObj, mapName) {
     let bestAg = candidates[0] || "Omen";
     let bestScore = -Infinity;
 
-    // Evaluar todos los agentes disponibles en el pool del jugador (y fallback global si hay colisión)
     const pool = candidates.filter(a => !used.has(a));
     const evalList = pool.length ? pool : Object.keys(AGENTS).filter(a => !used.has(a));
 
@@ -265,26 +450,33 @@ function draftTeamComp(teamObj, mapName) {
       const comfortBonus = sigIdx === 0 ? 7.5 : sigIdx === 1 ? 5.5 : sigIdx === 2 ? 3.5 : sigIdx >= 3 ? 1.5 : -4.0;
       const roleMatchBonus = ag.role === pr ? 4.0 : 0;
 
-      // Bono táctico de cobertura de roles en la composición
+      // Restricción real de Hush Mastery: solo quienes lo dominan lo eligen
+      let hushMod = 0;
+      if (ag.hush) {
+        const mastery = HUSH_MASTERY[p.n] || 0;
+        if (mastery >= 0.9) hushMod = 8.5;
+        else if (mastery > 0) hushMod = 1.5; // aspas (en menor medida)
+        else hushMod = -45.0; // No masterizado: bloqueado en draft competitivo
+      }
+
       let teamNeedBonus = 0;
-      if (ag.role === "Controlador" && roleCount.Controlador === 0) teamNeedBonus += 9;
+      if (ag.role === "Controlador" && roleCount.Controlador === 0) teamNeedBonus += 10;
       if (ag.role === "Controlador" && m.preferWall && ag.wall && roleCount.Controlador <= 1) teamNeedBonus += 7;
       if (ag.role === "Iniciador" && roleCount.Iniciador === 0) teamNeedBonus += 6;
       if (ag.role === "Duelista" && roleCount.Duelista === 0) teamNeedBonus += 7;
       if (ag.role === "Centinela" && roleCount.Centinela === 0) teamNeedBonus += 5;
       if (roleCount[ag.role] >= 2) teamNeedBonus -= 9;
 
-      // Sinergia de Operator en mapas largos (ej. Chamber / Jett en Breeze, Ascent, Haven)
+      // Sinergia de Operator en mapas largos (Chamber/Jett en Breeze, Ascent, Haven)
       let opSynergy = 0;
       if (ag.op && m.longRange && p.aim >= 89 && p.fd >= 84) {
-        opSynergy = mapName === "Breeze" ? 8.5 : 5.5;
+        opSynergy = mapName === "Breeze" ? 9.0 : 5.5;
       }
-      // Sinergia de movilidad explosiva en mapas cerrados (Raze/Neon en Split/Bind/Lotus/Sunset)
-      if (!m.longRange && (agName === "Raze" || agName === "Neon") && p.entry >= 88) {
-        opSynergy += 4.0;
+      if (!m.longRange && (agName === "Raze" || agName === "Neon" || agName === "Hush") && p.entry >= 88) {
+        opSynergy += 3.8;
       }
 
-      const total = mapFit + comfortBonus + roleMatchBonus + teamNeedBonus + opSynergy;
+      const total = mapFit + comfortBonus + roleMatchBonus + teamNeedBonus + opSynergy + hushMod;
       if (total > bestScore) {
         bestScore = total;
         bestAg = agName;
@@ -296,6 +488,7 @@ function draftTeamComp(teamObj, mapName) {
     roleCount[agObj.role] = (roleCount[agObj.role] || 0) + 1;
     const isComfort = sigList.includes(bestAg);
     const isOpBoost = !!(agObj.op && m.longRange && p.aim >= 88 && p.fd >= 82);
+    const hushMastery = agObj.hush ? (HUSH_MASTERY[p.n] || 0) : 0;
 
     assigned[origIdx] = {
       playerName: p.n,
@@ -304,54 +497,48 @@ function draftTeamComp(teamObj, mapName) {
       mapFit: agObj.maps[mapName] || 82,
       comfort: isComfort,
       isOpBoost,
+      hushMastery,
       ecoBoost: agObj.ecoBoost || 1.0
     };
   });
 
-  // Cálculo de puntaje de composición y etiquetas tácticas
+  const evalData = evaluateTeamComposition(teamObj, assigned, mapName);
   const avgFit = assigned.reduce((s, a) => s + a.mapFit, 0) / assigned.length;
   const comfortHits = assigned.filter(a => a.comfort).length;
   const hasWall = assigned.some(a => AGENTS[a.agent] && AGENTS[a.agent].wall);
   const opCarrier = assigned.find(a => a.isOpBoost);
+  const hushCarrier = assigned.find(a => a.hushMastery > 0);
 
-  let balanceAdj = 0;
-  const tags = [];
-  if (roleCount.Controlador === 0) {
-    balanceAdj -= 6;
-    tags.push("Sin humos (-sinergia)");
-  }
-  if (m.preferWall && hasWall) {
-    balanceAdj += 2.6;
-    tags.push("Muro Viper/Harbor");
-  } else if (mapName === "Breeze" && !hasWall) {
-    balanceAdj -= 3.5;
+  let extraScore = 0;
+  const tags = [evalData.archetype];
+  if (evalData.isBalanced) tags[0] = "1-1-1-1-1 (+2% EQ)";
+  if (hushCarrier) {
+    extraScore += hushCarrier.hushMastery >= 0.9 ? 2.4 : 0.9;
+    tags.push(`Hush ${hushCarrier.hushMastery >= 0.9 ? "Master" : "Flex"} (${hushCarrier.playerName})`);
   }
   if (opCarrier) {
-    balanceAdj += mapName === "Breeze" ? 3.2 : 1.8;
+    extraScore += mapName === "Breeze" ? 3.2 : 1.8;
     tags.push(`${opCarrier.agent} OP (${opCarrier.playerName})`);
   }
-  if (roleCount.Controlador >= 2 && (mapName === "Lotus" || mapName === "Bind" || mapName === "Breeze")) {
-    balanceAdj += 1.6;
-    tags.push("Doble Controlador");
+  if (m.preferWall && hasWall) {
+    extraScore += 2.2;
+    tags.push("Muro Viper/Harbor");
+  } else if (mapName === "Breeze" && !hasWall) {
+    extraScore -= 3.5;
   }
-  if (roleCount.Duelista >= 2 && (mapName === "Split" || mapName === "Sunset" || mapName === "Bind")) {
-    balanceAdj += 1.2;
-    tags.push("Doble Duelista");
-  }
-  if (comfortHits === 5) {
-    balanceAdj += 1.8;
-    tags.push("5/5 Confort");
-  }
+  evalData.warnings.forEach(w => tags.push(w));
 
-  const compScore = Math.max(70, Math.min(99, avgFit + balanceAdj + (comfortHits - 3) * 0.7));
-  // Modificador suave para mantener calibración realista (+/- 3.5% máx en fuerza de equipo)
-  const synergyMod = 1 + (compScore - 88.5) / 380;
+  const netAxes = (evalData.bonuses.macro + evalData.bonuses.util + evalData.bonuses.entrada + evalData.bonuses.defensa + evalData.bonuses.flex) / 5;
+  const compScore = Math.max(70, Math.min(99, avgFit + extraScore + (evalData.eqBonus * 100) + (netAxes * 65) + (comfortHits - 3) * 0.6));
 
   return {
     mapName,
     assignments: assigned,
     compScore: Number(compScore.toFixed(1)),
-    synergyMod,
+    bonuses: evalData.bonuses,
+    eqBonus: evalData.eqBonus,
+    varianceBoost: evalData.varianceBoost,
+    archetype: evalData.archetype,
     tags: tags.slice(0, 3)
   };
 }
@@ -363,7 +550,7 @@ const rnd = a => a[Math.random() * a.length | 0];
 
 function wpick(a, mapMod) {
   const w = a.map(u => {
-    const opW = u.isOpBoost ? 1.12 : 1.0;
+    const opW = u.isOpBoost ? 1.12 : (u.hushMastery >= 0.9 ? 1.10 : 1.0);
     return Math.pow(((u.p.entry * (mapMod ? mapMod.entry : 1) * opW) / 100), 3);
   });
   const t = w.reduce((x, y) => x + y);
@@ -375,24 +562,34 @@ function wpick(a, mapMod) {
   return a[0];
 }
 
-function str(u, open, clu, econ, igm, mapMod, roundType) {
+function str(u, open, clu, econ, igm, mapMod, roundType, isAtkNow, compBonuses, eqBonus) {
   const p = u.p;
   const m = mapMod || { aim: 1, fd: 1, util: 1, entry: 1, clu: 1 };
   let effEcon = econ;
   if (u.ecoBoost && u.ecoBoost > 1 && (roundType === "Eco" || roundType === "Force")) {
     effEcon = Math.min(1.0, econ * u.ecoBoost);
   }
-  const agentMult = 1 + (((u.agentFit || 86) - 86) / 360) + (u.comfort ? 0.01 : -0.012);
+
+  const agentMult = 1 + (((u.agentFit || 86) - 86) / 380) + (u.comfort ? 0.008 : -0.012);
   const opMult = (u.isOpBoost && roundType === "Full") ? (open ? 1.05 : 1.025) : 1.0;
+  const hushMult = u.hushMastery >= 0.9 ? (open ? 1.035 : 1.02) : (u.hushMastery > 0 ? 1.012 : 1.0);
+
+  // Aplicación de los 5 ejes de composición según el momento de la ronda
+  const b = compBonuses || { macro: 0, util: 0, entrada: 0, defensa: 0, flex: 0 };
+  const phaseMult = 1 + (eqBonus || 0)
+    + (b.macro * 0.45)
+    + (open ? b.entrada * 0.70 : b.util * 0.55)
+    + (isAtkNow ? b.entrada * 0.35 : b.defensa * 0.65)
+    + (clu ? b.defensa * 0.50 : 0);
 
   const aim = p.aim * m.aim, fd = p.fd * m.fd, ent = p.entry * m.entry, util = p.util * m.util;
   let s = open ? aim * .5 + fd * .3 + ent * .2 : aim * .6 + util * .15 + ent * .1 + fd * .15;
-  s = s * u.form * effEcon * igm * agentMult * opMult;
+  s = s * u.form * effEcon * igm * agentMult * opMult * hushMult * phaseMult;
   if (clu) s += (p.clutch * m.clu - 80) * .4;
   return Math.pow(Math.max(s, 1) / 100, EXP);
 }
 
-// EVALÚA QUÉ TAN FUERTE ES UN EQUIPO EN UN MAPA (PLANTILLA + AGENTES + COACH)
+// EVALÚA QUÉ TAN FUERTE ES UN EQUIPO EN UN MAPA (PLANTILLA + AGENTES + 5 EJES + COACH)
 function scoreTeamOnMap(teamObj, mapName) {
   const m = MAP_POOL[mapName];
   const starters = teamObj.players.filter(p => !p.sub).slice(0, 5);
@@ -403,21 +600,21 @@ function scoreTeamOnMap(teamObj, mapName) {
   starters.forEach((p, idx) => {
     const aInfo = comp.assignments[idx];
     const opBonus = aInfo && aInfo.isOpBoost ? (mapName === "Breeze" ? 2.4 : 1.2) : 0;
+    const hushBonus = aInfo && aInfo.hushMastery >= 0.9 ? 1.4 : (aInfo && aInfo.hushMastery > 0 ? 0.5 : 0);
     total += (p.aim * 0.34 * m.aim) +
              (p.fd * 0.18 * m.fd) +
              (p.entry * 0.15 * m.entry) +
              (p.util * 0.18 * m.util) +
              (p.clutch * 0.15 * m.clu) +
-             opBonus;
+             opBonus + hushBonus;
   });
   const avgP = total / starters.length;
   const iglMax = Math.max(...starters.map(p => p.igl));
   const tacScore = ((iglMax * 0.5 + c.macro * 0.5) - 80) * 0.25 * m.igl;
-  const compBonus = (comp.compScore - 87) * 0.32;
+  const compBonus = (comp.compScore - 87) * 0.34;
   return avgP + tacScore + compBonus;
 }
 
-// PERFIL COMPLETO DE MAPAS DE UN EQUIPO (MEJORES, PEORES Y COMPOSICIÓN POR MAPA)
 function getTeamMapProfile(teamName) {
   const teamObj = { name: teamName, players: TEAMS[teamName], coach: COACH[teamName] };
   const list = Object.keys(MAP_POOL).map(mapName => {
@@ -436,10 +633,12 @@ function getTeamMapProfile(teamName) {
 
 function coachPickStartingSide(choosingTeam, otherTeam, mapName) {
   const m = MAP_POOL[mapName];
+  const comp = draftTeamComp(choosingTeam, mapName);
   const starters = choosingTeam.players.filter(p => !p.sub).slice(0, 5);
   const aggr = starters.reduce((a, p) => a + p.entry * 0.55 + p.fd * 0.45, 0) / starters.length;
   const ctrl = starters.reduce((a, p) => a + p.util * 0.55 + p.clutch * 0.45, 0) / starters.length;
-  const atkPref = (aggr * m.atkBias) - (ctrl * m.defBias);
+  const compAtkEdge = (comp.bonuses.entrada - comp.bonuses.defensa) * 45;
+  const atkPref = (aggr * m.atkBias) - (ctrl * m.defBias) + compAtkEdge;
   return atkPref >= 0 ? "ATK" : "DEF";
 }
 
@@ -638,13 +837,14 @@ function simMatch(tLeft, tRight, mapSpec) {
         agentFit: ag.mapFit,
         comfort: ag.comfort,
         isOpBoost: ag.isOpBoost,
+        hushMastery: ag.hushMastery,
         ecoBoost: ag.ecoBoost,
         form: 1 + gauss() * ((.015 + (100 - p.cons) / 1250 + (100 - p.conf) / 1250 * (1 - (t.coach.dev - 70) / 150)) * (1 - (t.coach.disc - 70) / 250))
       };
     })
   }));
 
-  const igm = teams.map(t => (1 + ((Math.max(...t.units.map(u => u.p.igl)) * mapMod.igl - 80) / 800) + ((t.coach.macro * mapMod.igl - 80) / 1000)) * t.comp.synergyMod);
+  const igm = teams.map(t => 1 + ((Math.max(...t.units.map(u => u.p.igl)) * mapMod.igl - 80) / 800) + ((t.coach.macro * mapMod.igl - 80) / 1000));
   let sc = [0, 0], cr = [800, 800], ls = [0, 0], timeoutsLeft = [2, 2], timeoutActive = [0, 0], rounds = [], n = 0;
 
   while (true) {
@@ -672,11 +872,16 @@ function simMatch(tLeft, tRight, mapSpec) {
       }
     }
 
+    // Flexibilidad de composición amplifica la adaptación en rachas de derrotas / timeouts
     const adp = [0, 1].map(i => {
-      let base = !pist && ls[i] >= 2 ? 1 + (teams[i].coach.adapt - 75) / 600 : 1;
-      if (timeoutActive[i] > 0) base *= 1 + (teams[i].coach.adapt - 68) / 380;
+      const flexBoost = 1 + Math.max(0, teams[i].comp.bonuses.flex) * 0.5;
+      let base = !pist && ls[i] >= 2 ? 1 + ((teams[i].coach.adapt - 75) / 600) * flexBoost : 1;
+      if (timeoutActive[i] > 0) base *= 1 + ((teams[i].coach.adapt - 68) / 380) * flexBoost;
       return base;
     });
+
+    // Varianza por ronda escalada por agresividad de la composición
+    const roundSwing = [0, 1].map(i => 1 + gauss() * (0.012 + teams[i].comp.varianceBoost));
 
     const al = [teams[0].units.slice(), teams[1].units.slice()], ev = [], cs = [null, null];
     const idOf = (ti, u) => ti + "-" + teams[ti].units.indexOf(u);
@@ -684,8 +889,8 @@ function simMatch(tLeft, tRight, mapSpec) {
 
     while (al[0].length && al[1].length) {
       const a = first ? wpick(al[0], mapMod) : rnd(al[0]), b = first ? wpick(al[1], mapMod) : rnd(al[1]);
-      const s0 = str(a, first, al[0].length == 1 && al[1].length >= 2, tp[0][1], igm[0] * adp[0] * sideBias0 * (first ? 1 + (teams[0].coach.micro - 80) / 800 : 1), mapMod, tp[0][0]);
-      const s1 = str(b, first, al[1].length == 1 && al[0].length >= 2, tp[1][1], igm[1] * adp[1] * sideBias1 * (first ? 1 + (teams[1].coach.micro - 80) / 800 : 1), mapMod, tp[1][0]);
+      const s0 = str(a, first, al[0].length == 1 && al[1].length >= 2, tp[0][1], igm[0] * adp[0] * sideBias0 * roundSwing[0] * (first ? 1 + (teams[0].coach.micro - 80) / 800 : 1), mapMod, tp[0][0], leftIsAtkNow, teams[0].comp.bonuses, teams[0].comp.eqBonus);
+      const s1 = str(b, first, al[1].length == 1 && al[0].length >= 2, tp[1][1], igm[1] * adp[1] * sideBias1 * roundSwing[1] * (first ? 1 + (teams[1].coach.micro - 80) / 800 : 1), mapMod, tp[1][0], !leftIsAtkNow, teams[1].comp.bonuses, teams[1].comp.eqBonus);
       const kt = Math.random() < s0 / (s0 + s1) ? 0 : 1, k = kt ? b : a, v = kt ? a : b;
       const mates = al[kt].filter(u => u !== k);
       const e = {

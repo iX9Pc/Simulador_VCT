@@ -1311,6 +1311,38 @@ footer.closing {
   justify-content: space-between;
   gap: 10px;
 }
+.role-ico-svg {
+  width: 13px;
+  height: 13px;
+  max-width: 13px;
+  max-height: 13px;
+  display: inline-block;
+  vertical-align: -2px;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.agent-chip.is-hush,
+.agent-tag.is-hush {
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
+.comp-axes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.axis-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 2px;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+}
 
 @media (prefers-reduced-motion: reduce) {
   * {
