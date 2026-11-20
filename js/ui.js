@@ -574,6 +574,10 @@ function render() {
   }
   h += `</div><div>`;
 
+  if (!isSeriesSummary && maxR > 0) {
+    h += `<div id="radar2d-host"></div>`;
+  }
+
   const hl = [];
   if (isSeriesSummary) {
     SERIES.maps.forEach((mObj, mIdx) => {
@@ -654,6 +658,13 @@ function render() {
   }
   outEl.innerHTML = h;
   if (typeof renderStory === "function") renderStory(M, S, isSeriesSummary, done);
+  if (window.Radar2D) {
+    if (!isSeriesSummary && maxR > 0) {
+      window.Radar2D.mount(M, maxR, { isAutoPlaying: !!liveTimer });
+    } else {
+      window.Radar2D.stop();
+    }
+  }
 }
 
 function pair() {
@@ -941,6 +952,7 @@ window.refreshTeamSelects = function(selectInA = null) {
 
 window.closeMgrViewer = function() {
   stopLive();
+  if (window.Radar2D) window.Radar2D.stop();
   const sec = $("#mgrViewerSection");
   if (sec) sec.hidden = true;
 };
