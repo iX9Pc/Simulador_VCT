@@ -481,6 +481,13 @@ function draftTeamComp(teamObj, mapName) {
         bestScore = total;
         bestAg = agName;
       }
+      // Dentro de evalList.forEach:
+      if (ag.hush) {
+        const mastery = Math.max(HUSH_MASTERY[p.n] || 0, p._hushMastery || 0);
+        if (mastery >= 0.9) hushMod = 8.5;
+        else if (mastery > 0) hushMod = 1.5;
+        else hushMod = -45.0;
+      }
     });
 
     used.add(bestAg);
@@ -488,8 +495,9 @@ function draftTeamComp(teamObj, mapName) {
     roleCount[agObj.role] = (roleCount[agObj.role] || 0) + 1;
     const isComfort = sigList.includes(bestAg);
     const isOpBoost = !!(agObj.op && m.longRange && p.aim >= 88 && p.fd >= 82);
-    const hushMastery = agObj.hush ? (HUSH_MASTERY[p.n] || 0) : 0;
+    const hushMastery = agObj.hush ? Math.max(HUSH_MASTERY[p.n] || 0, p._hushMastery || 0) : 0;
 
+    
     assigned[origIdx] = {
       playerName: p.n,
       agent: bestAg,
@@ -840,7 +848,8 @@ function simMatch(tLeft, tRight, mapSpec) {
         hushMastery: ag.hushMastery,
         ecoBoost: ag.ecoBoost,
         form: 1
-          + ((typeof window !== "undefined" && typeof window.getPersistentFormBonus === "function") ? window.getPersistentFormBonus(p.n) : 0)
+          + ((typeof p._mgrMod === "number") ? p._mgrMod : 0)
+          + ((typeof window !== "undefined" && typeof window.getPersistentFormBonus === "function" && typeof p._mgrMod !== "number") ? window.getPersistentFormBonus(p.n) : 0)
           + gauss() * ((.015 + (100 - p.cons) / 1250 + (100 - p.conf) / 1250 * (1 - (t.coach.dev - 70) / 150)) * (1 - (t.coach.disc - 70) / 250))
       };
     })
