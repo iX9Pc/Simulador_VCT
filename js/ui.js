@@ -1,5 +1,14 @@
 const $ = s => document.querySelector(s);
 
+// Sincronizar tema guardado entre index.html y manager.html
+try {
+  const savedTheme = localStorage.getItem("vct_sim_theme");
+  if (savedTheme === "light" || savedTheme === "dark") {
+    document.documentElement.setAttribute("data-theme", savedTheme);
+    if ($("#themeLabel")) $("#themeLabel").textContent = savedTheme.toUpperCase();
+  }
+} catch (e) {}
+
 window.handleLogoError = function(imgEl) {
   const file = imgEl.getAttribute("data-file");
   const code = imgEl.getAttribute("data-code") || "VCT";
@@ -75,8 +84,7 @@ function syncMapSelector() {
   if (prev === "AUTO" || MAP_POOL[prev]) sel.value = prev;
 }
 
-function applyDynamicTeamColors() {
-  const a = $("#ta").value, b = $("#tb").value;
+function applyTeamColorsForPair(a, b) {
   const metaA = TEAM_META[a] || { color: "#E5484D", reg: "VCT" };
   let colorA = metaA.color;
   const metaB = TEAM_META[b] || { color: "#38BDF8", reg: "VCT" };
@@ -91,22 +99,29 @@ function applyDynamicTeamColors() {
   document.documentElement.style.setProperty("--a-soft", colorA + "22");
   document.documentElement.style.setProperty("--b", colorB);
   document.documentElement.style.setProperty("--b-soft", colorB + "22");
+  return { metaA, metaB, colorA, colorB };
+}
 
-  $("#pickerCardA").style.setProperty("--team-color", colorA);
-  $("#pickerCardB").style.setProperty("--team-color", colorB);
-  $("#logoWrapA").innerHTML = renderTeamLogo(a);
-  $("#logoWrapB").innerHTML = renderTeamLogo(b);
+function applyDynamicTeamColors() {
+  if (!$("#ta") || !$("#tb")) return;
+  const a = $("#ta").value, b = $("#tb").value;
+  const { metaA, metaB, colorA, colorB } = applyTeamColorsForPair(a, b);
 
-  if (a && TEAMS[a]) {
+  if ($("#pickerCardA")) $("#pickerCardA").style.setProperty("--team-color", colorA);
+  if ($("#pickerCardB")) $("#pickerCardB").style.setProperty("--team-color", colorB);
+  if ($("#logoWrapA")) $("#logoWrapA").innerHTML = renderTeamLogo(a);
+  if ($("#logoWrapB")) $("#logoWrapB").innerHTML = renderTeamLogo(b);
+
+  if (a && TEAMS[a] && $("#metaA")) {
     $("#metaA").innerHTML = `<span>${metaA.reg}</span> · <span>DT ${COACH[a].n}</span> <span class="ovr-pill">OVR ${getTeamOvr(a)}</span>`;
   }
-  if (b && TEAMS[b]) {
+  if (b && TEAMS[b] && $("#metaB")) {
     $("#metaB").innerHTML = `<span>${metaB.reg}</span> · <span>DT ${COACH[b].n}</span> <span class="ovr-pill">OVR ${getTeamOvr(b)}</span>`;
   }
 }
 
-let _bootDone = false;
 let SERIES = null;
+let _bootDone = false;
 let liveTimer = null, currentFormat = 3;
 
 function initSeriesState(series, startProgressive) {
@@ -161,18 +176,14 @@ function computeStatsForMatch(M, maxRounds) {
         S[e.as].a++;
         roundKast.add(e.as);
       }
-      if (e.tr) {
-        roundKast.add(e.v);
-      }
+      if (e.tr) roundKast.add(e.v);
       if (e.fb) {
         S[e.k].fb++;
         S[e.v].fd++;
       }
     });
     if (R.cl && R.cl.won) S[R.cl.id].cl++;
-    roundKast.forEach(id => {
-      if (S[id]) S[id].kastRounds++;
-    });
+    roundKast.forEach(id => { if (S[id]) S[id].kastRounds++; });
   }
 
   for (const id in S) {
@@ -285,8 +296,10 @@ function renderAxisBadges(compObj) {
 }
 
 function render() {
+  const outEl = $("#out");
+  if (!outEl) return;
   if (!SERIES || !SERIES.maps.length) {
-    $("#out").innerHTML = "";
+    outEl.innerHTML = "";
     return;
   }
 
@@ -381,7 +394,7 @@ function render() {
     <div class="score-side">
       <div class="score-logo">${renderTeamLogo(t0.name)}</div>
       <div class="score-team">
-        <span class="region-tag">${TEAM_META[t0.name].reg}</span>
+        <span class="region-tag">${(TEAM_META[t0.name] && TEAM_META[t0.name].reg) || "VCT"}</span>
         <div class="t ca">${t0.name}</div>
         <div class="score-coach">
           <span>DT <b>${t0.coach.n}</b></span>
@@ -401,7 +414,7 @@ function render() {
     <div class="score-side right">
       <div class="score-logo">${renderTeamLogo(t1.name)}</div>
       <div class="score-team">
-        <span class="region-tag">${TEAM_META[t1.name].reg}</span>
+        <span class="region-tag">${(TEAM_META[t1.name] && TEAM_META[t1.name].reg) || "VCT"}</span>
         <div class="t cb">${t1.name}</div>
         <div class="score-coach">
           <span class="mono">MAC ${t1.coach.macro} · ADP ${t1.coach.adapt}</span>
@@ -411,7 +424,6 @@ function render() {
     </div>
   </div>`;
 
-  // BARRA DE COMPOSICIONES Y 5 EJES TÁCTICOS DEL MAPA ACTUAL
   if (!isSeriesSummary && M.comps) {
     const renderCompSide = (teamObj, compObj, colorCls) => {
       const chips = compObj.assignments.map(a => {
@@ -635,20 +647,22 @@ function render() {
       `</div></details>`;
   }
   h += `</div></div></div></div>`;
+
   if (done && typeof window.renderShareBarHTML === "function") {
     h = window.renderShareBarHTML(SERIES, M, S, isSeriesSummary) + h;
   }
-  $("#out").innerHTML = h;
+  outEl.innerHTML = h;
   if (typeof renderStory === "function") renderStory(M, S, isSeriesSummary, done);
 }
 
 function pair() {
+  if (!$("#ta") || !$("#tb")) return null;
   const a = $("#ta").value, b = $("#tb").value;
   if (a == b) {
-    $("#msg").innerHTML = `<div class="cal-card" style="border-color:var(--vct-red)"><b style="color:var(--vct-red)">Selecciona dos equipos distintos para ejecutar la simulación.</b></div>`;
+    if ($("#msg")) $("#msg").innerHTML = `<div class="cal-card" style="border-color:var(--vct-red)"><b style="color:var(--vct-red)">Selecciona dos equipos distintos para ejecutar la simulación.</b></div>`;
     return null;
   }
-  $("#msg").innerHTML = "";
+  if ($("#msg")) $("#msg").innerHTML = "";
   return [
     { name: a, players: TEAMS[a], coach: COACH[a] },
     { name: b, players: TEAMS[b], coach: COACH[b] }
@@ -668,8 +682,8 @@ function advanceLiveRound() {
     SERIES.liveShown++;
     if (SERIES.liveShown >= activeM.rounds.length && SERIES.liveMapIdx === SERIES.maps.length - 1) {
       SERIES.liveFinished = true;
-      if (typeof window.recordCompletedSeries === "function") window.recordCompletedSeries(SERIES);
       SERIES.revealedMaps = SERIES.maps.length;
+      if (!SERIES._isExternal && typeof window.recordCompletedSeries === "function") window.recordCompletedSeries(SERIES);
       stopLive();
     }
     render();
@@ -683,6 +697,7 @@ function advanceLiveRound() {
     SERIES.liveShown = 1;
     if (SERIES.liveShown >= SERIES.maps[SERIES.liveMapIdx].rounds.length && SERIES.liveMapIdx === SERIES.maps.length - 1) {
       SERIES.liveFinished = true;
+      if (!SERIES._isExternal && typeof window.recordCompletedSeries === "function") window.recordCompletedSeries(SERIES);
       stopLive();
     }
     render();
@@ -691,128 +706,73 @@ function advanceLiveRound() {
 
   SERIES.liveFinished = true;
   SERIES.revealedMaps = SERIES.maps.length;
+  if (!SERIES._isExternal && typeof window.recordCompletedSeries === "function") window.recordCompletedSeries(SERIES);
   stopLive();
   render();
   return false;
 }
 
-document.querySelectorAll("#formatGroup .seg-btn").forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll("#formatGroup .seg-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    currentFormat = parseInt(btn.dataset.fmt, 10) || 3;
-    $("#go").click();
-  };
-});
-
-$("#mapSel").onchange = () => {
-  const v = $("#mapSel").value;
-  $("#mapModInfo").textContent = v === "AUTO"
-    ? "Protocolo VCT: 1v1 define Equipo A/B + Veto de 7 pasos (con sinergia de 30 agentes)"
-    : MAP_POOL[v].desc;
-  $("#go").click();
-};
-
-$("#go").onclick = () => {
-  stopLive();
-  const p = pair();
-  if (!p) return;
-  SERIES = initSeriesState(buildSeries(p[0], p[1], currentFormat, false), false);
-  if (_bootDone && typeof window.recordCompletedSeries === "function") {
-    window.recordCompletedSeries(SERIES);
-  }
-  render();
-};
-
-$("#st").onclick = () => {
-  stopLive();
-  const p = pair();
-  if (!p) return;
-  if (!SERIES || SERIES.liveFinished) {
-    SERIES = initSeriesState(buildSeries(p[0], p[1], currentFormat, true), true);
-  }
-  advanceLiveRound();
-};
-
-$("#liveBtn").onclick = () => {
-  if (liveTimer) {
+// Controles compartidos (+1 Ronda y Auto-Play funcionan tanto en index.html como en manager.html)
+if ($("#st")) {
+  $("#st").onclick = () => {
     stopLive();
-    return;
-  }
-  const p = pair();
-  if (!p) return;
-
-  if (!SERIES || SERIES.liveFinished) {
-    SERIES = initSeriesState(buildSeries(p[0], p[1], currentFormat, true), true);
-  } else {
-    SERIES.activeTab = SERIES.liveMapIdx;
-  }
-
-  const btn = $("#liveBtn");
-  btn.classList.add("live-active");
-  btn.textContent = "Pausar";
-
-  if (!advanceLiveRound()) return;
-
-  liveTimer = setInterval(() => {
-    if (!advanceLiveRound()) {
-      stopLive();
+    if ($("#ta") && $("#tb")) {
+      const p = pair();
+      if (!p) return;
+      if (!SERIES || SERIES.liveFinished) {
+        SERIES = initSeriesState(buildSeries(p[0], p[1], currentFormat, true), true);
+      }
+    } else if (!SERIES) {
+      return;
+    } else if (SERIES.liveFinished) {
+      SERIES = initSeriesState({ ...SERIES, _isExternal: true }, true);
     }
-  }, 340);
-};
-
-$("#cal").onclick = () => {
-  stopLive();
-  const p = pair();
-  if (!p) return;
-  let w = 0, ot = 0, rd = 0, totalMaps = 0, N = 500;
-  for (let i = 0; i < N; i++) {
-    const s = buildSeries(p[0], p[1], currentFormat, false);
-    if (s.seriesScore[0] > s.seriesScore[1]) w++;
-    totalMaps += s.maps.length;
-    s.maps.forEach(m => {
-      if (m.rounds.length > 24) ot++;
-      rd += m.rounds.length;
-    });
-  }
-  const pctA = (w / N * 100).toFixed(1);
-  const pctB = ((N - w) / N * 100).toFixed(1);
-  $("#msg").innerHTML = `
-  <div class="cal-card">
-    <div class="cal-top">
-      <span><b>SIMULACIÓN MONTE CARLO (${N} SERIES BO${currentFormat})</b> · ${p[0].name} vs ${p[1].name}</span>
-      <span class="mono"><b class="ca">${p[0].name} ${pctA}%</b> — <b class="cb">${pctB}% ${p[1].name}</b></span>
-    </div>
-    <div class="cal-bar">
-      <div class="cal-bar-a" style="width:${pctA}%"></div>
-    </div>
-    <div class="cal-meta">
-      <span>Mapas/Serie: <b>${(totalMaps / N).toFixed(2)}</b></span>
-      <span>Rondas/Serie: <b>${(rd / N).toFixed(1)}</b></span>
-      <span>Tasa Overtime: <b>${(ot / totalMaps * 100).toFixed(1)}%</b></span>
-    </div>
-  </div>`;
-};
-
-$("#swapBtn").onclick = () => {
-  const a = $("#ta").selectedIndex;
-  $("#ta").selectedIndex = $("#tb").selectedIndex;
-  $("#tb").selectedIndex = a;
-  applyDynamicTeamColors();
-  $("#go").click();
-};
-
-$("#ta").onchange = () => { applyDynamicTeamColors(); $("#go").click(); };
-$("#tb").onchange = () => { applyDynamicTeamColors(); $("#go").click(); };
-
-syncMapSelector();
-for (const t of Object.keys(TEAMS)) {
-  $("#ta").add(new Option(t, t));
-  $("#tb").add(new Option(t, t));
+    advanceLiveRound();
+  };
 }
-$("#tb").selectedIndex = 6;
-applyDynamicTeamColors();
 
+if ($("#liveBtn")) {
+  $("#liveBtn").onclick = () => {
+    if (liveTimer) {
+      stopLive();
+      return;
+    }
+    if ($("#ta") && $("#tb")) {
+      const p = pair();
+      if (!p) return;
+      if (!SERIES || SERIES.liveFinished) {
+        SERIES = initSeriesState(buildSeries(p[0], p[1], currentFormat, true), true);
+      } else {
+        SERIES.activeTab = SERIES.liveMapIdx;
+      }
+    } else {
+      if (!SERIES) return;
+      if (SERIES.liveFinished) SERIES = initSeriesState({ ...SERIES, _isExternal: true }, true);
+      else SERIES.activeTab = SERIES.liveMapIdx;
+    }
+
+    const btn = $("#liveBtn");
+    btn.classList.add("live-active");
+    btn.textContent = "Pausar";
+
+    if (!advanceLiveRound()) return;
+    liveTimer = setInterval(() => {
+      if (!advanceLiveRound()) stopLive();
+    }, 340);
+  };
+}
+
+if ($("#themeToggle")) {
+  $("#themeToggle").onclick = () => {
+    const root = document.documentElement;
+    const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("vct_sim_theme", next); } catch (e) {}
+    if ($("#themeLabel")) $("#themeLabel").textContent = next.toUpperCase();
+  };
+}
+
+// ===== CONTROLES EXCLUSIVOS DE INDEX.HTML (SIMULADOR RÁPIDO + BASE DE DATOS) =====
 let activeRegion = "ALL";
 let searchQuery = "";
 
@@ -838,9 +798,7 @@ window.toggleSubStatus = function(team, idx) {
   const target = roster[idx];
   if (target.sub) {
     const currentStarters = roster.filter(p => !p.sub);
-    if (currentStarters.length >= 5) {
-      currentStarters[currentStarters.length - 1].sub = 1;
-    }
+    if (currentStarters.length >= 5) currentStarters[currentStarters.length - 1].sub = 1;
     target.sub = 0;
   } else {
     const waitingSub = roster.find((p, i) => p.sub && i !== idx);
@@ -852,19 +810,12 @@ window.toggleSubStatus = function(team, idx) {
   saveTeams();
   applyDynamicTeamColors();
   renderDatabase();
-  $("#go").click();
-};
-
-$("#resetDbBtn").onclick = () => {
-  TEAMS = JSON.parse(JSON.stringify(DEFAULT_TEAMS));
-  if (typeof window.reapplyCustomTeams === "function") window.reapplyCustomTeams();
-  saveTeams();
-  applyDynamicTeamColors();
-  renderDatabase();
-  $("#go").click();
+  if ($("#go")) $("#go").click();
 };
 
 function renderDatabase() {
+  const rosEl = $("#ros");
+  if (!rosEl) return;
   const q = searchQuery.trim().toLowerCase();
   let r = `<table>
     <thead>
@@ -925,9 +876,7 @@ function renderDatabase() {
 
     matchingPlayers.forEach(({ p, idx }) => {
       const statusBtn = hasBench
-        ? `<button type="button" class="sub-swap-btn ${p.sub ? 'is-sub' : 'is-starter'}" onclick="toggleSubStatus('${t}', ${idx})" title="Alternar entre Titular y Suplente">
-            ${p.sub ? '6TH SUB ⇄' : 'TITULAR ⇄'}
-          </button>`
+        ? `<button type="button" class="sub-swap-btn ${p.sub ? 'is-sub' : 'is-starter'}" onclick="toggleSubStatus('${t}', ${idx})">${p.sub ? '6TH SUB ⇄' : 'TITULAR ⇄'}</button>`
         : `<span class="sub-swap-btn is-starter" style="cursor:default">TITULAR</span>`;
       const topAgents = getPlayerAgents(p).slice(0, 3).join(", ");
       const hushTag = HUSH_MASTERY[p.n] >= 0.9 ? `<span class="igl-tag" style="color:var(--purple);border-color:var(--purple)">HUSH</span>` : "";
@@ -949,36 +898,14 @@ function renderDatabase() {
     });
   }
   r += `</tbody></table>`;
-  $("#ros").innerHTML = r;
+  rosEl.innerHTML = r;
 }
 
-document.querySelectorAll("#regionTabs .tab-btn").forEach(btn => {
-  btn.onclick = () => {
-    document.querySelectorAll("#regionTabs .tab-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    activeRegion = btn.dataset.reg;
-    renderDatabase();
-  };
-});
-
-$("#dbSearch").oninput = e => {
-  searchQuery = e.target.value;
-  renderDatabase();
-};
-
-$("#themeToggle").onclick = () => {
-  const root = document.documentElement;
-  const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
-  root.setAttribute("data-theme", next);
-  $("#themeLabel").textContent = next.toUpperCase();
-};
-
-// ===== CONTADORES DINÁMICOS DEL HEADER Y PUENTE PARA TORNEOS =====
 function updateDynamicCounters() {
   const teamNames = Object.keys(TEAMS);
   const totalPlayers = teamNames.reduce((acc, t) => acc + TEAMS[t].length, 0);
   const metaEl = $("#brandMeta");
-  if (metaEl) {
+  if (metaEl && $("#ta")) {
     metaEl.textContent = `VLR.GG TACTICAL ENGINE · ${teamNames.length} FRANQUICIAS · ${totalPlayers} PROS`;
   }
   const regCounts = { ALL: teamNames.length, AMERICAS: 0, EMEA: 0, PACIFIC: 0, CHINA: 0 };
@@ -988,55 +915,9 @@ function updateDynamicCounters() {
   });
   document.querySelectorAll("#regionTabs .tab-btn").forEach(btn => {
     const r = btn.dataset.reg;
-    if (regCounts[r] !== undefined) {
-      btn.textContent = `${r === "ALL" ? "TODOS" : r} (${regCounts[r]})`;
-    }
+    if (regCounts[r] !== undefined) btn.textContent = `${r === "ALL" ? "TODOS" : r} (${regCounts[r]})`;
   });
 }
-
-window.loadExternalSeriesIntoViewer = function(teamAName, teamBName, seriesObj, autoPlay = false, contextLabel = "") {
-  stopLive();
-  if ($("#ta") && $("#tb")) {
-    $("#ta").value = teamAName;
-    $("#tb").value = teamBName;
-    applyDynamicTeamColors();
-  }
-  currentFormat = seriesObj.format || 3;
-  document.querySelectorAll("#formatGroup .seg-btn").forEach(b => {
-    b.classList.toggle("active", parseInt(b.dataset.fmt, 10) === currentFormat);
-  });
-  // Copia superficial para no alterar el estado archivado del torneo
-  SERIES = initSeriesState({ ...seriesObj }, autoPlay);
-  if (contextLabel && $("#msg")) {
-    $("#msg").innerHTML = `<div class="cal-card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-      <span class="mono" style="font-size:11.5px"><b>SERIE DE TORNEO</b> · ${contextLabel}</span>
-      <a href="#torneo" class="nav-link mono" style="border:1px solid var(--bd-hi);font-size:11px;padding:4px 9px">Volver al Torneo</a>
-    </div>`;
-  }
-  render();
-  if (typeof refreshPreview === "function") refreshPreview();
-  const outEl = $("#out");
-  if (outEl) outEl.scrollIntoView({ behavior: "smooth", block: "start" });
-
-  if (autoPlay) {
-    const btn = $("#liveBtn");
-    if (btn) {
-      btn.classList.add("live-active");
-      btn.textContent = "Pausar";
-    }
-    if (advanceLiveRound()) {
-      liveTimer = setInterval(() => {
-        if (!advanceLiveRound()) stopLive();
-      }, 340);
-    }
-  }
-};
-
-updateDynamicCounters();
-
-renderDatabase();
-$("#go").click();
-_bootDone = true;
 
 window.refreshTeamSelects = function(selectInA = null) {
   const selA = $("#ta"), selB = $("#tb");
@@ -1056,3 +937,182 @@ window.refreshTeamSelects = function(selectInA = null) {
   updateDynamicCounters();
   renderDatabase();
 };
+
+window.closeMgrViewer = function() {
+  stopLive();
+  const sec = $("#mgrViewerSection");
+  if (sec) sec.hidden = true;
+};
+
+window.loadExternalSeriesIntoViewer = function(teamAName, teamBName, seriesObj, autoPlay = false, contextLabel = "") {
+  stopLive();
+  applyTeamColorsForPair(teamAName, teamBName);
+
+  const mgrSec = $("#mgrViewerSection");
+  if (mgrSec) mgrSec.hidden = false;
+
+  if ($("#ta") && $("#tb")) {
+    $("#ta").value = teamAName;
+    $("#tb").value = teamBName;
+    applyDynamicTeamColors();
+  }
+
+  currentFormat = seriesObj.format || 3;
+  document.querySelectorAll("#formatGroup .seg-btn").forEach(b => {
+    b.classList.toggle("active", parseInt(b.dataset.fmt, 10) === currentFormat);
+  });
+
+  SERIES = initSeriesState({ ...seriesObj, _isExternal: true }, autoPlay);
+
+  if (contextLabel && $("#msg")) {
+    const backAction = mgrSec
+      ? `<button type="button" class="t-btn-sm mono" onclick="closeMgrViewer()">Volver a mi Club</button>`
+      : `<a href="#torneo" class="nav-link mono" style="border:1px solid var(--bd-hi);font-size:11px;padding:4px 9px">Volver al Torneo</a>`;
+    $("#msg").innerHTML = `<div class="cal-card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <span class="mono" style="font-size:11.5px"><b>SERIE OFICIAL</b> · ${contextLabel}</span>
+      ${backAction}
+    </div>`;
+  }
+
+  render();
+  if (typeof refreshPreview === "function") refreshPreview();
+  const targetScroll = mgrSec || $("#out");
+  if (targetScroll) targetScroll.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  if (autoPlay) {
+    const btn = $("#liveBtn");
+    if (btn) {
+      btn.classList.add("live-active");
+      btn.textContent = "Pausar";
+    }
+    if (advanceLiveRound()) {
+      liveTimer = setInterval(() => {
+        if (!advanceLiveRound()) stopLive();
+      }, 340);
+    }
+  }
+};
+
+// Inicialización de la página principal (solo se ejecuta en index.html)
+if ($("#ta") && $("#tb")) {
+  document.querySelectorAll("#formatGroup .seg-btn").forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll("#formatGroup .seg-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentFormat = parseInt(btn.dataset.fmt, 10) || 3;
+      if ($("#go")) $("#go").click();
+    };
+  });
+
+  if ($("#mapSel")) {
+    $("#mapSel").onchange = () => {
+      const v = $("#mapSel").value;
+      if ($("#mapModInfo")) {
+        $("#mapModInfo").textContent = v === "AUTO"
+          ? "Protocolo VCT: 1v1 define Equipo A/B + Veto de 7 pasos (con sinergia de 30 agentes)"
+          : MAP_POOL[v].desc;
+      }
+      if ($("#go")) $("#go").click();
+    };
+  }
+
+  if ($("#go")) {
+    $("#go").onclick = () => {
+      stopLive();
+      const p = pair();
+      if (!p) return;
+      SERIES = initSeriesState(buildSeries(p[0], p[1], currentFormat, false), false);
+      if (_bootDone && typeof window.recordCompletedSeries === "function") {
+        window.recordCompletedSeries(SERIES);
+      }
+      render();
+    };
+  }
+
+  if ($("#cal")) {
+    $("#cal").onclick = () => {
+      stopLive();
+      const p = pair();
+      if (!p) return;
+      let w = 0, ot = 0, rd = 0, totalMaps = 0, N = 500;
+      for (let i = 0; i < N; i++) {
+        const s = buildSeries(p[0], p[1], currentFormat, false);
+        if (s.seriesScore[0] > s.seriesScore[1]) w++;
+        totalMaps += s.maps.length;
+        s.maps.forEach(m => {
+          if (m.rounds.length > 24) ot++;
+          rd += m.rounds.length;
+        });
+      }
+      const pctA = (w / N * 100).toFixed(1);
+      const pctB = ((N - w) / N * 100).toFixed(1);
+      if ($("#msg")) {
+        $("#msg").innerHTML = `
+        <div class="cal-card">
+          <div class="cal-top">
+            <span><b>SIMULACIÓN MONTE CARLO (${N} SERIES BO${currentFormat})</b> · ${p[0].name} vs ${p[1].name}</span>
+            <span class="mono"><b class="ca">${p[0].name} ${pctA}%</b> — <b class="cb">${pctB}% ${p[1].name}</b></span>
+          </div>
+          <div class="cal-bar"><div class="cal-bar-a" style="width:${pctA}%"></div></div>
+          <div class="cal-meta">
+            <span>Mapas/Serie: <b>${(totalMaps / N).toFixed(2)}</b></span>
+            <span>Rondas/Serie: <b>${(rd / N).toFixed(1)}</b></span>
+            <span>Tasa Overtime: <b>${(ot / totalMaps * 100).toFixed(1)}%</b></span>
+          </div>
+        </div>`;
+      }
+    };
+  }
+
+  if ($("#swapBtn")) {
+    $("#swapBtn").onclick = () => {
+      const a = $("#ta").selectedIndex;
+      $("#ta").selectedIndex = $("#tb").selectedIndex;
+      $("#tb").selectedIndex = a;
+      applyDynamicTeamColors();
+      if ($("#go")) $("#go").click();
+    };
+  }
+
+  $("#ta").onchange = () => { applyDynamicTeamColors(); if ($("#go")) $("#go").click(); };
+  $("#tb").onchange = () => { applyDynamicTeamColors(); if ($("#go")) $("#go").click(); };
+
+  if ($("#resetDbBtn")) {
+    $("#resetDbBtn").onclick = () => {
+      TEAMS = JSON.parse(JSON.stringify(DEFAULT_TEAMS));
+      if (typeof window.reapplyCustomTeams === "function") window.reapplyCustomTeams();
+      saveTeams();
+      applyDynamicTeamColors();
+      renderDatabase();
+      if ($("#go")) $("#go").click();
+    };
+  }
+
+  document.querySelectorAll("#regionTabs .tab-btn").forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll("#regionTabs .tab-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      activeRegion = btn.dataset.reg;
+      renderDatabase();
+    };
+  });
+
+  if ($("#dbSearch")) {
+    $("#dbSearch").oninput = e => {
+      searchQuery = e.target.value;
+      renderDatabase();
+    };
+  }
+
+  syncMapSelector();
+  for (const t of Object.keys(TEAMS)) {
+    $("#ta").add(new Option(t, t));
+    $("#tb").add(new Option(t, t));
+  }
+  $("#tb").selectedIndex = 6;
+  applyDynamicTeamColors();
+  updateDynamicCounters();
+  renderDatabase();
+  if ($("#go")) $("#go").click();
+  _bootDone = true;
+}

@@ -2172,6 +2172,103 @@ footer.closing {
   flex-direction: column;
   gap: 3px;
 }
+
+/* FIX DEFINITIVO LOGO GENTLE MATES EN MODO CARRERA Y TORNEOS */
+.score-logo-sm {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  padding: 0;
+  background: transparent !important;
+  border: 0 !important;
+  display: block;
+}
+
+.mgr-logo-frame {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  background: var(--card);
+  border: 1px solid var(--bd-hi);
+  border-radius: 2px;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+/* EXPLORADOR DE ROSTERS DE TODOS LOS CLUBES */
+.mgr-clubs-layout {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  gap: 10px;
+  align-items: start;
+}
+
+@media (max-width: 980px) {
+  .mgr-clubs-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mgr-tag.tag-racha,
+.mgr-tag.tag-sponsor {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.mgr-tag.tag-champions,
+.mgr-tag.tag-ofertadt {
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
+.mgr-tag.tag-despido {
+  border-color: var(--vct-red);
+  background: var(--a-soft);
+  color: var(--vct-red);
+}
+
+/* AJUSTES MODO MANAGER v3: 10 ENTRENAMIENTOS, POSTULACIÓN Y TERMINAR CARRERA */
+.mgr-train-compact {
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+}
+
+.mgr-train-compact .mgr-train-btn {
+  padding: 7px 9px;
+}
+
+.mgr-end-btn {
+  border-color: var(--vct-red);
+  color: var(--vct-red);
+}
+
+.mgr-end-btn:hover {
+  background: var(--a-soft);
+  border-color: var(--vct-red);
+  color: var(--fg);
+}
+
+.mgr-tag.tag-postulación {
+  border-color: var(--vct-cyan);
+  color: var(--vct-cyan);
+}
+
+.nav-manager-link {
+  border: 1px solid var(--vct-red);
+  color: var(--fg);
+  background: var(--a-soft);
+}
+
+.nav-manager-link:hover {
+  background: var(--vct-red);
+  color: #FFFFFF;
+}
+
+.mgr-viewer-wrap {
+  border-color: var(--bd-hi);
+  margin-bottom: 16px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
