@@ -1,6 +1,6 @@
 {
- "updated": "2026-11-17",
- "source": "vlr.gg (script del usuario) + ajustes manuales",
+ "updated": "2026-11-19",
+ "source": "vlr.gg (scraper_vlr.py) + calibración manual",
  "teams": {
   "Sentinels": {
    "reg": "AMERICAS",
@@ -9,90 +9,12 @@
    "code": "SEN",
    "logoCls": "",
    "players": [
-    {
-     "n": "OXY",
-     "r": "Duelista",
-     "aim": 97,
-     "fd": 94,
-     "clutch": 87,
-     "entry": 92,
-     "util": 72,
-     "igl": 62,
-     "conf": 88,
-     "cons": 85,
-     "pot": 94,
-     "sub": 0
-    },
-    {
-     "n": "canezerra",
-     "r": "Flex",
-     "aim": 91,
-     "fd": 88,
-     "clutch": 82,
-     "entry": 96,
-     "util": 82,
-     "igl": 66,
-     "conf": 58,
-     "cons": 77,
-     "pot": 95,
-     "sub": 0
-    },
-    {
-     "n": "brawk",
-     "r": "Iniciador",
-     "aim": 91,
-     "fd": 74,
-     "clutch": 90,
-     "entry": 72,
-     "util": 96,
-     "igl": 75,
-     "conf": 83,
-     "cons": 91,
-     "pot": 89,
-     "sub": 0
-    },
-    {
-     "n": "keiko",
-     "r": "Controlador/Flex",
-     "aim": 93,
-     "fd": 87,
-     "clutch": 83,
-     "entry": 89,
-     "util": 78,
-     "igl": 63,
-     "conf": 83,
-     "cons": 80,
-     "pot": 89,
-     "sub": 0
-    },
-    {
-     "n": "johnqt",
-     "r": "IGL/Centinela",
-     "aim": 87,
-     "fd": 75,
-     "clutch": 89,
-     "entry": 71,
-     "util": 89,
-     "igl": 94,
-     "conf": 92,
-     "cons": 90,
-     "pot": 87,
-     "sub": 0
-    },
-    {
-     "n": "Zellsis",
-     "r": "Suplente/Flex",
-     "aim": 84,
-     "fd": 77,
-     "clutch": 81,
-     "entry": 77,
-     "util": 92,
-     "igl": 72,
-     "conf": 78,
-     "cons": 83,
-     "pot": 85,
-     "sub": 1
-    }
+    { "n": "OXY", "r": "Duelista", "aim": 97, "fd": 94, "clutch": 87, "entry": 92, "util": 72, "igl": 62, "conf": 88, "cons": 85, "pot": 94, "sub": 0 },
+    { "n": "canezerra", "r": "Flex", "aim": 91, "fd": 88, "clutch": 82, "entry": 96, "util": 82, "igl": 66, "conf": 58, "cons": 77, "pot": 95, "sub": 0 },
+    { "n": "brawk", "r": "Iniciador", "aim": 91, "fd": 74, "clutch": 90, "entry": 72, "util": 96, "igl": 75, "conf": 83, "cons": 91, "pot": 89, "sub": 0 },
+    { "n": "keiko", "r": "Controlador/Flex", "aim": 93, "fd": 87, "clutch": 83, "entry": 89, "util": 78, "igl": 63, "conf": 83, "cons": 80, "pot": 89, "sub": 0 },
+    { "n": "johnqt", "r": "IGL/Centinela", "aim": 87, "fd": 75, "clutch": 89, "entry": 71, "util": 89, "igl": 94, "conf": 92, "cons": 90, "pot": 87, "sub": 0 },
+    { "n": "Zellsis", "r": "Suplente/Flex", "aim": 84, "fd": 77, "clutch": 81, "entry": 77, "util": 92, "igl": 72, "conf": 78, "cons": 83, "pot": 85, "sub": 1 }
    ]
   },
   "NRG": {
@@ -102,76 +24,11 @@
    "code": "NRG",
    "logoCls": "",
    "players": [
-    {
-     "n": "zekken",
-     "r": "Duelista",
-     "aim": 95,
-     "fd": 87,
-     "clutch": 88,
-     "entry": 94,
-     "util": 86,
-     "igl": 68,
-     "conf": 85,
-     "cons": 84,
-     "pot": 91,
-     "sub": 0
-    },
-    {
-     "n": "mada",
-     "r": "Controlador/Flex",
-     "aim": 90,
-     "fd": 86,
-     "clutch": 80,
-     "entry": 84,
-     "util": 80,
-     "igl": 64,
-     "conf": 80,
-     "cons": 79,
-     "pot": 86,
-     "sub": 0
-    },
-    {
-     "n": "skuba",
-     "r": "Controlador/Centinela",
-     "aim": 89,
-     "fd": 75,
-     "clutch": 88,
-     "entry": 73,
-     "util": 91,
-     "igl": 71,
-     "conf": 82,
-     "cons": 88,
-     "pot": 88,
-     "sub": 0
-    },
-    {
-     "n": "eeiu",
-     "r": "Iniciador",
-     "aim": 91,
-     "fd": 74,
-     "clutch": 88,
-     "entry": 73,
-     "util": 91,
-     "igl": 71,
-     "conf": 82,
-     "cons": 87,
-     "pot": 89,
-     "sub": 0
-    },
-    {
-     "n": "Ethan",
-     "r": "IGL/Flex",
-     "aim": 82,
-     "fd": 75,
-     "clutch": 82,
-     "entry": 72,
-     "util": 96,
-     "igl": 91,
-     "conf": 94,
-     "cons": 85,
-     "pot": 84,
-     "sub": 0
-    }
+    { "n": "zekken", "r": "Duelista", "aim": 95, "fd": 87, "clutch": 88, "entry": 94, "util": 86, "igl": 68, "conf": 85, "cons": 84, "pot": 91, "sub": 0 },
+    { "n": "mada", "r": "Controlador/Flex", "aim": 90, "fd": 86, "clutch": 80, "entry": 84, "util": 80, "igl": 64, "conf": 80, "cons": 79, "pot": 86, "sub": 0 },
+    { "n": "skuba", "r": "Controlador/Centinela", "aim": 89, "fd": 75, "clutch": 88, "entry": 73, "util": 91, "igl": 71, "conf": 82, "cons": 88, "pot": 88, "sub": 0 },
+    { "n": "eeiu", "r": "Iniciador", "aim": 91, "fd": 74, "clutch": 88, "entry": 73, "util": 91, "igl": 71, "conf": 82, "cons": 87, "pot": 89, "sub": 0 },
+    { "n": "Ethan", "r": "IGL/Flex", "aim": 82, "fd": 75, "clutch": 82, "entry": 72, "util": 96, "igl": 91, "conf": 94, "cons": 85, "pot": 84, "sub": 0 }
    ]
   },
   "G2 Esports": {
@@ -181,76 +38,11 @@
    "code": "G2",
    "logoCls": "logo-light-invert",
    "players": [
-    {
-     "n": "HYUNMIN",
-     "r": "Duelista",
-     "aim": 93,
-     "fd": 91,
-     "clutch": 84,
-     "entry": 93,
-     "util": 76,
-     "igl": 62,
-     "conf": 84,
-     "cons": 82,
-     "pot": 94,
-     "sub": 0
-    },
-    {
-     "n": "Sato",
-     "r": "Flex",
-     "aim": 90,
-     "fd": 88,
-     "clutch": 82,
-     "entry": 90,
-     "util": 81,
-     "igl": 65,
-     "conf": 78,
-     "cons": 79,
-     "pot": 92,
-     "sub": 0
-    },
-    {
-     "n": "trent",
-     "r": "Iniciador",
-     "aim": 90,
-     "fd": 80,
-     "clutch": 91,
-     "entry": 78,
-     "util": 93,
-     "igl": 74,
-     "conf": 86,
-     "cons": 89,
-     "pot": 90,
-     "sub": 0
-    },
-    {
-     "n": "kiNgg",
-     "r": "Controlador/IGL",
-     "aim": 89,
-     "fd": 82,
-     "clutch": 88,
-     "entry": 80,
-     "util": 90,
-     "igl": 93,
-     "conf": 91,
-     "cons": 91,
-     "pot": 89,
-     "sub": 0
-    },
-    {
-     "n": "leaf",
-     "r": "Centinela",
-     "aim": 93,
-     "fd": 88,
-     "clutch": 90,
-     "entry": 86,
-     "util": 84,
-     "igl": 70,
-     "conf": 87,
-     "cons": 89,
-     "pot": 90,
-     "sub": 0
-    }
+    { "n": "HYUNMIN", "r": "Duelista", "aim": 93, "fd": 91, "clutch": 79, "entry": 93, "util": 74, "igl": 61, "conf": 80, "cons": 77, "pot": 94, "sub": 0 },
+    { "n": "Sato", "r": "Flex", "aim": 90, "fd": 88, "clutch": 80, "entry": 90, "util": 74, "igl": 61, "conf": 74, "cons": 73, "pot": 92, "sub": 0 },
+    { "n": "trent", "r": "Iniciador", "aim": 90, "fd": 75, "clutch": 91, "entry": 76, "util": 93, "igl": 71, "conf": 84, "cons": 89, "pot": 90, "sub": 0 },
+    { "n": "kiNgg", "r": "Controlador/IGL", "aim": 89, "fd": 80, "clutch": 88, "entry": 80, "util": 90, "igl": 93, "conf": 91, "cons": 91, "pot": 89, "sub": 0 },
+    { "n": "leaf", "r": "Centinela", "aim": 93, "fd": 88, "clutch": 90, "entry": 86, "util": 80, "igl": 64, "conf": 79, "cons": 89, "pot": 85, "sub": 0 }
    ]
   },
   "100 Thieves": {
@@ -260,76 +52,11 @@
    "code": "100T",
    "logoCls": "",
    "players": [
-    {
-     "n": "Cryocells",
-     "r": "Duelista/Centinela",
-     "aim": 93,
-     "fd": 90,
-     "clutch": 88,
-     "entry": 87,
-     "util": 74,
-     "igl": 64,
-     "conf": 85,
-     "cons": 83,
-     "pot": 91,
-     "sub": 0
-    },
-    {
-     "n": "Asuna",
-     "r": "Duelista/Flex",
-     "aim": 89,
-     "fd": 91,
-     "clutch": 83,
-     "entry": 92,
-     "util": 86,
-     "igl": 70,
-     "conf": 87,
-     "cons": 83,
-     "pot": 86,
-     "sub": 0
-    },
-    {
-     "n": "Timotino",
-     "r": "Flex/Duelista",
-     "aim": 91,
-     "fd": 92,
-     "clutch": 81,
-     "entry": 96,
-     "util": 80,
-     "igl": 64,
-     "conf": 66,
-     "cons": 76,
-     "pot": 91,
-     "sub": 0
-    },
-    {
-     "n": "bang",
-     "r": "Controlador",
-     "aim": 85,
-     "fd": 77,
-     "clutch": 90,
-     "entry": 76,
-     "util": 91,
-     "igl": 71,
-     "conf": 80,
-     "cons": 88,
-     "pot": 86,
-     "sub": 0
-    },
-    {
-     "n": "vora",
-     "r": "Iniciador/IGL",
-     "aim": 87,
-     "fd": 74,
-     "clutch": 87,
-     "entry": 71,
-     "util": 94,
-     "igl": 86,
-     "conf": 81,
-     "cons": 89,
-     "pot": 87,
-     "sub": 0
-    }
+    { "n": "Cryocells", "r": "Duelista/Centinela", "aim": 93, "fd": 90, "clutch": 88, "entry": 87, "util": 74, "igl": 64, "conf": 85, "cons": 83, "pot": 91, "sub": 0 },
+    { "n": "Asuna", "r": "Duelista/Flex", "aim": 89, "fd": 91, "clutch": 83, "entry": 92, "util": 86, "igl": 70, "conf": 87, "cons": 83, "pot": 86, "sub": 0 },
+    { "n": "Timotino", "r": "Flex/Duelista", "aim": 91, "fd": 92, "clutch": 81, "entry": 96, "util": 80, "igl": 64, "conf": 66, "cons": 76, "pot": 91, "sub": 0 },
+    { "n": "bang", "r": "Controlador", "aim": 85, "fd": 77, "clutch": 90, "entry": 76, "util": 91, "igl": 71, "conf": 80, "cons": 88, "pot": 86, "sub": 0 },
+    { "n": "vora", "r": "Iniciador/IGL", "aim": 87, "fd": 74, "clutch": 87, "entry": 71, "util": 94, "igl": 86, "conf": 81, "cons": 89, "pot": 87, "sub": 0 }
    ]
   },
   "Leviatán": {
@@ -339,76 +66,25 @@
    "code": "LEV",
    "logoCls": "",
    "players": [
-    {
-     "n": "Neon",
-     "r": "Duelista",
-     "aim": 91,
-     "fd": 88,
-     "clutch": 86,
-     "entry": 90,
-     "util": 79,
-     "igl": 64,
-     "conf": 76,
-     "cons": 79,
-     "pot": 92,
-     "sub": 0
-    },
-    {
-     "n": "spike",
-     "r": "Duelista/Flex",
-     "aim": 87,
-     "fd": 88,
-     "clutch": 77,
-     "entry": 89,
-     "util": 87,
-     "igl": 68,
-     "conf": 68,
-     "cons": 76,
-     "pot": 84,
-     "sub": 0
-    },
-    {
-     "n": "blowz",
-     "r": "Iniciador",
-     "aim": 82,
-     "fd": 71,
-     "clutch": 83,
-     "entry": 67,
-     "util": 90,
-     "igl": 71,
-     "conf": 70,
-     "cons": 82,
-     "pot": 87,
-     "sub": 0
-    },
-    {
-     "n": "erde",
-     "r": "Controlador",
-     "aim": 85,
-     "fd": 71,
-     "clutch": 82,
-     "entry": 71,
-     "util": 93,
-     "igl": 72,
-     "conf": 71,
-     "cons": 79,
-     "pot": 88,
-     "sub": 0
-    },
-    {
-     "n": "lukxo",
-     "r": "Centinela",
-     "aim": 84,
-     "fd": 78,
-     "clutch": 75,
-     "entry": 79,
-     "util": 80,
-     "igl": 64,
-     "conf": 70,
-     "cons": 70,
-     "pot": 86,
-     "sub": 0
-    }
+    { "n": "Neon", "r": "Duelista", "aim": 91, "fd": 88, "clutch": 86, "entry": 90, "util": 79, "igl": 64, "conf": 76, "cons": 79, "pot": 92, "sub": 0 },
+    { "n": "spike", "r": "Duelista/Flex", "aim": 87, "fd": 88, "clutch": 77, "entry": 89, "util": 87, "igl": 68, "conf": 68, "cons": 76, "pot": 84, "sub": 0 },
+    { "n": "blowz", "r": "Iniciador", "aim": 82, "fd": 71, "clutch": 83, "entry": 67, "util": 90, "igl": 71, "conf": 70, "cons": 82, "pot": 87, "sub": 0 },
+    { "n": "erde", "r": "Controlador", "aim": 85, "fd": 71, "clutch": 82, "entry": 71, "util": 93, "igl": 72, "conf": 71, "cons": 79, "pot": 88, "sub": 0 },
+    { "n": "lukxo", "r": "Centinela", "aim": 84, "fd": 78, "clutch": 75, "entry": 79, "util": 80, "igl": 64, "conf": 70, "cons": 70, "pot": 86, "sub": 0 }
+   ]
+  },
+  "LOUD": {
+   "reg": "AMERICAS",
+   "color": "#11E811",
+   "logo": "loud.png",
+   "code": "LOUD",
+   "logoCls": "",
+   "players": [
+    { "n": "DaviH", "r": "Duelista", "aim": 89, "fd": 71, "clutch": 87, "entry": 69, "util": 90, "igl": 71, "conf": 75, "cons": 83, "pot": 91, "sub": 0 },
+    { "n": "tkzin", "r": "Flex/Duelista", "aim": 83, "fd": 87, "clutch": 72, "entry": 91, "util": 72, "igl": 59, "conf": 68, "cons": 67, "pot": 84, "sub": 0 },
+    { "n": "artzin", "r": "Iniciador/IGL", "aim": 80, "fd": 80, "clutch": 71, "entry": 81, "util": 87, "igl": 84, "conf": 74, "cons": 72, "pot": 81, "sub": 0 },
+    { "n": "basic", "r": "Controlador", "aim": 91, "fd": 70, "clutch": 93, "entry": 71, "util": 96, "igl": 75, "conf": 77, "cons": 89, "pot": 92, "sub": 0 },
+    { "n": "cortezia", "r": "Centinela", "aim": 89, "fd": 77, "clutch": 90, "entry": 79, "util": 87, "igl": 69, "conf": 82, "cons": 87, "pot": 88, "sub": 0 }
    ]
   },
   "Fnatic": {
@@ -418,76 +94,11 @@
    "code": "FNC",
    "logoCls": "",
    "players": [
-    {
-     "n": "kaajak",
-     "r": "Duelista",
-     "aim": 91,
-     "fd": 92,
-     "clutch": 80,
-     "entry": 96,
-     "util": 70,
-     "igl": 59,
-     "conf": 83,
-     "cons": 74,
-     "pot": 94,
-     "sub": 0
-    },
-    {
-     "n": "marteen",
-     "r": "Duelista/Flex",
-     "aim": 90,
-     "fd": 88,
-     "clutch": 88,
-     "entry": 93,
-     "util": 82,
-     "igl": 66,
-     "conf": 85,
-     "cons": 84,
-     "pot": 91,
-     "sub": 0
-    },
-    {
-     "n": "Cloud",
-     "r": "Iniciador",
-     "aim": 91,
-     "fd": 80,
-     "clutch": 83,
-     "entry": 82,
-     "util": 85,
-     "igl": 67,
-     "conf": 81,
-     "cons": 82,
-     "pot": 88,
-     "sub": 0
-    },
-    {
-     "n": "valyn",
-     "r": "Controlador/IGL",
-     "aim": 85,
-     "fd": 77,
-     "clutch": 85,
-     "entry": 76,
-     "util": 93,
-     "igl": 92,
-     "conf": 79,
-     "cons": 88,
-     "pot": 86,
-     "sub": 0
-    },
-    {
-     "n": "Minny",
-     "r": "Centinela",
-     "aim": 85,
-     "fd": 76,
-     "clutch": 79,
-     "entry": 76,
-     "util": 80,
-     "igl": 64,
-     "conf": 71,
-     "cons": 74,
-     "pot": 87,
-     "sub": 0
-    }
+    { "n": "kaajak", "r": "Duelista", "aim": 91, "fd": 92, "clutch": 80, "entry": 96, "util": 70, "igl": 59, "conf": 83, "cons": 74, "pot": 94, "sub": 0 },
+    { "n": "marteen", "r": "Duelista/Flex", "aim": 90, "fd": 88, "clutch": 88, "entry": 93, "util": 82, "igl": 66, "conf": 85, "cons": 84, "pot": 91, "sub": 0 },
+    { "n": "Cloud", "r": "Iniciador", "aim": 91, "fd": 80, "clutch": 83, "entry": 82, "util": 85, "igl": 67, "conf": 81, "cons": 82, "pot": 88, "sub": 0 },
+    { "n": "valyn", "r": "Controlador/IGL", "aim": 85, "fd": 77, "clutch": 85, "entry": 76, "util": 93, "igl": 92, "conf": 79, "cons": 88, "pot": 86, "sub": 0 },
+    { "n": "Minny", "r": "Centinela", "aim": 85, "fd": 76, "clutch": 79, "entry": 76, "util": 80, "igl": 64, "conf": 71, "cons": 74, "pot": 87, "sub": 0 }
    ]
   },
   "FUT Esports": {
@@ -497,76 +108,11 @@
    "code": "FUT",
    "logoCls": "logo-fut",
    "players": [
-    {
-     "n": "aspas",
-     "r": "Duelista",
-     "aim": 96,
-     "fd": 95,
-     "clutch": 91,
-     "entry": 94,
-     "util": 75,
-     "igl": 64,
-     "conf": 94,
-     "cons": 95,
-     "pot": 96,
-     "sub": 0
-    },
-    {
-     "n": "Wo0t",
-     "r": "Flex",
-     "aim": 93,
-     "fd": 89,
-     "clutch": 88,
-     "entry": 90,
-     "util": 85,
-     "igl": 67,
-     "conf": 88,
-     "cons": 86,
-     "pot": 95,
-     "sub": 0
-    },
-    {
-     "n": "batujnax",
-     "r": "Iniciador/IGL",
-     "aim": 85,
-     "fd": 78,
-     "clutch": 82,
-     "entry": 77,
-     "util": 88,
-     "igl": 85,
-     "conf": 77,
-     "cons": 81,
-     "pot": 88,
-     "sub": 0
-    },
-    {
-     "n": "hezacoil",
-     "r": "Controlador",
-     "aim": 84,
-     "fd": 75,
-     "clutch": 83,
-     "entry": 74,
-     "util": 89,
-     "igl": 68,
-     "conf": 76,
-     "cons": 84,
-     "pot": 86,
-     "sub": 0
-    },
-    {
-     "n": "yetujey",
-     "r": "Centinela",
-     "aim": 90,
-     "fd": 81,
-     "clutch": 91,
-     "entry": 78,
-     "util": 84,
-     "igl": 66,
-     "conf": 85,
-     "cons": 88,
-     "pot": 90,
-     "sub": 0
-    }
+    { "n": "aspas", "r": "Duelista", "aim": 96, "fd": 95, "clutch": 91, "entry": 94, "util": 75, "igl": 64, "conf": 94, "cons": 95, "pot": 96, "sub": 0 },
+    { "n": "Wo0t", "r": "Flex", "aim": 93, "fd": 89, "clutch": 88, "entry": 90, "util": 85, "igl": 68, "conf": 88, "cons": 86, "pot": 95, "sub": 0 },
+    { "n": "batujnax", "r": "Iniciador/IGL", "aim": 73, "fd": 70, "clutch": 72, "entry": 66, "util": 88, "igl": 85, "conf": 64, "cons": 74, "pot": 80, "sub": 0 },
+    { "n": "hezacoil", "r": "Controlador", "aim": 82, "fd": 72, "clutch": 82, "entry": 68, "util": 89, "igl": 71, "conf": 71, "cons": 84, "pot": 87, "sub": 0 },
+    { "n": "yetujey", "r": "Centinela", "aim": 90, "fd": 77, "clutch": 91, "entry": 75, "util": 75, "igl": 62, "conf": 80, "cons": 88, "pot": 86, "sub": 0 }
    ]
   },
   "Gentle Mates": {
@@ -576,76 +122,11 @@
    "code": "M8",
    "logoCls": "logo-invert",
    "players": [
-    {
-     "n": "kozzy",
-     "r": "Duelista/Flex",
-     "aim": 91,
-     "fd": 90,
-     "clutch": 90,
-     "entry": 96,
-     "util": 78,
-     "igl": 63,
-     "conf": 79,
-     "cons": 82,
-     "pot": 95,
-     "sub": 0
-    },
-    {
-     "n": "Alfajer",
-     "r": "Centinela",
-     "aim": 95,
-     "fd": 83,
-     "clutch": 92,
-     "entry": 76,
-     "util": 75,
-     "igl": 61,
-     "conf": 83,
-     "cons": 80,
-     "pot": 89,
-     "sub": 0
-    },
-    {
-     "n": "Boaster",
-     "r": "Controlador/IGL",
-     "aim": 75,
-     "fd": 72,
-     "clutch": 71,
-     "entry": 65,
-     "util": 91,
-     "igl": 96,
-     "conf": 92,
-     "cons": 76,
-     "pot": 78,
-     "sub": 0
-    },
-    {
-     "n": "Ruxic",
-     "r": "Controlador/Flex",
-     "aim": 92,
-     "fd": 77,
-     "clutch": 88,
-     "entry": 79,
-     "util": 96,
-     "igl": 74,
-     "conf": 83,
-     "cons": 87,
-     "pot": 89,
-     "sub": 0
-    },
-    {
-     "n": "MAGNUM",
-     "r": "Iniciador/Centinela",
-     "aim": 84,
-     "fd": 79,
-     "clutch": 77,
-     "entry": 80,
-     "util": 81,
-     "igl": 65,
-     "conf": 77,
-     "cons": 78,
-     "pot": 84,
-     "sub": 0
-    }
+    { "n": "kozzy", "r": "Duelista/Flex", "aim": 91, "fd": 90, "clutch": 90, "entry": 96, "util": 78, "igl": 63, "conf": 79, "cons": 82, "pot": 95, "sub": 0 },
+    { "n": "Alfajer", "r": "Centinela", "aim": 95, "fd": 83, "clutch": 92, "entry": 76, "util": 75, "igl": 61, "conf": 83, "cons": 80, "pot": 89, "sub": 0 },
+    { "n": "Boaster", "r": "Controlador/IGL", "aim": 75, "fd": 72, "clutch": 71, "entry": 65, "util": 91, "igl": 96, "conf": 92, "cons": 76, "pot": 78, "sub": 0 },
+    { "n": "Ruxic", "r": "Controlador/Flex", "aim": 92, "fd": 77, "clutch": 88, "entry": 79, "util": 96, "igl": 74, "conf": 83, "cons": 87, "pot": 89, "sub": 0 },
+    { "n": "MAGNUM", "r": "Iniciador/Centinela", "aim": 84, "fd": 79, "clutch": 77, "entry": 80, "util": 81, "igl": 65, "conf": 77, "cons": 78, "pot": 84, "sub": 0 }
    ]
   },
   "Karmine Corp": {
@@ -655,90 +136,12 @@
    "code": "KC",
    "logoCls": "",
    "players": [
-    {
-     "n": "LewN",
-     "r": "Duelista",
-     "aim": 87,
-     "fd": 92,
-     "clutch": 72,
-     "entry": 96,
-     "util": 68,
-     "igl": 57,
-     "conf": 78,
-     "cons": 69,
-     "pot": 85,
-     "sub": 0
-    },
-    {
-     "n": "N4RRATE",
-     "r": "Iniciador/Flex",
-     "aim": 91,
-     "fd": 84,
-     "clutch": 84,
-     "entry": 86,
-     "util": 87,
-     "igl": 69,
-     "conf": 81,
-     "cons": 83,
-     "pot": 88,
-     "sub": 0
-    },
-    {
-     "n": "avez",
-     "r": "Controlador/IGL",
-     "aim": 84,
-     "fd": 83,
-     "clutch": 84,
-     "entry": 87,
-     "util": 85,
-     "igl": 86,
-     "conf": 83,
-     "cons": 82,
-     "pot": 89,
-     "sub": 0
-    },
-    {
-     "n": "dos9",
-     "r": "Controlador/Flex",
-     "aim": 86,
-     "fd": 74,
-     "clutch": 85,
-     "entry": 74,
-     "util": 89,
-     "igl": 70,
-     "conf": 72,
-     "cons": 83,
-     "pot": 88,
-     "sub": 0
-    },
-    {
-     "n": "SUYGETSU",
-     "r": "Centinela",
-     "aim": 90,
-     "fd": 77,
-     "clutch": 92,
-     "entry": 75,
-     "util": 80,
-     "igl": 64,
-     "conf": 80,
-     "cons": 81,
-     "pot": 86,
-     "sub": 0
-    },
-    {
-     "n": "sheydos",
-     "r": "Suplente/Flex",
-     "aim": 88,
-     "fd": 79,
-     "clutch": 88,
-     "entry": 80,
-     "util": 83,
-     "igl": 66,
-     "conf": 84,
-     "cons": 86,
-     "pot": 90,
-     "sub": 1
-    }
+    { "n": "LewN", "r": "Duelista", "aim": 87, "fd": 92, "clutch": 72, "entry": 96, "util": 68, "igl": 57, "conf": 78, "cons": 69, "pot": 85, "sub": 0 },
+    { "n": "N4RRATE", "r": "Iniciador/Flex", "aim": 91, "fd": 84, "clutch": 84, "entry": 86, "util": 87, "igl": 69, "conf": 81, "cons": 83, "pot": 88, "sub": 0 },
+    { "n": "avez", "r": "Controlador/IGL", "aim": 84, "fd": 83, "clutch": 84, "entry": 87, "util": 85, "igl": 86, "conf": 83, "cons": 82, "pot": 89, "sub": 0 },
+    { "n": "dos9", "r": "Controlador/Flex", "aim": 86, "fd": 74, "clutch": 85, "entry": 74, "util": 89, "igl": 70, "conf": 72, "cons": 83, "pot": 88, "sub": 0 },
+    { "n": "SUYGETSU", "r": "Centinela", "aim": 90, "fd": 77, "clutch": 92, "entry": 75, "util": 80, "igl": 64, "conf": 80, "cons": 81, "pot": 86, "sub": 0 },
+    { "n": "sheydos", "r": "Suplente/Flex", "aim": 88, "fd": 79, "clutch": 88, "entry": 80, "util": 83, "igl": 66, "conf": 84, "cons": 86, "pot": 90, "sub": 1 }
    ]
   },
   "Team Vitality": {
@@ -748,76 +151,25 @@
    "code": "VIT",
    "logoCls": "",
    "players": [
-    {
-     "n": "jawgemo",
-     "r": "Duelista",
-     "aim": 92,
-     "fd": 91,
-     "clutch": 87,
-     "entry": 94,
-     "util": 80,
-     "igl": 64,
-     "conf": 77,
-     "cons": 76,
-     "pot": 84,
-     "sub": 0
-    },
-    {
-     "n": "Jamppi",
-     "r": "Iniciador/IGL",
-     "aim": 82,
-     "fd": 81,
-     "clutch": 75,
-     "entry": 80,
-     "util": 80,
-     "igl": 84,
-     "conf": 77,
-     "cons": 76,
-     "pot": 83,
-     "sub": 0
-    },
-    {
-     "n": "Sayonara",
-     "r": "Flex/Duelista",
-     "aim": 91,
-     "fd": 79,
-     "clutch": 88,
-     "entry": 81,
-     "util": 87,
-     "igl": 69,
-     "conf": 54,
-     "cons": 82,
-     "pot": 96,
-     "sub": 0
-    },
-    {
-     "n": "PROFEK",
-     "r": "Controlador",
-     "aim": 87,
-     "fd": 78,
-     "clutch": 84,
-     "entry": 75,
-     "util": 90,
-     "igl": 70,
-     "conf": 81,
-     "cons": 83,
-     "pot": 87,
-     "sub": 0
-    },
-    {
-     "n": "Chronicle",
-     "r": "Flex/Iniciador",
-     "aim": 91,
-     "fd": 80,
-     "clutch": 85,
-     "entry": 81,
-     "util": 88,
-     "igl": 69,
-     "conf": 82,
-     "cons": 84,
-     "pot": 88,
-     "sub": 0
-    }
+    { "n": "jawgemo", "r": "Duelista", "aim": 88, "fd": 91, "clutch": 87, "entry": 94, "util": 80, "igl": 64, "conf": 77, "cons": 76, "pot": 84, "sub": 0 },
+    { "n": "Jamppi", "r": "Iniciador/IGL", "aim": 82, "fd": 81, "clutch": 75, "entry": 80, "util": 80, "igl": 84, "conf": 77, "cons": 76, "pot": 83, "sub": 0 },
+    { "n": "Sayonara", "r": "Flex/Duelista", "aim": 91, "fd": 79, "clutch": 88, "entry": 81, "util": 87, "igl": 69, "conf": 54, "cons": 82, "pot": 96, "sub": 0 },
+    { "n": "PROFEK", "r": "Controlador", "aim": 87, "fd": 78, "clutch": 84, "entry": 75, "util": 90, "igl": 70, "conf": 81, "cons": 83, "pot": 87, "sub": 0 },
+    { "n": "Chronicle", "r": "Flex/Iniciador", "aim": 91, "fd": 80, "clutch": 85, "entry": 81, "util": 88, "igl": 69, "conf": 82, "cons": 84, "pot": 88, "sub": 0 }
+   ]
+  },
+  "Team Heretics": {
+   "reg": "EMEA",
+   "color": "#B8860B",
+   "logo": "heretics.png",
+   "code": "TH",
+   "logoCls": "",
+   "players": [
+    { "n": "Jamelinho213", "r": "Duelista", "aim": 87, "fd": 87, "clutch": 76, "entry": 92, "util": 73, "igl": 60, "conf": 71, "cons": 70, "pot": 87, "sub": 0 },
+    { "n": "hiro", "r": "Flex", "aim": 89, "fd": 80, "clutch": 79, "entry": 81, "util": 79, "igl": 64, "conf": 81, "cons": 77, "pot": 87, "sub": 0 },
+    { "n": "RieNs", "r": "Iniciador", "aim": 92, "fd": 78, "clutch": 90, "entry": 76, "util": 92, "igl": 69, "conf": 78, "cons": 90, "pot": 85, "sub": 0 },
+    { "n": "chloric", "r": "Controlador/IGL", "aim": 93, "fd": 77, "clutch": 91, "entry": 77, "util": 88, "igl": 87, "conf": 84, "cons": 90, "pot": 90, "sub": 0 },
+    { "n": "benjyfishy", "r": "Centinela", "aim": 91, "fd": 78, "clutch": 91, "entry": 76, "util": 74, "igl": 61, "conf": 77, "cons": 88, "pot": 84, "sub": 0 }
    ]
   },
   "T1": {
@@ -827,76 +179,40 @@
    "code": "T1",
    "logoCls": "",
    "players": [
-    {
-     "n": "BuZz",
-     "r": "Duelista",
-     "aim": 90,
-     "fd": 88,
-     "clutch": 79,
-     "entry": 93,
-     "util": 75,
-     "igl": 62,
-     "conf": 80,
-     "cons": 77,
-     "pot": 86,
-     "sub": 0
-    },
-    {
-     "n": "iZu",
-     "r": "Flex/Duelista",
-     "aim": 89,
-     "fd": 82,
-     "clutch": 82,
-     "entry": 82,
-     "util": 79,
-     "igl": 64,
-     "conf": 81,
-     "cons": 81,
-     "pot": 87,
-     "sub": 0
-    },
-    {
-     "n": "TenZ",
-     "r": "Controlador/Flex",
-     "aim": 90,
-     "fd": 88,
-     "clutch": 85,
-     "entry": 88,
-     "util": 80,
-     "igl": 64,
-     "conf": 86,
-     "cons": 76,
-     "pot": 90,
-     "sub": 0
-    },
-    {
-     "n": "crashies",
-     "r": "Iniciador",
-     "aim": 84,
-     "fd": 73,
-     "clutch": 82,
-     "entry": 70,
-     "util": 89,
-     "igl": 70,
-     "conf": 78,
-     "cons": 84,
-     "pot": 85,
-     "sub": 0
-    },
-    {
-     "n": "stax",
-     "r": "Controlador/IGL",
-     "aim": 79,
-     "fd": 71,
-     "clutch": 80,
-     "entry": 67,
-     "util": 94,
-     "igl": 90,
-     "conf": 76,
-     "cons": 83,
-     "pot": 83,
-     "sub": 0
-    }
+    { "n": "BuZz", "r": "Duelista", "aim": 90, "fd": 88, "clutch": 79, "entry": 93, "util": 75, "igl": 62, "conf": 80, "cons": 77, "pot": 86, "sub": 0 },
+    { "n": "iZu", "r": "Flex/Duelista", "aim": 89, "fd": 82, "clutch": 82, "entry": 82, "util": 79, "igl": 64, "conf": 81, "cons": 81, "pot": 87, "sub": 0 },
+    { "n": "TenZ", "r": "Controlador/Flex", "aim": 90, "fd": 88, "clutch": 85, "entry": 88, "util": 80, "igl": 64, "conf": 86, "cons": 76, "pot": 90, "sub": 0 },
+    { "n": "crashies", "r": "Iniciador", "aim": 84, "fd": 73, "clutch": 82, "entry": 70, "util": 89, "igl": 70, "conf": 78, "cons": 84, "pot": 85, "sub": 0 },
+    { "n": "stax", "r": "Controlador/IGL", "aim": 79, "fd": 71, "clutch": 80, "entry": 67, "util": 94, "igl": 90, "conf": 76, "cons": 83, "pot": 83, "sub": 0 }
+   ]
+  },
+  "Paper Rex": {
+   "reg": "PACIFIC",
+   "color": "#FF2E63",
+   "logo": "paperrex.png",
+   "code": "PRX",
+   "logoCls": "",
+   "players": [
+    { "n": "something", "r": "Duelista", "aim": 95, "fd": 94, "clutch": 85, "entry": 94, "util": 77, "igl": 63, "conf": 89, "cons": 81, "pot": 90, "sub": 0 },
+    { "n": "primmie", "r": "Duelista/Flex", "aim": 94, "fd": 91, "clutch": 82, "entry": 92, "util": 75, "igl": 61, "conf": 74, "cons": 75, "pot": 95, "sub": 0 },
+    { "n": "f0rsakeN", "r": "Flex/IGL", "aim": 92, "fd": 89, "clutch": 84, "entry": 89, "util": 88, "igl": 86, "conf": 81, "cons": 89, "pot": 87, "sub": 0 },
+    { "n": "invy", "r": "Iniciador", "aim": 89, "fd": 75, "clutch": 90, "entry": 76, "util": 91, "igl": 72, "conf": 83, "cons": 88, "pot": 89, "sub": 0 },
+    { "n": "PatMen", "r": "Controlador/Centinela", "aim": 85, "fd": 77, "clutch": 79, "entry": 79, "util": 85, "igl": 68, "conf": 70, "cons": 77, "pot": 86, "sub": 0 }
+   ]
+  },
+  "Gen.G": {
+   "reg": "PACIFIC",
+   "color": "#AA8A00",
+   "logo": "geng.png",
+   "code": "GEN",
+   "logoCls": "",
+   "players": [
+    { "n": "t3xture", "r": "Duelista", "aim": 94, "fd": 93, "clutch": 80, "entry": 93, "util": 71, "igl": 59, "conf": 90, "cons": 75, "pot": 89, "sub": 0 },
+    { "n": "Dambi", "r": "Flex/Duelista", "aim": 87, "fd": 87, "clutch": 77, "entry": 92, "util": 80, "igl": 64, "conf": 78, "cons": 77, "pot": 85, "sub": 0 },
+    { "n": "Ray", "r": "Iniciador", "aim": 79, "fd": 77, "clutch": 73, "entry": 73, "util": 77, "igl": 62, "conf": 68, "cons": 71, "pot": 84, "sub": 0 },
+    { "n": "Karon", "r": "Controlador", "aim": 92, "fd": 75, "clutch": 93, "entry": 73, "util": 92, "igl": 74, "conf": 81, "cons": 92, "pot": 87, "sub": 0 },
+    { "n": "MaKo", "r": "Controlador/IGL", "aim": 89, "fd": 77, "clutch": 92, "entry": 76, "util": 94, "igl": 86, "conf": 83, "cons": 91, "pot": 89, "sub": 0 },
+    { "n": "Xiesta", "r": "Suplente/Flex", "aim": 91, "fd": 85, "clutch": 91, "entry": 96, "util": 85, "igl": 68, "conf": 80, "cons": 83, "pot": 95, "sub": 1 }
    ]
   },
   "Xi Lai Gaming": {
@@ -906,76 +222,83 @@
    "code": "XLG",
    "logoCls": "",
    "players": [
-    {
-     "n": "ZmjjKK",
-     "r": "Duelista",
-     "aim": 95,
-     "fd": 92,
-     "clutch": 80,
-     "entry": 96,
-     "util": 72,
-     "igl": 60,
-     "conf": 83,
-     "cons": 75,
-     "pot": 89,
-     "sub": 0
-    },
-    {
-     "n": "Zeus",
-     "r": "Duelista/Flex",
-     "aim": 91,
-     "fd": 88,
-     "clutch": 85,
-     "entry": 96,
-     "util": 79,
-     "igl": 64,
-     "conf": 74,
-     "cons": 81,
-     "pot": 90,
-     "sub": 0
-    },
-    {
-     "n": "d4v41",
-     "r": "Iniciador/Flex",
-     "aim": 87,
-     "fd": 78,
-     "clutch": 84,
-     "entry": 76,
-     "util": 86,
-     "igl": 68,
-     "conf": 80,
-     "cons": 85,
-     "pot": 87,
-     "sub": 0
-    },
-    {
-     "n": "happywei",
-     "r": "Controlador/Flex",
-     "aim": 88,
-     "fd": 76,
-     "clutch": 79,
-     "entry": 78,
-     "util": 80,
-     "igl": 64,
-     "conf": 80,
-     "cons": 78,
-     "pot": 86,
-     "sub": 0
-    },
-    {
-     "n": "WsLeo",
-     "r": "Centinela/IGL",
-     "aim": 79,
-     "fd": 73,
-     "clutch": 77,
-     "entry": 69,
-     "util": 89,
-     "igl": 85,
-     "conf": 75,
-     "cons": 80,
-     "pot": 82,
-     "sub": 0
-    }
+    { "n": "ZmjjKK", "r": "Duelista", "aim": 95, "fd": 92, "clutch": 80, "entry": 96, "util": 72, "igl": 60, "conf": 83, "cons": 75, "pot": 89, "sub": 0 },
+    { "n": "Zeus", "r": "Duelista/Flex", "aim": 91, "fd": 88, "clutch": 85, "entry": 96, "util": 79, "igl": 64, "conf": 74, "cons": 81, "pot": 90, "sub": 0 },
+    { "n": "d4v41", "r": "Iniciador/Flex", "aim": 87, "fd": 78, "clutch": 84, "entry": 76, "util": 86, "igl": 68, "conf": 80, "cons": 85, "pot": 87, "sub": 0 },
+    { "n": "happywei", "r": "Controlador/Flex", "aim": 88, "fd": 76, "clutch": 79, "entry": 78, "util": 80, "igl": 64, "conf": 80, "cons": 78, "pot": 86, "sub": 0 },
+    { "n": "WsLeo", "r": "Centinela/IGL", "aim": 79, "fd": 73, "clutch": 77, "entry": 69, "util": 89, "igl": 85, "conf": 75, "cons": 80, "pot": 82, "sub": 0 }
+   ]
+  },
+  "EDward Gaming": {
+   "reg": "CHINA",
+   "color": "#E60012",
+   "logo": "edg.png",
+   "code": "EDG",
+   "logoCls": "",
+   "players": [
+    { "n": "stew", "r": "Duelista", "aim": 91, "fd": 90, "clutch": 84, "entry": 91, "util": 77, "igl": 63, "conf": 84, "cons": 80, "pot": 90, "sub": 0 },
+    { "n": "Jieni7", "r": "Duelista/Flex", "aim": 73, "fd": 69, "clutch": 70, "entry": 65, "util": 88, "igl": 69, "conf": 62, "cons": 70, "pot": 79, "sub": 0 },
+    { "n": "Rossy", "r": "Iniciador/IGL", "aim": 86, "fd": 74, "clutch": 85, "entry": 73, "util": 88, "igl": 86, "conf": 80, "cons": 86, "pot": 86, "sub": 0 },
+    { "n": "iamgrq", "r": "Controlador", "aim": 79, "fd": 70, "clutch": 79, "entry": 67, "util": 95, "igl": 73, "conf": 75, "cons": 83, "pot": 82, "sub": 0 },
+    { "n": "zjc", "r": "Centinela", "aim": 73, "fd": 70, "clutch": 70, "entry": 71, "util": 77, "igl": 63, "conf": 61, "cons": 64, "pot": 79, "sub": 0 }
+   ]
+  },
+  "Bilibili Gaming": {
+   "reg": "CHINA",
+   "color": "#00A1D6",
+   "logo": "bilibili.png",
+   "code": "BLG",
+   "logoCls": "",
+   "players": [
+    { "n": "whzy", "r": "Duelista", "aim": 92, "fd": 91, "clutch": 85, "entry": 92, "util": 75, "igl": 62, "conf": 86, "cons": 79, "pot": 92, "sub": 0 },
+    { "n": "alvinboy", "r": "Flex", "aim": 85, "fd": 79, "clutch": 78, "entry": 81, "util": 79, "igl": 64, "conf": 70, "cons": 75, "pot": 86, "sub": 0 },
+    { "n": "nephh", "r": "Iniciador/IGL", "aim": 85, "fd": 75, "clutch": 85, "entry": 73, "util": 88, "igl": 86, "conf": 79, "cons": 88, "pot": 86, "sub": 0 },
+    { "n": "Smoggy", "r": "Controlador/Flex", "aim": 91, "fd": 76, "clutch": 90, "entry": 76, "util": 86, "igl": 68, "conf": 81, "cons": 89, "pot": 87, "sub": 0 },
+    { "n": "Knight", "r": "Centinela", "aim": 84, "fd": 72, "clutch": 81, "entry": 69, "util": 90, "igl": 70, "conf": 79, "cons": 83, "pot": 85, "sub": 0 }
+   ]
+  },
+  "Weibo Gaming": {
+   "reg": "CHINA",
+   "color": "#E6162D",
+   "logo": "weibo.png",
+   "code": "WBG",
+   "logoCls": "",
+   "players": [
+    { "n": "babybay", "r": "Duelista", "aim": 86, "fd": 89, "clutch": 82, "entry": 91, "util": 77, "igl": 63, "conf": 88, "cons": 79, "pot": 88, "sub": 0 },
+    { "n": "Yoyo", "r": "Flex/Duelista", "aim": 78, "fd": 76, "clutch": 70, "entry": 77, "util": 74, "igl": 61, "conf": 64, "cons": 67, "pot": 81, "sub": 0 },
+    { "n": "heybay", "r": "Iniciador/IGL", "aim": 75, "fd": 77, "clutch": 71, "entry": 73, "util": 80, "igl": 64, "conf": 73, "cons": 74, "pot": 80, "sub": 0 },
+    { "n": "Satoshi", "r": "Controlador", "aim": 73, "fd": 73, "clutch": 70, "entry": 72, "util": 75, "igl": 61, "conf": 70, "cons": 71, "pot": 77, "sub": 0 },
+    { "n": "Erv", "r": "Centinela", "aim": 82, "fd": 70, "clutch": 83, "entry": 68, "util": 96, "igl": 75, "conf": 70, "cons": 82, "pot": 86, "sub": 0 },
+    { "n": "Razziss", "r": "Suplente/Flex", "aim": 89, "fd": 94, "clutch": 76, "entry": 96, "util": 70, "igl": 58, "conf": 72, "cons": 68, "pot": 88, "sub": 1 }
+   ]
+  },
+  "TYLOO": {
+   "reg": "CHINA",
+   "color": "#D91E2A",
+   "logo": "tyloo.png",
+   "code": "TYL",
+   "logoCls": "",
+   "players": [
+    { "n": "splash", "r": "Duelista", "aim": 91, "fd": 88, "clutch": 86, "entry": 96, "util": 80, "igl": 64, "conf": 76, "cons": 80, "pot": 91, "sub": 0 },
+    { "n": "slowly", "r": "Flex/Duelista", "aim": 92, "fd": 78, "clutch": 81, "entry": 81, "util": 82, "igl": 65, "conf": 82, "cons": 77, "pot": 89, "sub": 0 },
+    { "n": "SiuFatBB", "r": "Iniciador/IGL", "aim": 84, "fd": 74, "clutch": 80, "entry": 69, "util": 88, "igl": 87, "conf": 79, "cons": 80, "pot": 85, "sub": 0 },
+    { "n": "xihe", "r": "Controlador", "aim": 77, "fd": 68, "clutch": 74, "entry": 65, "util": 95, "igl": 73, "conf": 66, "cons": 74, "pot": 82, "sub": 0 },
+    { "n": "hfmi0dzjc9z7", "r": "Centinela", "aim": 85, "fd": 77, "clutch": 84, "entry": 75, "util": 83, "igl": 65, "conf": 78, "cons": 82, "pot": 87, "sub": 0 }
+   ]
+  },
+  "Trace Esports": {
+   "reg": "CHINA",
+   "color": "#F59E0B",
+   "logo": "trace.png",
+   "code": "TE",
+   "logoCls": "",
+   "players": [
+    { "n": "Kai", "r": "Duelista", "aim": 84, "fd": 76, "clutch": 73, "entry": 77, "util": 70, "igl": 58, "conf": 77, "cons": 71, "pot": 83, "sub": 0 },
+    { "n": "nobody", "r": "Iniciador", "aim": 89, "fd": 88, "clutch": 76, "entry": 70, "util": 89, "igl": 66, "conf": 76, "cons": 78, "pot": 82, "sub": 0 },
+    { "n": "Nicc", "r": "Controlador/IGL", "aim": 76, "fd": 68, "clutch": 79, "entry": 65, "util": 96, "igl": 76, "conf": 66, "cons": 82, "pot": 83, "sub": 0 },
+    { "n": "CHICHOO", "r": "Centinela/Controlador", "aim": 91, "fd": 72, "clutch": 93, "entry": 69, "util": 90, "igl": 67, "conf": 81, "cons": 91, "pot": 87, "sub": 0 },
+    { "n": "FengF", "r": "Flex", "aim": 86, "fd": 82, "clutch": 83, "entry": 84, "util": 82, "igl": 65, "conf": 80, "cons": 82, "pot": 87, "sub": 0 },
+    { "n": "Abo", "r": "Suplente/Flex", "aim": 79, "fd": 73, "clutch": 72, "entry": 71, "util": 73, "igl": 60, "conf": 75, "cons": 72, "pot": 82, "sub": 1 }
    ]
   }
  }

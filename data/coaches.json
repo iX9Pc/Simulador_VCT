@@ -39,6 +39,14 @@
   "dev": 92,
   "disc": 94
  },
+ "LOUD": {
+  "n": "Romanilly",
+  "macro": 81,
+  "micro": 83,
+  "adapt": 80,
+  "dev": 85,
+  "disc": 84
+ },
  "Fnatic": {
   "n": "ANGE1",
   "macro": 88,
@@ -72,12 +80,20 @@
   "disc": 82
  },
  "Team Vitality": {
-  "n": "Scuttt",
-  "macro": 74,
-  "micro": 76,
-  "adapt": 72,
-  "dev": 74,
-  "disc": 78
+  "n": "Scutt (Head Coach)",
+  "macro": 81,
+  "micro": 82,
+  "adapt": 80,
+  "dev": 80,
+  "disc": 83
+ },
+ "Team Heretics": {
+  "n": "neilzinho",
+  "macro": 89,
+  "micro": 85,
+  "adapt": 88,
+  "dev": 90,
+  "disc": 87
  },
  "T1": {
   "n": "Sacy",
@@ -87,6 +103,22 @@
   "dev": 82,
   "disc": 86
  },
+ "Paper Rex": {
+  "n": "alecks",
+  "macro": 85,
+  "micro": 92,
+  "adapt": 87,
+  "dev": 88,
+  "disc": 78
+ },
+ "Gen.G": {
+  "n": "solo",
+  "macro": 91,
+  "micro": 88,
+  "adapt": 90,
+  "dev": 87,
+  "disc": 91
+ },
  "Xi Lai Gaming": {
   "n": "hvoya",
   "macro": 80,
@@ -94,5 +126,45 @@
   "adapt": 82,
   "dev": 80,
   "disc": 82
+ },
+ "EDward Gaming": {
+  "n": "Autumn",
+  "macro": 86,
+  "micro": 84,
+  "adapt": 86,
+  "dev": 84,
+  "disc": 86
+ },
+ "Bilibili Gaming": {
+  "n": "itopata",
+  "macro": 82,
+  "micro": 81,
+  "adapt": 82,
+  "dev": 82,
+  "disc": 83
+ },
+ "Weibo Gaming": {
+  "n": "Milan",
+  "macro": 82,
+  "micro": 82,
+  "adapt": 81,
+  "dev": 81,
+  "disc": 83
+ },
+ "TYLOO": {
+  "n": "pipsoN",
+  "macro": 83,
+  "micro": 82,
+  "adapt": 83,
+  "dev": 82,
+  "disc": 84
+ },
+ "Trace Esports": {
+  "n": "AfteR",
+  "macro": 84,
+  "micro": 83,
+  "adapt": 84,
+  "dev": 85,
+  "disc": 85
  }
 }
