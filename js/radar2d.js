@@ -1,6 +1,8 @@
-// ===== MÓDULO P6.1: VISOR TÁCTICO 2D CON MINIMAPAS REALES + GRAFO DE NAVEGACIÓN =====
+// ===== MÓDULO P6.1: VISOR TÁCTICO 2D CON NAVMESH POR PÍXELES + A* REAL =====
 (function () {
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  const GRID = 96; // Resolución de la malla de colisión (96x96)
 
   function makeRng(seed) {
     let a = seed >>> 0;
@@ -38,11 +40,11 @@
     return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
   }
 
-  // ===== CARGADOR DE MINIMAPAS REALES (LOCAL maps/<mapa>.png → FALLBACK valorant-api.com) =====
-  const mapImgCache = {};
+  // ===== CARGA DE MINIMAPAS + METADATOS OFICIALES (CALLOUTS Y TRANSFORMACIÓN) =====
+  const mapAssetCache = {};
   let apiMapsPromise = null;
 
-  function fetchApiMapIcons() {
+  function fetchApiMaps() {
     if (!apiMapsPromise) {
       apiMapsPromise = fetch("https://valorant-api.com/v1/maps")
         .then(r => r.ok ? r.json() : null)
@@ -51,7 +53,14 @@
           if (json && Array.isArray(json.data)) {
             json.data.forEach(m => {
               if (m.displayName && m.displayIcon) {
-                dict[m.displayName.toLowerCase()] = m.displayIcon;
+                dict[m.displayName.toLowerCase()] = {
+                  url: m.displayIcon,
+                  xMultiplier: m.xMultiplier,
+                  yMultiplier: m.yMultiplier,
+                  xScalarToAdd: m.xScalarToAdd,
+                  yScalarToAdd: m.yScalarToAdd,
+                  callouts: Array.isArray(m.callouts) ? m.callouts : []
+                };
               }
             });
           }
@@ -62,25 +71,277 @@
     return apiMapsPromise;
   }
 
-  function getMapImage(mapName, onReady) {
+  // ===== CONSTRUCCIÓN DE NAVMESH DESDE LOS PÍXELES DEL MINIMAPA =====
+  function buildNavFromImage(im, rotRad, apiMeta) {
+    const off = document.createElement("canvas");
+    off.width = GRID;
+    off.height = GRID;
+    const octx = off.getContext("2d", { willReadFrequently: true });
+
+    octx.clearRect(0, 0, GRID, GRID);
+    octx.save();
+    octx.translate(GRID / 2, GRID / 2);
+    if (rotRad) octx.rotate(rotRad);
+    octx.drawImage(im, -GRID / 2, -GRID / 2, GRID, GRID);
+    octx.restore();
+
+    let imgData;
+    try {
+      imgData = octx.getImageData(0, 0, GRID, GRID).data;
+    } catch (e) {
+      return null;
+    }
+
+    const total = GRID * GRID;
+    const rawWalk = new Uint8Array(total);
+    const sitePixel = new Uint8Array(total);
+
+    for (let i = 0; i < total; i++) {
+      const r = imgData[i * 4];
+      const g = imgData[i * 4 + 1];
+      const b = imgData[i * 4 + 2];
+      const a = imgData[i * 4 + 3];
+      // Todo píxel opaco pertenece al mapa; transparente = vacío o exterior
+      if (a > 110) {
+        rawWalk[i] = 1;
+        // Los sites en los minimapas oficiales tienen tinte oliva/amarillento
+        if (r > b + 12 && g > b + 12 && r > 75 && g > 75) {
+          sitePixel[i] = 1;
+        }
+      }
+    }
+
+    // Quedarnos con la componente conexa principal (elimina artefactos aislados)
+    const visited = new Uint8Array(total);
+    let bestComp = [];
+    const dirs4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (let i = 0; i < total; i++) {
+      if (!rawWalk[i] || visited[i]) continue;
+      const comp = [];
+      const stack = [i];
+      visited[i] = 1;
+      while (stack.length) {
+        const cur = stack.pop();
+        comp.push(cur);
+        const cx = cur % GRID, cy = (cur / GRID) | 0;
+        for (const [dx, dy] of dirs4) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
+          const ni = ny * GRID + nx;
+          if (rawWalk[ni] && !visited[ni]) {
+            visited[ni] = 1;
+            stack.push(ni);
+          }
+        }
+      }
+      if (comp.length > bestComp.length) bestComp = comp;
+    }
+
+    const walk = new Uint8Array(total);
+    bestComp.forEach(idx => { walk[idx] = 1; });
+
+    // Distancia de cada celda caminable al vacío/pared más cercano (BFS multi-fuente)
+    const wallDist = new Int16Array(total);
+    wallDist.fill(-1);
+    const q = new Int32Array(total);
+    let qh = 0, qt = 0;
+
+    for (let i = 0; i < total; i++) {
+      if (!walk[i]) {
+        wallDist[i] = 0;
+        q[qt++] = i;
+      }
+    }
+
+    while (qh < qt) {
+      const cur = q[qh++];
+      const d = wallDist[cur];
+      const cx = cur % GRID, cy = (cur / GRID) | 0;
+      for (const [dx, dy] of dirs4) {
+        const nx = cx + dx, ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
+        const ni = ny * GRID + nx;
+        if (wallDist[ni] === -1) {
+          wallDist[ni] = d + 1;
+          q[qt++] = ni;
+        }
+      }
+    }
+
+    const snap = (gx, gy, minDist = 2) => {
+      const x0 = clamp(Math.round(gx), 1, GRID - 2);
+      const y0 = clamp(Math.round(gy), 1, GRID - 2);
+      if (walk[y0 * GRID + x0] && wallDist[y0 * GRID + x0] >= minDist) return [x0, y0];
+
+      let best = null, bestD2 = Infinity;
+      for (let rad = 1; rad <= 22; rad++) {
+        for (let dy = -rad; dy <= rad; dy++) {
+          for (let dx = -rad; dx <= rad; dx++) {
+            if (Math.abs(dx) !== rad && Math.abs(dy) !== rad) continue;
+            const nx = x0 + dx, ny = y0 + dy;
+            if (nx < 1 || ny < 1 || nx >= GRID - 1 || ny >= GRID - 1) continue;
+            const ni = ny * GRID + nx;
+            if (walk[ni] && wallDist[ni] >= minDist) {
+              const d2 = dx * dx + dy * dy;
+              if (d2 < bestD2) { bestD2 = d2; best = [nx, ny]; }
+            }
+          }
+        }
+        if (best) return best;
+      }
+      if (minDist > 1) return snap(gx, gy, 1);
+      const fb = bestComp[Math.floor(bestComp.length / 2)] || (Math.floor(GRID / 2) * GRID + Math.floor(GRID / 2));
+      return [fb % GRID, (fb / GRID) | 0];
+    };
+
+    // Extraer puntos clave reales desde los callouts oficiales de valorant-api.com
+    const sites = [];
+    let atkPt = null, defPt = null, midPt = null;
+    const chokesBySite = { A: [], B: [], C: [] };
+    const retakesBySite = { A: [], B: [], C: [] };
+
+    if (apiMeta && apiMeta.callouts && apiMeta.callouts.length && apiMeta.xMultiplier) {
+      const toGrid = loc => {
+        const u = loc.y * apiMeta.xMultiplier + apiMeta.xScalarToAdd;
+        const v = loc.x * apiMeta.yMultiplier + apiMeta.yScalarToAdd;
+        // Rotación +90° horario: (u, v) -> (1 - v, u)
+        const rx = rotRad ? (1 - v) : u;
+        const ry = rotRad ? u : v;
+        return [rx * GRID, ry * GRID];
+      };
+
+      const atkAcc = [], defAcc = [], midAcc = [];
+      apiMeta.callouts.forEach(co => {
+        if (!co.location) return;
+        const [gx, gy] = toGrid(co.location);
+        const pt = snap(gx, gy, 2);
+        const reg = (co.regionName || "").toLowerCase();
+        const sup = (co.superRegionName || "").toUpperCase();
+
+        if (reg === "site" && (sup === "A" || sup === "B" || sup === "C")) {
+          sites.push({ id: sup, pt });
+        } else if (sup.includes("ATTACKER") || reg.includes("attacker")) {
+          atkAcc.push(pt);
+        } else if (sup.includes("DEFENDER") || reg.includes("defender")) {
+          defAcc.push(pt);
+        } else if (sup === "MID" || reg.includes("mid")) {
+          midAcc.push(pt);
+        } else if (sup === "A" || sup === "B" || sup === "C") {
+          if (reg.includes("main") || reg.includes("long") || reg.includes("short") || reg.includes("lobby") || reg.includes("cave") || reg.includes("rubble") || reg.includes("mound") || reg.includes("window") || reg.includes("hookah") || reg.includes("showers") || reg.includes("bath") || reg.includes("garage") || reg.includes("elbow")) {
+            chokesBySite[sup].push(pt);
+          } else {
+            retakesBySite[sup].push(pt);
+          }
+        }
+      });
+
+      const avgSnap = arr => {
+        if (!arr.length) return null;
+        const ax = arr.reduce((s, p) => s + p[0], 0) / arr.length;
+        const ay = arr.reduce((s, p) => s + p[1], 0) / arr.length;
+        return snap(ax, ay, 2);
+      };
+
+      atkPt = avgSnap(atkAcc);
+      defPt = avgSnap(defAcc);
+      midPt = avgSnap(midAcc);
+    }
+
+    // Fallback automático por píxeles si faltara algún punto o callout
+    if (!atkPt || !defPt) {
+      let minY = GRID, maxY = 0;
+      const topPts = [], botPts = [];
+      bestComp.forEach(idx => {
+        const y = (idx / GRID) | 0;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      });
+      bestComp.forEach(idx => {
+        const x = idx % GRID, y = (idx / GRID) | 0;
+        if (wallDist[idx] < 2) return;
+        if (y <= minY + 10) topPts.push([x, y]);
+        if (y >= maxY - 10) botPts.push([x, y]);
+      });
+      if (!defPt && topPts.length) {
+        defPt = snap(topPts.reduce((s, p) => s + p[0], 0) / topPts.length, topPts.reduce((s, p) => s + p[1], 0) / topPts.length, 2);
+      }
+      if (!atkPt && botPts.length) {
+        atkPt = snap(botPts.reduce((s, p) => s + p[0], 0) / botPts.length, botPts.reduce((s, p) => s + p[1], 0) / botPts.length, 2);
+      }
+    }
+
+    if (!midPt) midPt = snap(GRID / 2, GRID / 2, 2);
+
+    if (!sites.length) {
+      // Detectar blobs de píxeles amarillos/oliva de los sites directamente
+      const sVis = new Uint8Array(total);
+      const blobs = [];
+      for (let i = 0; i < total; i++) {
+        if (!sitePixel[i] || !walk[i] || sVis[i]) continue;
+        const st = [i];
+        sVis[i] = 1;
+        let sx = 0, sy = 0, cnt = 0;
+        while (st.length) {
+          const c = st.pop();
+          sx += c % GRID; sy += (c / GRID) | 0; cnt++;
+          const cx = c % GRID, cy = (c / GRID) | 0;
+          for (const [dx, dy] of dirs4) {
+            const nx = cx + dx, ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
+            const ni = ny * GRID + nx;
+            if (sitePixel[ni] && walk[ni] && !sVis[ni]) { sVis[ni] = 1; st.push(ni); }
+          }
+        }
+        if (cnt >= 14) blobs.push({ x: sx / cnt, y: sy / cnt });
+      }
+      blobs.sort((a, b) => b.x - a.x); // A suele quedar a la derecha
+      const labels = blobs.length >= 3 ? ["A", "B", "C"] : ["A", "B"];
+      blobs.slice(0, 3).forEach((bl, idx) => {
+        sites.push({ id: labels[idx] || "A", pt: snap(bl.x, bl.y, 2) });
+      });
+    }
+
+    if (!sites.length) {
+      sites.push({ id: "B", pt: snap(GRID * 0.24, GRID * 0.36, 2) });
+      sites.push({ id: "A", pt: snap(GRID * 0.78, GRID * 0.36, 2) });
+    }
+
+    // Completar choke y retake de cada site (siempre en suelo caminable)
+    sites.forEach(s => {
+      const chList = chokesBySite[s.id] || [];
+      const rtList = retakesBySite[s.id] || [];
+      s.choke = chList.length
+        ? chList[0]
+        : snap(lerp(s.pt[0], atkPt[0], 0.38), lerp(s.pt[1], atkPt[1], 0.38), 2);
+      s.retake = rtList.length
+        ? rtList[0]
+        : snap(lerp(s.pt[0], defPt[0], 0.36), lerp(s.pt[1], defPt[1], 0.36), 2);
+    });
+
+    return { walk, wallDist, sites, atkPt, defPt, midPt, snap };
+  }
+
+  function getMapAsset(mapName, onReady) {
     const key = (mapName || "Ascent").toLowerCase();
-    if (mapImgCache[key]) return mapImgCache[key];
+    if (mapAssetCache[key]) return mapAssetCache[key];
 
-    const entry = { img: null, ready: false, failed: false };
-    mapImgCache[key] = entry;
+    const entry = { img: null, rot: 0, nav: null, ready: false, failed: false };
+    mapAssetCache[key] = entry;
 
-    const loadUrl = (url, isFallback) => {
+    const loadUrl = (url, rot, apiMeta, isFallback) => {
       const im = new Image();
       im.crossOrigin = "anonymous";
       im.onload = () => {
         entry.img = im;
+        entry.rot = rot;
+        entry.nav = buildNavFromImage(im, rot, apiMeta);
         entry.ready = true;
         if (onReady) onReady();
       };
       im.onerror = () => {
         if (!isFallback) {
-          fetchApiMapIcons().then(dict => {
-            if (dict[key]) loadUrl(dict[key], true);
+          fetchApiMaps().then(dict => {
+            if (dict[key]) loadUrl(dict[key].url, Math.PI / 2, dict[key], true);
             else entry.failed = true;
           });
         } else {
@@ -90,297 +351,217 @@
       im.src = url;
     };
 
-    // Intenta primero archivo local en maps/<mapa>.png; si no existe, usa valorant-api.com
-    loadUrl(`maps/${key}.png`, false);
+    // Usa primero maps/<mapa>.png si existe en local; si no, valorant-api.com rotado +90° CW
+    loadUrl(`maps/${key}.png`, 0, null, false);
     return entry;
   }
 
-  // ===== GRAFOS DE NAVEGACIÓN POR MAPA (0..100, RESPETAN PAREDES Y VACÍOS) =====
-  const MAP_BLUEPRINTS = {
-    Ascent: {
-      sites: [
-        { id: "B", plantNode: "bSite", chokeNode: "bMain", retakeNode: "bCt" },
-        { id: "A", plantNode: "aSite", chokeNode: "aMain", retakeNode: "aCt" }
-      ],
-      atkNode: "atk", defNode: "def", midNode: "mid",
-      nodes: {
-        atk: [50, 86], def: [52, 13],
-        bLobby: [31, 72], bMain: [22, 55], bSite: [22, 32], bCt: [33, 21], market: [36, 39],
-        midBot: [50, 67], mid: [50, 50], midTop: [50, 36], cat: [63, 33],
-        aLobby: [68, 70], aMain: [78, 55], aSite: [79, 34], aCt: [68, 21]
-      },
-      edges: [
-        ["atk", "bLobby"], ["atk", "midBot"], ["atk", "aLobby"],
-        ["bLobby", "bMain"], ["bMain", "bSite"], ["bSite", "market"], ["bSite", "bCt"],
-        ["bCt", "def"], ["bCt", "market"], ["market", "midTop"],
-        ["midBot", "mid"], ["mid", "midTop"], ["midTop", "cat"], ["cat", "aSite"],
-        ["aLobby", "aMain"], ["aMain", "aSite"], ["aSite", "aCt"], ["aCt", "def"]
-      ]
-    },
-    Bind: {
-      sites: [
-        { id: "B", plantNode: "bSite", chokeNode: "hookah", retakeNode: "bCt" },
-        { id: "A", plantNode: "aSite", chokeNode: "aShort", retakeNode: "aCt" }
-      ],
-      atkNode: "atk", defNode: "def", midNode: "aShort",
-      nodes: {
-        atk: [50, 86], def: [50, 14],
-        bLobby: [33, 72], bLong: [21, 56], hookah: [38, 54], bSite: [29, 31], bCt: [37, 22],
-        aLobby: [67, 72], aShort: [62, 53], showers: [83, 55], aSite: [71, 36], aCt: [64, 22]
-      },
-      edges: [
-        ["atk", "bLobby"], ["atk", "aLobby"],
-        ["bLobby", "bLong"], ["bLobby", "hookah"], ["bLong", "bSite"], ["hookah", "bSite"],
-        ["bSite", "bCt"], ["bCt", "def"],
-        ["aLobby", "aShort"], ["aLobby", "showers"], ["aShort", "aSite"], ["showers", "aSite"],
-        ["aSite", "aCt"], ["aCt", "def"], ["aShort", "hookah"]
-      ]
-    },
-    Breeze: {
-      sites: [
-        { id: "B", plantNode: "bSite", chokeNode: "bMain", retakeNode: "bCt" },
-        { id: "A", plantNode: "aSite", chokeNode: "cave", retakeNode: "aCt" }
-      ],
-      atkNode: "atk", defNode: "def", midNode: "mid",
-      nodes: {
-        atk: [50, 87], def: [50, 14],
-        bLobby: [32, 71], bMain: [22, 57], bSite: [27, 34], bCt: [35, 22], bTunnel: [36, 42],
-        midBot: [50, 68], mid: [50, 52], midTop: [50, 34], doors: [66, 39],
-        aLobby: [65, 75], cave: [78, 65], aSite: [81, 49], aCt: [68, 26]
-      },
-      edges: [
-        ["atk", "bLobby"], ["atk", "midBot"], ["atk", "aLobby"],
-        ["bLobby", "bMain"], ["bMain", "bSite"], ["bSite", "bCt"], ["bCt", "def"],
-        ["bSite", "bTunnel"], ["bTunnel", "midTop"],
-        ["midBot", "mid"], ["mid", "midTop"], ["midTop", "def"], ["midTop", "doors"], ["doors", "aSite"],
-        ["aLobby", "cave"], ["cave", "aSite"], ["aSite", "aCt"], ["aCt", "def"]
-      ]
-    },
-    Haven: {
-      sites: [
-        { id: "C", plantNode: "cSite", chokeNode: "cLong", retakeNode: "cCt" },
-        { id: "B", plantNode: "bSite", chokeNode: "mid", retakeNode: "def" },
-        { id: "A", plantNode: "aSite", chokeNode: "aLong", retakeNode: "aCt" }
-      ],
-      atkNode: "atk", defNode: "def", midNode: "mid",
-      nodes: {
-        atk: [50, 87], def: [50, 16],
-        cLobby: [30, 73], cLong: [19, 60], cSite: [19, 41], cCt: [29, 26], garage: [35, 49],
-        midBot: [50, 68], mid: [50, 56], bSite: [50, 44],
-        aLobby: [68, 71], aLong: [80, 58], aShort: [65, 49], aSite: [81, 41], aCt: [71, 26]
-      },
-      edges: [
-        ["atk", "cLobby"], ["atk", "midBot"], ["atk", "aLobby"],
-        ["cLobby", "cLong"], ["cLong", "cSite"], ["cSite", "garage"], ["cSite", "cCt"], ["cCt", "def"],
-        ["garage", "mid"], ["midBot", "mid"], ["mid", "bSite"], ["bSite", "def"],
-        ["aLobby", "aLong"], ["aLobby", "aShort"], ["aLong", "aSite"], ["aShort", "aSite"],
-        ["aShort", "mid"], ["aSite", "aCt"], ["aCt", "def"]
-      ]
-    },
-    Lotus: {
-      sites: [
-        { id: "C", plantNode: "cSite", chokeNode: "cMound", retakeNode: "cCt" },
-        { id: "B", plantNode: "bSite", chokeNode: "bMain", retakeNode: "def" },
-        { id: "A", plantNode: "aSite", chokeNode: "rubble", retakeNode: "aCt" }
-      ],
-      atkNode: "atk", defNode: "def", midNode: "bMain",
-      nodes: {
-        atk: [51, 86], def: [50, 17],
-        cLobby: [34, 75], cMound: [22, 65], cSite: [21, 49], cCt: [28, 28], cLink: [35, 49],
-        bMain: [50, 64], bSite: [50, 46],
-        aLobby: [68, 73], rubble: [80, 57], tree: [64, 42], aSite: [80, 35], aCt: [70, 26]
-      },
-      edges: [
-        ["atk", "cLobby"], ["atk", "bMain"], ["atk", "aLobby"],
-        ["cLobby", "cMound"], ["cMound", "cSite"], ["cSite", "cLink"], ["cLink", "bSite"],
-        ["cSite", "cCt"], ["cCt", "def"],
-        ["bMain", "bSite"], ["bSite", "def"], ["bSite", "tree"], ["tree", "aSite"],
-        ["aLobby", "rubble"], ["rubble", "aSite"], ["aSite", "aCt"], ["aCt", "def"]
-      ]
-    },
-    Split: {
-      sites: [
-        { id: "B", plantNode: "bSite", chokeNode: "bMain", retakeNode: "bCt" },
-        { id: "A", plantNode: "aSite", chokeNode: "aMain", retakeNode: "aCt" }
-      ],
-      atkNode: "atk", defNode: "def", midNode: "mid",
-      nodes: {
-        atk: [50, 87], def: [50, 14],
-        bLobby: [32, 72], bMain: [22, 54], bSite: [26, 34], bCt: [35, 22], mail: [38, 38],
-        midBot: [50, 68], mid: [50, 52], vents: [63, 36],
-        aLobby: [68, 72], aMain: [78, 55], aSite: [80, 35], aCt: [66, 22]
-      },
-      edges: [
-        ["atk", "bLobby"], ["atk", "midBot"], ["atk", "aLobby"],
-        ["bLobby", "bMain"], ["bMain", "bSite"], ["bSite", "mail"], ["bSite", "bCt"], ["bCt", "def"],
-        ["midBot", "mid"], ["mid", "mail"], ["mid", "vents"], ["vents", "aSite"],
-        ["aLobby", "aMain"], ["aMain", "aSite"], ["aSite", "aCt"], ["aCt", "def"]
-      ]
-    },
-    Sunset: {
-      sites: [
-        { id: "B", plantNode: "bSite", chokeNode: "bMain", retakeNode: "bCt" },
-        { id: "A", plantNode: "aSite", chokeNode: "aMain", retakeNode: "aCt" }
-      ],
-      atkNode: "atk", defNode: "def", midNode: "mid",
-      nodes: {
-        atk: [50, 86], def: [50, 17],
-        bLobby: [32, 73], bMain: [22, 61], bSite: [23, 44], bCt: [30, 28], market: [36, 44],
-        midBot: [50, 68], mid: [50, 52], midTop: [50, 38], aLink: [64, 40],
-        aLobby: [67, 73], aMain: [78, 59], aSite: [78, 41], aCt: [68, 28]
-      },
-      edges: [
-        ["atk", "bLobby"], ["atk", "midBot"], ["atk", "aLobby"],
-        ["bLobby", "bMain"], ["bMain", "bSite"], ["bSite", "market"], ["bSite", "bCt"], ["bCt", "def"],
-        ["midBot", "mid"], ["mid", "midTop"], ["midTop", "market"], ["midTop", "aLink"], ["aLink", "aSite"],
-        ["aLobby", "aMain"], ["aMain", "aSite"], ["aSite", "aCt"], ["aCt", "def"]
-      ]
-    },
-    Abyss: {
-      sites: [
-        { id: "B", plantNode: "bSite", chokeNode: "bMain", retakeNode: "bCt" },
-        { id: "A", plantNode: "aSite", chokeNode: "aMain", retakeNode: "aCt" }
-      ],
-      atkNode: "atk", defNode: "def", midNode: "mid",
-      nodes: {
-        atk: [50, 86], def: [50, 15],
-        bLobby: [32, 73], bMain: [22, 62], bSite: [21, 44], bCt: [30, 26], bLink: [36, 42],
-        midBot: [50, 68], mid: [50, 50], midTop: [50, 38], aLink: [64, 42],
-        aLobby: [67, 73], aMain: [79, 62], aSite: [80, 45], aCt: [70, 26]
-      },
-      edges: [
-        ["atk", "bLobby"], ["atk", "midBot"], ["atk", "aLobby"],
-        ["bLobby", "bMain"], ["bMain", "bSite"], ["bSite", "bLink"], ["bSite", "bCt"], ["bCt", "def"],
-        ["midBot", "mid"], ["mid", "midTop"], ["midTop", "bLink"], ["midTop", "aLink"], ["aLink", "aSite"],
-        ["aLobby", "aMain"], ["aMain", "aSite"], ["aSite", "aCt"], ["aCt", "def"]
-      ]
-    },
-    Fracture: {
-      sites: [
-        { id: "B", plantNode: "bSite", chokeNode: "bMain", retakeNode: "bCt" },
-        { id: "A", plantNode: "aSite", chokeNode: "aMain", retakeNode: "aCt" }
-      ],
-      atkNode: "atk", defNode: "def", midNode: "atkNorth",
-      nodes: {
-        atk: [50, 86], atkNorth: [50, 14], def: [50, 50],
-        bMain: [24, 70], arcade: [24, 30], bSite: [22, 51], bCt: [36, 51],
-        aMain: [76, 70], dish: [76, 30], aSite: [80, 51], aCt: [64, 51]
-      },
-      edges: [
-        ["atk", "bMain"], ["atk", "aMain"], ["atk", "atkNorth"],
-        ["atkNorth", "arcade"], ["atkNorth", "dish"],
-        ["bMain", "bSite"], ["arcade", "bSite"], ["bSite", "bCt"], ["bCt", "def"],
-        ["aMain", "aSite"], ["dish", "aSite"], ["aSite", "aCt"], ["aCt", "def"]
-      ]
-    },
-    Icebox: {
-      sites: [
-        { id: "B", plantNode: "bSite", chokeNode: "bMain", retakeNode: "bCt" },
-        { id: "A", plantNode: "aSite", chokeNode: "aMain", retakeNode: "aCt" }
-      ],
-      atkNode: "atk", defNode: "def", midNode: "mid",
-      nodes: {
-        atk: [50, 86], def: [50, 15],
-        bLobby: [32, 74], bMain: [23, 62], bSite: [28, 45], bCt: [34, 26], kitchen: [39, 40],
-        midBot: [50, 68], mid: [50, 50], boiler: [64, 37],
-        aLobby: [67, 73], aMain: [79, 57], aSite: [79, 37], aCt: [68, 24]
-      },
-      edges: [
-        ["atk", "bLobby"], ["atk", "midBot"], ["atk", "aLobby"],
-        ["bLobby", "bMain"], ["bMain", "bSite"], ["bSite", "kitchen"], ["bSite", "bCt"], ["bCt", "def"],
-        ["midBot", "mid"], ["mid", "kitchen"], ["mid", "boiler"], ["boiler", "aSite"],
-        ["aLobby", "aMain"], ["aMain", "aSite"], ["aSite", "aCt"], ["aCt", "def"]
-      ]
-    },
-    Pearl: {
-      sites: [
-        { id: "B", plantNode: "bSite", chokeNode: "bLong", retakeNode: "bCt" },
-        { id: "A", plantNode: "aSite", chokeNode: "aMain", retakeNode: "aCt" }
-      ],
-      atkNode: "atk", defNode: "def", midNode: "mid",
-      nodes: {
-        atk: [50, 87], def: [53, 15],
-        bLobby: [30, 77], bLong: [20, 62], bSite: [29, 41], bCt: [34, 26], bLink: [39, 44],
-        midBot: [51, 68], mid: [52, 52], art: [68, 38],
-        aLobby: [68, 74], aMain: [82, 56], aSite: [82, 35], aCt: [70, 24]
-      },
-      edges: [
-        ["atk", "bLobby"], ["atk", "midBot"], ["atk", "aLobby"],
-        ["bLobby", "bLong"], ["bLong", "bSite"], ["bSite", "bLink"], ["bSite", "bCt"], ["bCt", "def"],
-        ["midBot", "mid"], ["mid", "bLink"], ["mid", "art"], ["art", "aSite"],
-        ["aLobby", "aMain"], ["aMain", "aSite"], ["aSite", "aCt"], ["aCt", "def"]
-      ]
-    }
-  };
+  // ===== LÍNEA DE VISIÓN (BRESENHAM) Y A* SOBRE LA MALLA REAL =====
+  function hasLineOfSight(nav, x0, y0, x1, y1, minDist = 1) {
+    let ix0 = Math.round(x0), iy0 = Math.round(y0);
+    const ix1 = Math.round(x1), iy1 = Math.round(y1);
+    const dx = Math.abs(ix1 - ix0), dy = Math.abs(iy1 - iy0);
+    const sx = ix0 < ix1 ? 1 : -1, sy = iy0 < iy1 ? 1 : -1;
+    let err = dx - dy;
 
-  function buildAdj(bp) {
-    const adj = {};
-    for (const k in bp.nodes) adj[k] = [];
-    bp.edges.forEach(([a, b]) => {
-      if (adj[a] && adj[b]) { adj[a].push(b); adj[b].push(a); }
-    });
-    return adj;
+    while (true) {
+      if (ix0 < 0 || iy0 < 0 || ix0 >= GRID || iy0 >= GRID) return false;
+      if (nav.wallDist[iy0 * GRID + ix0] < minDist) return false;
+      if (ix0 === ix1 && iy0 === iy1) return true;
+      const e2 = 2 * err;
+      if (e2 > -dy) { err -= dy; ix0 += sx; }
+      if (e2 < dx) { err += dx; iy0 += sy; }
+    }
   }
 
-  function findPath(adj, start, goal) {
-    if (start === goal) return [start];
-    const q = [[start]], seen = new Set([start]);
-    while (q.length) {
-      const path = q.shift(), cur = path[path.length - 1];
-      for (const nxt of (adj[cur] || [])) {
-        if (nxt === goal) return [...path, nxt];
-        if (!seen.has(nxt)) { seen.add(nxt); q.push([...path, nxt]); }
+  function astarPath(nav, startPt, endPt) {
+    const sx = clamp(Math.round(startPt[0]), 0, GRID - 1);
+    const sy = clamp(Math.round(startPt[1]), 0, GRID - 1);
+    const gx = clamp(Math.round(endPt[0]), 0, GRID - 1);
+    const gy = clamp(Math.round(endPt[1]), 0, GRID - 1);
+    const startIdx = sy * GRID + sx;
+    const goalIdx = gy * GRID + gx;
+    if (startIdx === goalIdx) return [[sx, sy]];
+
+    const total = GRID * GRID;
+    const gScore = new Float32Array(total);
+    gScore.fill(1e9);
+    const cameFrom = new Int32Array(total);
+    cameFrom.fill(-1);
+    const closed = new Uint8Array(total);
+
+    // Min-heap simple para velocidad
+    const heapIdx = [];
+    const heapF = [];
+    const pushHeap = (idx, f) => {
+      let i = heapIdx.length;
+      heapIdx.push(idx);
+      heapF.push(f);
+      while (i > 0) {
+        const p = (i - 1) >> 1;
+        if (heapF[p] <= heapF[i]) break;
+        [heapIdx[p], heapIdx[i]] = [heapIdx[i], heapIdx[p]];
+        [heapF[p], heapF[i]] = [heapF[i], heapF[p]];
+        i = p;
+      }
+    };
+    const popHeap = () => {
+      const top = heapIdx[0];
+      const lastI = heapIdx.pop();
+      const lastF = heapF.pop();
+      if (heapIdx.length) {
+        heapIdx[0] = lastI;
+        heapF[0] = lastF;
+        let i = 0, len = heapIdx.length;
+        while (true) {
+          const l = (i << 1) + 1, r = l + 1;
+          let sm = i;
+          if (l < len && heapF[l] < heapF[sm]) sm = l;
+          if (r < len && heapF[r] < heapF[sm]) sm = r;
+          if (sm === i) break;
+          [heapIdx[i], heapIdx[sm]] = [heapIdx[sm], heapIdx[i]];
+          [heapF[i], heapF[sm]] = [heapF[sm], heapF[i]];
+          i = sm;
+        }
+      }
+      return top;
+    };
+
+    const dirs8 = [
+      [1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1],
+      [1, 1, 1.414], [-1, 1, 1.414], [1, -1, 1.414], [-1, -1, 1.414]
+    ];
+
+    gScore[startIdx] = 0;
+    pushHeap(startIdx, Math.hypot(gx - sx, gy - sy));
+
+    let found = false;
+    while (heapIdx.length) {
+      const cur = popHeap();
+      if (cur === goalIdx) { found = true; break; }
+      if (closed[cur]) continue;
+      closed[cur] = 1;
+
+      const cx = cur % GRID, cy = (cur / GRID) | 0;
+      const cg = gScore[cur];
+
+      for (let d = 0; d < 8; d++) {
+        const dx = dirs8[d][0], dy = dirs8[d][1], stepC = dirs8[d][2];
+        const nx = cx + dx, ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue;
+        const ni = ny * GRID + nx;
+        if (!nav.walk[ni] || closed[ni]) continue;
+
+        // Prohibir cortar esquinas en diagonal a través de un vacío
+        if (dx !== 0 && dy !== 0) {
+          if (!nav.walk[cy * GRID + nx] || !nav.walk[ny * GRID + cx]) continue;
+        }
+
+        // Penalización suave cerca de paredes para caminar por el centro de pasillos
+        const wd = nav.wallDist[ni];
+        const wallPen = wd <= 1 ? 4.0 : wd === 2 ? 0.7 : 0;
+        const ng = cg + stepC + wallPen;
+
+        if (ng < gScore[ni]) {
+          gScore[ni] = ng;
+          cameFrom[ni] = cur;
+          pushHeap(ni, ng + Math.hypot(gx - nx, gy - ny));
+        }
       }
     }
-    return [start, goal];
+
+    if (!found) return [[sx, sy]];
+
+    const raw = [];
+    let c = goalIdx;
+    while (c !== -1) {
+      raw.push([c % GRID, (c / GRID) | 0]);
+      c = cameFrom[c];
+    }
+    raw.reverse();
+
+    // Suavizado respetando siempre línea de visión sin paredes ni vacíos
+    const smooth = [raw[0]];
+    let anchor = 0;
+    while (anchor < raw.length - 1) {
+      let next = anchor + 1;
+      for (let test = raw.length - 1; test > anchor + 1; test--) {
+        if (hasLineOfSight(nav, raw[anchor][0], raw[anchor][1], raw[test][0], raw[test][1], 2)) {
+          next = test;
+          break;
+        }
+      }
+      smooth.push(raw[next]);
+      anchor = next;
+    }
+    return smooth;
   }
 
-  function appendPathKeys(actor, bp, adj, toNode, endT, rng, jitterMag = 1.8) {
-    const lastK = actor.keys[actor.keys.length - 1];
-    const fromNode = lastK.node || toNode;
-    const startT = lastK.t;
+  function appendAStarKeys(actor, nav, destPt, endT) {
+    const last = actor.keys[actor.keys.length - 1];
+    const startT = last.t;
     const span = Math.max(0.25, endT - startT);
-    const path = findPath(adj, fromNode, toNode);
+    const path = astarPath(nav, [last.x, last.y], destPt);
 
     if (path.length <= 1) {
-      const pt = bp.nodes[toNode];
-      actor.keys.push({
-        t: endT,
-        x: pt[0] + (rng() - 0.5) * jitterMag * 2,
-        y: pt[1] + (rng() - 0.5) * jitterMag * 2,
-        node: toNode
-      });
+      actor.keys.push({ t: endT, x: last.x, y: last.y });
       return;
     }
 
-    const pts = path.map(n => bp.nodes[n]);
-    const segLens = [];
+    const lens = [];
     let totalLen = 0;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const d = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
-      segLens.push(d);
+    for (let i = 0; i < path.length - 1; i++) {
+      const d = Math.hypot(path[i + 1][0] - path[i][0], path[i + 1][1] - path[i][1]);
+      lens.push(d);
       totalLen += d;
     }
     totalLen = Math.max(0.01, totalLen);
 
     let acc = 0;
     for (let i = 1; i < path.length; i++) {
-      acc += segLens[i - 1];
-      const frac = acc / totalLen;
-      const j = i === path.length - 1 ? jitterMag : 0.7;
+      acc += lens[i - 1];
       actor.keys.push({
-        t: startT + span * frac,
-        x: pts[i][0] + (rng() - 0.5) * j * 2,
-        y: pts[i][1] + (rng() - 0.5) * j * 2,
-        node: path[i]
+        t: startT + span * (acc / totalLen),
+        x: path[i][0],
+        y: path[i][1]
       });
     }
   }
 
+  function pickWalkableNear(nav, center, radius, rng, minDist = 2) {
+    for (let tries = 0; tries < 24; tries++) {
+      const ang = rng() * Math.PI * 2;
+      const r = rng() * radius;
+      const tx = Math.round(center[0] + Math.cos(ang) * r);
+      const ty = Math.round(center[1] + Math.sin(ang) * r);
+      if (tx >= 1 && ty >= 1 && tx < GRID - 1 && ty < GRID - 1) {
+        if (nav.wallDist[ty * GRID + tx] >= minDist) return [tx, ty];
+      }
+    }
+    return nav.snap(center[0], center[1], minDist);
+  }
+
+  // Elige una posición para el killer que tenga línea de visión real hacia la víctima
+  function pickSightlineSpot(nav, victimPt, rng) {
+    for (let tries = 0; tries < 36; tries++) {
+      const ang = rng() * Math.PI * 2;
+      const dist = 4 + rng() * 10;
+      const kx = Math.round(victimPt[0] + Math.cos(ang) * dist);
+      const ky = Math.round(victimPt[1] + Math.sin(ang) * dist);
+      if (kx < 1 || ky < 1 || kx >= GRID - 1 || ky >= GRID - 1) continue;
+      if (nav.wallDist[ky * GRID + kx] < 2) continue;
+      if (hasLineOfSight(nav, kx, ky, victimPt[0], victimPt[1], 1)) {
+        return [kx, ky];
+      }
+    }
+    return pickWalkableNear(nav, victimPt, 4, rng, 2);
+  }
+
+  // ===== ESTADO DEL VISOR =====
   let state = {
     matchRef: null, maxR: 0, roundNum: 1, plan: null,
     time: 0, playing: false, speed: 1, rafId: null, lastTs: 0,
-    canvas: null, ctx: null
+    canvas: null, ctx: null, builtWithNav: false
   };
 
   function getAtkTeamIdx(M, roundNum) {
@@ -390,25 +571,32 @@
     return leftIsAtk ? 0 : 1;
   }
 
-  function buildRoundChoreography(M, R) {
-    const bp = MAP_BLUEPRINTS[M.mapName] || MAP_BLUEPRINTS.Ascent;
-    const adj = buildAdj(bp);
+  function buildRoundChoreography(M, R, nav) {
     const seed = hashString(`${M.mapName}-${R.n}-${R.before[0]}-${R.before[1]}-${R.ev.length}-${M.teams[0].name}`);
     const rng = makeRng(seed);
-
     const atkTi = getAtkTeamIdx(M, R.n);
     const defTi = 1 - atkTi;
-    const targetSite = bp.sites[Math.floor(rng() * bp.sites.length)];
-    const altSite = bp.sites.find(s => s.id !== targetSite.id) || targetSite;
+
+    // Si el navmesh aún no terminó de cargar, devuelve un plan temporal mínimo
+    if (!nav) {
+      return {
+        mapName: M.mapName, nav: null, round: R, atkTi, defTi,
+        targetSite: { id: "A", pt: [GRID / 2, GRID / 2] },
+        actors: {}, events: [], plantTime: null, defuseTime: null, duration: 6
+      };
+    }
+
+    const targetSite = nav.sites[Math.floor(rng() * nav.sites.length)];
+    const altSite = nav.sites.find(s => s.id !== targetSite.id) || targetSite;
 
     const actors = {};
     for (let ti = 0; ti < 2; ti++) {
       const isAtk = ti === atkTi;
-      const spawnNode = isAtk ? bp.atkNode : bp.defNode;
-      const spawnPt = bp.nodes[spawnNode];
+      const baseSpawn = isAtk ? nav.atkPt : nav.defPt;
 
       M.teams[ti].units.forEach((u, i) => {
         const id = `${ti}-${i}`;
+        const sp = pickWalkableNear(nav, baseSpawn, 4.5, rng, 2);
         actors[id] = {
           id, ti, isAtk,
           name: u.p.n,
@@ -417,20 +605,22 @@
           role: u.agentRole || u.p.r || "",
           deadAt: Infinity,
           deathPos: null,
-          keys: [{ t: 0, x: spawnPt[0] + (i - 2) * 2.5, y: spawnPt[1] + (rng() - 0.5) * 2, node: spawnNode }]
+          keys: [{ t: 0, x: sp[0], y: sp[1] }]
         };
 
-        let openNode;
-        if (isAtk) openNode = i <= 2 ? targetSite.chokeNode : i === 3 ? bp.midNode : altSite.chokeNode;
-        else openNode = i <= 1 ? targetSite.plantNode : i === 2 ? bp.midNode : altSite.plantNode;
-        appendPathKeys(actors[id], bp, adj, openNode, 2.1, rng, 2.4);
+        let openAnchor;
+        if (isAtk) openAnchor = i <= 2 ? targetSite.choke : i === 3 ? nav.midPt : altSite.choke;
+        else openAnchor = i <= 1 ? targetSite.pt : i === 2 ? nav.midPt : altSite.pt;
+
+        const openPt = pickWalkableNear(nav, openAnchor, 4.5, rng, 2);
+        appendAStarKeys(actors[id], nav, openPt, 2.1);
       });
     }
 
     const evCount = R.ev.length;
     const events = [];
     let curT = 2.4;
-    let lastCombatNode = targetSite.chokeNode;
+    let lastCombatPt = targetSite.choke;
 
     const atkActors = Object.values(actors).filter(a => a.isAtk);
     const planter = atkActors.find(a => a.role.toLowerCase().includes("controlador") || a.role.toLowerCase().includes("iniciador"))
@@ -447,31 +637,28 @@
       const killer = actors[e.k], victim = actors[e.v];
       if (!killer || !victim) return;
 
-      let fightNode;
-      if (e.tr) fightNode = lastCombatNode;
-      else if (e.fb) fightNode = rng() < 0.65 ? targetSite.chokeNode : bp.midNode;
-      else if (idx <= 2) fightNode = rng() < 0.55 ? targetSite.chokeNode : targetSite.plantNode;
-      else fightNode = rng() < 0.75 ? targetSite.plantNode : targetSite.retakeNode;
+      let anchor;
+      if (e.tr) anchor = lastCombatPt;
+      else if (e.fb) anchor = rng() < 0.65 ? targetSite.choke : nav.midPt;
+      else if (idx <= 2) anchor = rng() < 0.5 ? targetSite.choke : targetSite.pt;
+      else anchor = rng() < 0.75 ? targetSite.pt : targetSite.retake;
 
-      const neighbors = adj[fightNode] || [fightNode];
-      const killerNode = rng() < 0.5 ? fightNode : neighbors[Math.floor(rng() * neighbors.length)];
+      const vPt = pickWalkableNear(nav, anchor, 4.5, rng, 2);
+      const kPt = pickSightlineSpot(nav, vPt, rng);
 
-      appendPathKeys(killer, bp, adj, killerNode, curT, rng, 2.4);
-      appendPathKeys(victim, bp, adj, fightNode, curT, rng, 2.4);
-
-      const kLast = killer.keys[killer.keys.length - 1];
-      const vLast = victim.keys[victim.keys.length - 1];
+      appendAStarKeys(victim, nav, vPt, curT);
+      appendAStarKeys(killer, nav, kPt, curT);
 
       victim.deadAt = curT;
-      victim.deathPos = { x: vLast.x, y: vLast.y };
-      lastCombatNode = fightNode;
+      victim.deathPos = { x: vPt[0], y: vPt[1] };
+      lastCombatPt = vPt;
 
       if (plantTime === null && idx >= plantAtEvIdx) {
         const aliveAtkNow = Object.values(actors).filter(a => a.isAtk && a.deadAt > curT + 0.4);
         if (aliveAtkNow.length >= 1 && (R.win === atkTi || aliveAtkNow.length >= 2 || R.cl)) {
           const activePlanter = aliveAtkNow.includes(planter) ? planter : aliveAtkNow[0];
           plantTime = curT + 0.55;
-          appendPathKeys(activePlanter, bp, adj, targetSite.plantNode, plantTime, rng, 1.0);
+          appendAStarKeys(activePlanter, nav, targetSite.pt, plantTime);
           curT = plantTime + 0.35;
         }
       }
@@ -479,7 +666,7 @@
       events.push({
         t: curT, k: e.k, v: e.v, as: e.as || null,
         fb: !!e.fb, tr: !!e.tr,
-        kPos: [kLast.x, kLast.y], vPos: [vLast.x, vLast.y]
+        kPos: kPt, vPos: vPt
       });
     });
 
@@ -491,16 +678,17 @@
     survivors.forEach((a, idx) => {
       if (plantTime !== null && R.win === defTi && idx === 0) {
         defuseTime = endT - 0.3;
-        appendPathKeys(a, bp, adj, targetSite.plantNode, lastEvT + 1.0, rng, 0.8);
-        appendPathKeys(a, bp, adj, targetSite.plantNode, endT, rng, 0.5);
+        appendAStarKeys(a, nav, targetSite.pt, lastEvT + 1.0);
+        appendAStarKeys(a, nav, targetSite.pt, endT);
       } else {
-        const destNode = plantTime !== null ? targetSite.plantNode : targetSite.retakeNode;
-        appendPathKeys(a, bp, adj, destNode, endT, rng, 3.2);
+        const destAnchor = plantTime !== null ? targetSite.pt : targetSite.retake;
+        const holdPt = pickWalkableNear(nav, destAnchor, 5.5, rng, 2);
+        appendAStarKeys(a, nav, holdPt, endT);
       }
     });
 
     return {
-      mapName: M.mapName, bp, round: R, atkTi, defTi, targetSite,
+      mapName: M.mapName, nav, round: R, atkTi, defTi, targetSite,
       actors, events, plantTime, defuseTime, duration: Math.max(5.5, endT)
     };
   }
@@ -508,7 +696,7 @@
   function sampleActorPos(actor, t) {
     const effT = Math.min(t, actor.deadAt);
     const ks = actor.keys;
-    if (!ks.length) return { x: 50, y: 50 };
+    if (!ks.length) return { x: GRID / 2, y: GRID / 2 };
     if (effT <= ks[0].t) return { x: ks[0].x, y: ks[0].y };
     for (let i = 0; i < ks.length - 1; i++) {
       const a = ks[i], b = ks[i + 1];
@@ -531,7 +719,6 @@
     return {
       isLight,
       bg: v("--bg") || (isLight ? "#F4F5F7" : "#0B0D11"),
-      bd: v("--bd") || "#222733",
       fg: v("--fg") || "#ECEFF4",
       mut: v("--mut") || "#8A94A6",
       a: colA, b: colB,
@@ -549,7 +736,7 @@
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const rect = canvas.getBoundingClientRect();
     const cssW = Math.max(280, Math.round(rect.width || 440));
-    const cssH = cssW; // 1:1 para preservar la proporción exacta del minimapa oficial
+    const cssH = cssW;
     if (canvas.width !== Math.round(cssW * dpr) || canvas.height !== Math.round(cssH * dpr)) {
       canvas.width = Math.round(cssW * dpr);
       canvas.height = Math.round(cssH * dpr);
@@ -561,32 +748,61 @@
 
     const C = getThemeColors();
     const W = cssW, H = cssH;
-    const sx = x => (x / 100) * W;
-    const sy = y => (y / 100) * H;
+    const pad = W * 0.03;
+    const size = W * 0.94;
+    const sx = gx => pad + (gx / GRID) * size;
+    const sy = gy => pad + (gy / GRID) * size;
 
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
 
-    // 1. Minimapa oficial real
-    const mapAsset = getMapImage(plan.mapName, () => drawFrame());
+    const mapAsset = getMapAsset(plan.mapName, () => {
+      // Reconstruir coreografía en cuanto el navmesh real esté listo
+      if (state.matchRef && !state.builtWithNav) {
+        const wasPlaying = state.playing;
+        loadRound(state.roundNum, wasPlaying);
+      } else {
+        drawFrame();
+      }
+    });
+
     if (mapAsset.ready && mapAsset.img) {
       ctx.save();
+      ctx.translate(W / 2, H / 2);
+      if (mapAsset.rot) ctx.rotate(mapAsset.rot);
       ctx.filter = C.isLight
         ? "invert(0.88) hue-rotate(180deg) contrast(1.05) opacity(0.88)"
         : "brightness(0.88) contrast(1.12) saturate(0.85)";
-      ctx.drawImage(mapAsset.img, W * 0.03, H * 0.03, W * 0.94, H * 0.94);
+      ctx.drawImage(mapAsset.img, -size / 2, -size / 2, size, size);
       ctx.restore();
     } else {
       ctx.fillStyle = C.mut;
       ctx.font = '600 11px "JetBrains Mono", monospace';
       ctx.textAlign = "center";
-      ctx.fillText(mapAsset.failed ? `MINIMAPA ${plan.mapName.toUpperCase()} NO DISPONIBLE` : `CARGANDO MINIMAPA ${plan.mapName.toUpperCase()}...`, W / 2, H / 2);
+      ctx.fillText(mapAsset.failed ? `MINIMAPA ${plan.mapName.toUpperCase()} NO DISPONIBLE` : `CARGANDO NAVMESH ${plan.mapName.toUpperCase()}...`, W / 2, H / 2);
+      ctx.restore();
+      return;
     }
 
-    // 2. Spike plantada
+    if (!plan.nav) {
+      ctx.restore();
+      return;
+    }
+
+    // Etiquetas limpias de Sites (A / B / C)
+    ctx.fillStyle = C.fg;
+    ctx.globalAlpha = 0.72;
+    ctx.font = '700 13px "Barlow Condensed", sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    plan.nav.sites.forEach(s => {
+      ctx.fillText(s.id, sx(s.pt[0]), sy(s.pt[1]));
+    });
+    ctx.globalAlpha = 1;
+
+    // Spike plantada
     if (plan.plantTime !== null && time >= plan.plantTime) {
-      const pt = plan.bp.nodes[plan.targetSite.plantNode];
-      const px = sx(pt[0]), py = sy(pt[1]);
+      const px = sx(plan.targetSite.pt[0]), py = sy(plan.targetSite.pt[1]);
       const defused = plan.defuseTime !== null && time >= plan.defuseTime;
       const pulse = ((time - plan.plantTime) * 1.4) % 1;
 
@@ -611,7 +827,7 @@
       ctx.restore();
     }
 
-    // 3. Trazadores de duelos y asistencias
+    // Trazadores de duelos (con línea de visión real)
     plan.events.forEach(ev => {
       const dt = time - ev.t;
       if (dt >= 0 && dt <= 0.45) {
@@ -631,52 +847,48 @@
         ctx.beginPath();
         ctx.arc(sx(ev.vPos[0]), sy(ev.vPos[1]), 4 + dt * 16, 0, Math.PI * 2);
         ctx.stroke();
-
-        if (ev.as && plan.actors[ev.as]) {
-          const asPos = sampleActorPos(plan.actors[ev.as], ev.t);
-          ctx.strokeStyle = C.cyan;
-          ctx.setLineDash([2, 3]);
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(sx(asPos.x), sy(asPos.y));
-          ctx.lineTo(sx(ev.vPos[0]), sy(ev.vPos[1]));
-          ctx.stroke();
-        }
         ctx.restore();
       }
     });
 
-    // 4. Bajas (X fijas)
+    // Bajas (X fijas sobre suelo caminable)
     Object.values(plan.actors).forEach(a => {
       if (time >= a.deadAt && a.deathPos) {
         const x = sx(a.deathPos.x), y = sy(a.deathPos.y);
         ctx.save();
         ctx.strokeStyle = a.ti === 0 ? C.a : C.b;
-        ctx.globalAlpha = 0.7;
+        ctx.globalAlpha = 0.75;
         ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.moveTo(x - 4, y - 4); ctx.lineTo(x + 4, y + 4);
-        ctx.moveTo(x + 4, y - 4); ctx.lineTo(x - 4, y + 4);
+        ctx.moveTo(x - 3.8, y - 3.8); ctx.lineTo(x + 3.8, y + 3.8);
+        ctx.moveTo(x + 3.8, y - 3.8); ctx.lineTo(x - 3.8, y + 3.8);
         ctx.stroke();
         ctx.restore();
       }
     });
 
-    // 5. Jugadores vivos con ligera repulsión para que nunca se tapen entre sí
+    // Jugadores vivos con separación validada contra el navmesh (nunca empuja hacia un vacío)
     const aliveList = Object.values(plan.actors)
       .filter(a => time < a.deadAt)
       .map(a => ({ a, pos: sampleActorPos(a, time) }));
+
+    const isSafeCell = (x, y) => {
+      const ix = Math.round(x), iy = Math.round(y);
+      return ix >= 1 && iy >= 1 && ix < GRID - 1 && iy < GRID - 1 && plan.nav.wallDist[iy * GRID + ix] >= 1;
+    };
 
     for (let i = 0; i < aliveList.length; i++) {
       for (let j = i + 1; j < aliveList.length; j++) {
         const p1 = aliveList[i].pos, p2 = aliveList[j].pos;
         const dx = p2.x - p1.x, dy = p2.y - p1.y;
         const dist = Math.hypot(dx, dy);
-        if (dist < 4.2) {
-          const push = (4.2 - dist) / 2;
+        if (dist < 3.4) {
+          const push = (3.4 - dist) / 2;
           const ang = dist > 0.01 ? Math.atan2(dy, dx) : (i + j);
-          p1.x -= Math.cos(ang) * push; p1.y -= Math.sin(ang) * push;
-          p2.x += Math.cos(ang) * push; p2.y += Math.sin(ang) * push;
+          const nx1 = p1.x - Math.cos(ang) * push, ny1 = p1.y - Math.sin(ang) * push;
+          const nx2 = p2.x + Math.cos(ang) * push, ny2 = p2.y + Math.sin(ang) * push;
+          if (isSafeCell(nx1, ny1)) { p1.x = nx1; p1.y = ny1; }
+          if (isSafeCell(nx2, ny2)) { p2.x = nx2; p2.y = ny2; }
         }
       }
     }
@@ -687,14 +899,14 @@
 
       ctx.fillStyle = col;
       ctx.beginPath();
-      ctx.arc(x, y, 7.5, 0, Math.PI * 2);
+      ctx.arc(x, y, 7, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = C.bg;
-      ctx.lineWidth = 1.6;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
 
       ctx.fillStyle = "#FFFFFF";
-      ctx.font = '700 7.5px "JetBrains Mono", monospace';
+      ctx.font = '700 7px "JetBrains Mono", monospace';
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(a.short, x, y + 0.5);
@@ -833,10 +1045,16 @@
     state.roundNum = clamp(rn, 1, state.maxR);
     const R = state.matchRef.rounds[state.roundNum - 1];
     if (!R) return;
-    state.plan = buildRoundChoreography(state.matchRef, R);
+
+    const mapAsset = getMapAsset(state.matchRef.mapName, () => {
+      if (state.matchRef && !state.builtWithNav) loadRound(state.roundNum, autoPlay);
+    });
+
+    state.builtWithNav = !!(mapAsset && mapAsset.nav);
+    state.plan = buildRoundChoreography(state.matchRef, R, mapAsset ? mapAsset.nav : null);
     state.time = autoPlay ? 0 : state.plan.duration;
     renderShell();
-    if (autoPlay) startLoop();
+    if (autoPlay && state.builtWithNav) startLoop();
   }
 
   try {
