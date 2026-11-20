@@ -964,5 +964,66 @@ $("#themeToggle").onclick = () => {
   $("#themeLabel").textContent = next.toUpperCase();
 };
 
+// ===== CONTADORES DINÁMICOS DEL HEADER Y PUENTE PARA TORNEOS =====
+function updateDynamicCounters() {
+  const teamNames = Object.keys(TEAMS);
+  const totalPlayers = teamNames.reduce((acc, t) => acc + TEAMS[t].length, 0);
+  const metaEl = $("#brandMeta");
+  if (metaEl) {
+    metaEl.textContent = `VLR.GG TACTICAL ENGINE · ${teamNames.length} FRANQUICIAS · ${totalPlayers} PROS`;
+  }
+  const regCounts = { ALL: teamNames.length, AMERICAS: 0, EMEA: 0, PACIFIC: 0, CHINA: 0 };
+  teamNames.forEach(t => {
+    const reg = (TEAM_META[t] && TEAM_META[t].reg) || "";
+    if (regCounts[reg] !== undefined) regCounts[reg]++;
+  });
+  document.querySelectorAll("#regionTabs .tab-btn").forEach(btn => {
+    const r = btn.dataset.reg;
+    if (regCounts[r] !== undefined) {
+      btn.textContent = `${r === "ALL" ? "TODOS" : r} (${regCounts[r]})`;
+    }
+  });
+}
+
+window.loadExternalSeriesIntoViewer = function(teamAName, teamBName, seriesObj, autoPlay = false, contextLabel = "") {
+  stopLive();
+  if ($("#ta") && $("#tb")) {
+    $("#ta").value = teamAName;
+    $("#tb").value = teamBName;
+    applyDynamicTeamColors();
+  }
+  currentFormat = seriesObj.format || 3;
+  document.querySelectorAll("#formatGroup .seg-btn").forEach(b => {
+    b.classList.toggle("active", parseInt(b.dataset.fmt, 10) === currentFormat);
+  });
+  // Copia superficial para no alterar el estado archivado del torneo
+  SERIES = initSeriesState({ ...seriesObj }, autoPlay);
+  if (contextLabel && $("#msg")) {
+    $("#msg").innerHTML = `<div class="cal-card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <span class="mono" style="font-size:11.5px"><b>SERIE DE TORNEO</b> · ${contextLabel}</span>
+      <a href="#torneo" class="nav-link mono" style="border:1px solid var(--bd-hi);font-size:11px;padding:4px 9px">Volver al Torneo</a>
+    </div>`;
+  }
+  render();
+  if (typeof refreshPreview === "function") refreshPreview();
+  const outEl = $("#out");
+  if (outEl) outEl.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  if (autoPlay) {
+    const btn = $("#liveBtn");
+    if (btn) {
+      btn.classList.add("live-active");
+      btn.textContent = "Pausar";
+    }
+    if (advanceLiveRound()) {
+      liveTimer = setInterval(() => {
+        if (!advanceLiveRound()) stopLive();
+      }, 340);
+    }
+  }
+};
+
+updateDynamicCounters();
+
 renderDatabase();
 $("#go").click();

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>VCT Sim 2027 · Tactical Match &amp; Roster Engine</title>
-  <meta name="description" content="Simulador táctico de series de VALORANT con jugadores profesionales: rondas, economía, veto de mapas y telemetría VLR.gg.">
+  <title>VCT Sim 2027 · Tactical Match &amp; Tournament Engine</title>
+  <meta name="description" content="Simulador táctico de series y torneos de VALORANT con jugadores profesionales: grupos, playoffs Bo3/Bo5, veto de mapas, agentes y telemetría VLR.gg.">
   <meta name="robots" content="noindex">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='8' y='8' width='84' height='84' fill='none' stroke='%23E5484D' stroke-width='8'/%3E%3Crect x='38' y='38' width='24' height='24' fill='%23E9EBEF'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -26,14 +26,14 @@
         </span>
         <span class="brand-text">
           <span class="brand-title">VCT SIM 2027</span>
-          <span class="brand-sub mono">VLR.GG TACTICAL ENGINE · 12 FRANQUICIAS · 62 PROS</span>
+          <span class="brand-sub mono" id="brandMeta">VLR.GG TACTICAL ENGINE</span>
         </span>
       </a>
       <nav class="nav-links" aria-label="Navegación de consola">
-        <a href="#simulador" class="nav-link">Consola de Serie</a>
-        <a href="#preview" class="nav-link">Previa &amp; Scouting</a>
-        <a href="#out" class="nav-link">Telemetría &amp; Boxscore</a>
-        <a href="#database" class="nav-link">Base de Datos (0-99)</a>
+        <a href="#simulador" class="nav-link">Partida Rápida</a>
+        <a href="#torneo" class="nav-link">Torneos</a>
+        <a href="#out" class="nav-link">Boxscore</a>
+        <a href="#database" class="nav-link">Base de Datos</a>
         <button type="button" class="theme-btn mono" id="themeToggle" title="Alternar esquema de color">
           <span id="themeLabel">DARK</span>
         </button>
@@ -44,7 +44,7 @@
   <main id="top">
     <header class="workspace-bar" id="simulador">
       <h1>Consola de Simulación Táctica</h1>
-      <p class="workspace-sub">Motor probabilístico ronda a ronda con duelo 1v1 de apertura, veto oficial de 7 pasos dirigido por coaches, economía y telemetría VLR Rating 2.0.</p>
+      <p class="workspace-sub">Motor probabilístico ronda a ronda con duelo 1v1, veto de 7 pasos, composiciones de 30 agentes, modo Torneos (Grupos + Playoffs Bo3/Bo5) y telemetría VLR Rating 2.0.</p>
     </header>
 
     <section class="control-deck" aria-label="Configuración de la serie">
@@ -86,13 +86,6 @@
           <span class="tac-label">Veto / Mapa 1</span>
           <select id="mapSel" class="map-select mono" aria-label="Protocolo de veto o mapa forzado">
             <option value="AUTO">1v1 + Veto Oficial de Coaches (Auto)</option>
-            <option value="Ascent">Forzar Mapa 1: Ascent</option>
-            <option value="Lotus">Forzar Mapa 1: Lotus</option>
-            <option value="Haven">Forzar Mapa 1: Haven</option>
-            <option value="Bind">Forzar Mapa 1: Bind</option>
-            <option value="Split">Forzar Mapa 1: Split</option>
-            <option value="Sunset">Forzar Mapa 1: Sunset</option>
-            <option value="Abyss">Forzar Mapa 1: Abyss</option>
           </select>
         </div>
         <span class="map-mod-pill mono" id="mapModInfo">Protocolo VCT: 1v1 define Equipo A/B + Veto de 7 pasos</span>
@@ -117,6 +110,9 @@
     <div id="preview"></div>
     <div id="out"></div>
 
+    <!-- MÓDULO DE TORNEOS (GRUPOS, CALENDARIO, PLAYOFFS BO3/BO5 Y MVP) -->
+    <section class="box" id="torneo" aria-label="Simulador de Torneos VCT"></section>
+
     <section class="box" id="database">
       <div class="box-head">
         <div>
@@ -128,13 +124,13 @@
 
       <div class="db-controls">
         <div class="region-tabs" id="regionTabs">
-          <button type="button" class="tab-btn mono active" data-reg="ALL">TODOS (21)</button>
-          <button type="button" class="tab-btn mono" data-reg="AMERICAS">AMERICAS (6)</button>
-          <button type="button" class="tab-btn mono" data-reg="EMEA">EMEA (6)</button>
-          <button type="button" class="tab-btn mono" data-reg="PACIFIC">PACIFIC (3)</button>
-          <button type="button" class="tab-btn mono" data-reg="CHINA">CHINA (6)</button>
+          <button type="button" class="tab-btn mono active" data-reg="ALL">TODOS</button>
+          <button type="button" class="tab-btn mono" data-reg="AMERICAS">AMERICAS</button>
+          <button type="button" class="tab-btn mono" data-reg="EMEA">EMEA</button>
+          <button type="button" class="tab-btn mono" data-reg="PACIFIC">PACIFIC</button>
+          <button type="button" class="tab-btn mono" data-reg="CHINA">CHINA</button>
         </div>
-        <input type="search" id="dbSearch" class="search-input" placeholder="Filtrar por jugador, rol o equipo...">
+        <input type="search" id="dbSearch" class="search-input" placeholder="Filtrar por jugador, rol, agente o equipo...">
       </div>
 
       <div class="sc" id="ros"></div>
@@ -153,7 +149,7 @@
           ["data/teams.json", "data/coaches.json"].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); }))
         );
         window.DATA = { teams, coaches };
-        for (const src of ["js/engine.js", "js/ui.js", "js/story.js"]) {
+        for (const src of ["js/engine.js", "js/ui.js", "js/story.js", "js/tournament.js"]) {
           await new Promise((ok, fail) => {
             const s = document.createElement("script");
             s.src = src; s.onload = ok; s.onerror = () => fail(new Error(src));
