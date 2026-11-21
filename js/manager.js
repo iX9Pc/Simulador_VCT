@@ -904,7 +904,11 @@
     const target = seller && seller.players.find(p => p.n === playerName);
     if (!target) return;
 
-    const val = calcPlayerValue(target);
+    const val = Number(calcPlayerValue(target)) || 50000;
+    const targetClause = Number(target.releaseClause) || Math.round((val * 1.35) / 1000) * 1000;
+    target.releaseClause = targetClause;
+    const baseSal = Number(target.salary) || calcPlayerSalary(target);
+
     activeRenew = null;
     activeNeg = {
       dir: "buy",
@@ -915,13 +919,13 @@
       swapPlayer: "",
       sellOnPct: 0,
       years: 2,
-      salary: Math.round((Math.max(target.salary, calcPlayerSalary(target)) * 1.05) / 100) * 100,
+      salary: Math.round((Math.max(baseSal, calcPlayerSalary(target)) * 1.05) / 100) * 100,
       promisedRole: calcPlayerOvr(target) >= 85 ? "starter" : "rotation",
       releaseClause: Math.round((val * 1.45) / 1000) * 1000,
-      winBonus: target.winBonus || 2500,
+      winBonus: Number(target.winBonus) || 2500,
       counter: null,
       status: "open",
-      log: [`Negociación abierta con ${sellerName} (${getClubPersonality(sellerName).label}) por ${target.n} (Valor est. ${fmtMoney(val)} · Cláusula ${fmtMoney(target.releaseClause)}).`]
+      log: [`Negociación abierta con ${sellerName} (${getClubPersonality(sellerName).label}) por ${target.n} (Valor est. ${fmtMoney(val)} · Cláusula ${fmtMoney(targetClause)}).`]
     };
     renderManager();
   };
@@ -1031,7 +1035,7 @@
 
   window.mgrSubmitNeg = function () {
     if (!M || !activeNeg) return;
-    const diffMult = typeof getDiffCfg === "function" ? getDiffCfg().costMult : 1.0;
+    const diffMult = (typeof getDiffCfg === "function" && Number(getDiffCfg().costMult)) || 1.0;
 
     if (activeNeg.dir === "buy") {
       const buyer = M.clubs[M.userTeam];
@@ -1039,8 +1043,12 @@
       const target = seller && seller.players.find(p => p.n === activeNeg.playerName);
       if (!target) { activeNeg = null; renderManager(); return; }
 
-      if (buyer.budget < activeNeg.cash) {
-        activeNeg.log.unshift(`Presupuesto insuficiente: ofreces ${fmtMoney(activeNeg.cash)} y tienes ${fmtMoney(buyer.budget)}.`);
+      const offerCash = Number(activeNeg.cash) || 0;
+      const offerSellOn = Number(activeNeg.sellOnPct) || 0;
+      const offerSal = Number(activeNeg.salary) || calcPlayerSalary(target);
+
+      if (buyer.budget < offerCash) {
+        activeNeg.log.unshift(`Presupuesto insuficiente: ofreces ${fmtMoney(offerCash)} y tienes ${fmtMoney(buyer.budget)}.`);
         renderManager();
         return;
       }
@@ -1051,34 +1059,39 @@
       }
 
       const pers = getClubPersonality(activeNeg.clubName);
-      const baseVal = calcPlayerValue(target);
+      const baseVal = Number(calcPlayerValue(target)) || 50000;
+      const targetClause = Number(target.releaseClause) || Math.round((baseVal * 1.35) / 1000) * 1000;
+      target.releaseClause = targetClause;
+      const contractYrs = Number(target.contractYears) || 2;
+      const targetSal = Number(target.salary) || calcPlayerSalary(target);
+
       const sortedOvr = seller.players.slice().sort((a, b) => calcPlayerOvr(b) - calcPlayerOvr(a));
       const isKeyStar = sortedOvr.slice(0, 2).some(x => x.n === target.n);
       const sameRoleCnt = seller.players.filter(x => getPrimaryRoleFromStr(x.r) === getPrimaryRoleFromStr(target.r)).length;
-      const needMult = (isKeyStar ? 1.14 : 1.0) * (sameRoleCnt <= 1 ? 1.09 : 0.96) * (target.contractYears <= 1 ? 0.85 : 1.0);
-      const requiredClubVal = Math.min(target.releaseClause * diffMult, Math.round((baseVal * pers.sellMult * needMult * diffMult) / 1000) * 1000);
+      const needMult = (isKeyStar ? 1.14 : 1.0) * (sameRoleCnt <= 1 ? 1.09 : 0.96) * (contractYrs <= 1 ? 0.85 : 1.0);
+
+      const clauseCap = Math.round((targetClause * diffMult) / 1000) * 1000;
+      const valuationReq = Math.round((baseVal * pers.sellMult * needMult * diffMult) / 1000) * 1000;
+      const requiredClubVal = Math.min(clauseCap, valuationReq);
 
       let swapVal = 0;
       if (activeNeg.swapPlayer) {
         const sp = buyer.players.find(p => p.n === activeNeg.swapPlayer);
         if (sp) {
           const fillsNeed = getPrimaryRoleFromStr(sp.r) === getPrimaryRoleFromStr(target.r) ? 1.08 : 0.88;
-          swapVal = calcPlayerValue(sp) * fillsNeed;
+          swapVal = (Number(calcPlayerValue(sp)) || 0) * fillsNeed;
         }
       }
-      const sellOnVal = (activeNeg.sellOnPct / 100) * baseVal * 0.55 * pers.sellOnPref * (target.age <= 22 ? 1.25 : 0.85);
-      const offeredTotal = activeNeg.cash + swapVal + sellOnVal;
+      const sellOnVal = (offerSellOn / 100) * baseVal * 0.55 * pers.sellOnPref * ((target.age || 22) <= 22 ? 1.25 : 0.85);
+      const offeredTotal = offerCash + swapVal + sellOnVal;
 
-      // Evaluar si el jugador acepta el contrato propuesto
-      const minSal = Math.round((Math.max(target.salary, calcPlayerSalary(target)) * 0.96 * diffMult) / 100) * 100;
+      const minSal = Math.round((Math.max(targetSal, calcPlayerSalary(target)) * 0.96 * diffMult) / 100) * 100;
       const wantsStarter = calcPlayerOvr(target) >= 86;
-      const contractBad = activeNeg.salary < minSal || (wantsStarter && activeNeg.promisedRole !== "starter" && activeNeg.salary < minSal * 1.2);
-
-      // Si pagas la cláusula de salida exacta en cash, el club no puede bloquear
-      const clauseTriggered = activeNeg.cash >= target.releaseClause;
+      const contractBad = offerSal < minSal || (wantsStarter && activeNeg.promisedRole !== "starter" && offerSal < minSal * 1.2);
+      const clauseTriggered = offerCash >= targetClause;
 
       if ((clauseTriggered || offeredTotal >= requiredClubVal * 0.97) && !contractBad) {
-        executeTransferDeal(M.userTeam, activeNeg.clubName, target.n, activeNeg.cash, activeNeg.swapPlayer, activeNeg.sellOnPct, activeNeg);
+        executeTransferDeal(M.userTeam, activeNeg.clubName, target.n, offerCash, activeNeg.swapPlayer, offerSellOn, activeNeg);
         activeNeg = null;
         saveCareer();
         renderManager();
@@ -1095,12 +1108,11 @@
         return;
       }
 
-      // Contraoferta del club / jugador
       activeNeg.round++;
       const gap = Math.max(0, requiredClubVal - offeredTotal);
-      const counterCash = Math.round((activeNeg.cash + gap * 1.06) / 1000) * 1000;
-      const counterSellOn = pers.id === "seller" ? Math.max(activeNeg.sellOnPct, 15) : activeNeg.sellOnPct;
-      const counterSal = contractBad ? Math.round((minSal * 1.08) / 100) * 100 : activeNeg.salary;
+      const counterCash = Math.max(10000, Math.round((offerCash + gap * 1.06) / 1000) * 1000);
+      const counterSellOn = pers.id === "seller" ? Math.max(offerSellOn, 15) : offerSellOn;
+      const counterSal = contractBad ? Math.round((minSal * 1.08) / 100) * 100 : offerSal;
       const counterRole = wantsStarter ? "starter" : activeNeg.promisedRole;
 
       activeNeg.counter = { cash: counterCash, swapPlayer: activeNeg.swapPlayer, sellOnPct: counterSellOn, salary: counterSal, promisedRole: counterRole };
@@ -1420,7 +1432,7 @@
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && parsed.userTeam && parsed.clubs && parsed.clubs[parsed.userTeam]) {
-          M = parsed;
+          M = migrateCareerState(parsed);
           if (typeof PLAYER_AGENTS === "object") {
             const ensureAg = p => {
               if (!PLAYER_AGENTS[p.n]) {
