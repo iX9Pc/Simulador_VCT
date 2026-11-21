@@ -2536,6 +2536,35 @@ footer.closing {
   gap: 4px;
 }
 
+/* ===== FASE B: NEGOCIACIÓN, RENOVACIONES Y TRANSFERIBLES ===== */
+.mgr-neg-drawer {
+  background: var(--bg);
+  border: 1px solid var(--vct-cyan);
+  border-radius: 2px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.mgr-neg-log {
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 2px;
+  padding: 7px 9px;
+  font-size: 11px;
+  color: var(--mut);
+  max-height: 92px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.t-btn-sm.is-listed {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: var(--gold-soft);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

@@ -69,10 +69,12 @@
   <script>
     (async () => {
       try {
-        const [teams, coaches] = await Promise.all(
-          ["data/teams.json", "data/coaches.json"].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); }))
-        );
-        window.DATA = { teams, coaches };
+        const [teams, coaches, academies] = await Promise.all([
+          fetch("data/teams.json").then(r => { if (!r.ok) throw new Error("data/teams.json"); return r.json(); }),
+          fetch("data/coaches.json").then(r => { if (!r.ok) throw new Error("data/coaches.json"); return r.json(); }),
+          fetch("data/academies.json").then(r => r.ok ? r.json() : null).catch(() => null)
+        ]);
+        window.DATA = { teams, coaches, academies };
         for (const src of ["js/engine.js", "js/ui.js", "js/radar2d.js", "js/story.js", "js/social.js", "js/manager.js"]) {
           await new Promise((ok, fail) => {
             const s = document.createElement("script");

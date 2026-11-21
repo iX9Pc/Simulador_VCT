@@ -155,7 +155,7 @@
           ["data/teams.json", "data/coaches.json"].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); }))
         );
         window.DATA = { teams, coaches };
-        for (const src of ["js/engine.js", "js/ui.js", "js/story.js", "js/tournament.js", "js/social.js"]) {
+        for (const src of ["js/engine.js", "js/ui.js", "js/radar2d.js", "js/story.js", "js/tournament.js", "js/social.js"]) {
           await new Promise((ok, fail) => {
             const s = document.createElement("script");
             s.src = src; s.onload = ok; s.onerror = () => fail(new Error(src));

@@ -1,0 +1,32 @@
+{
+  "scale": { "min": 1, "max": 10 },
+  "regionalTier2": {
+    "AMERICAS": 6.2,
+    "EMEA": 6.8,
+    "PACIFIC": 6.0,
+    "CHINA": 4.2
+  },
+  "clubs": {
+    "Leviatán":       { "rank": 1,  "quality": 10.0, "hasOwnAcademy": true },
+    "LOUD":           { "rank": 2,  "quality": 9.6,  "hasOwnAcademy": true },
+    "FUT Esports":    { "rank": 3,  "quality": 9.2,  "hasOwnAcademy": true },
+    "Fnatic":         { "rank": 4,  "quality": 8.8,  "hasOwnAcademy": true },
+    "Team Heretics":  { "rank": 5,  "quality": 8.4,  "hasOwnAcademy": true },
+    "Karmine Corp":   { "rank": 6,  "quality": 8.0,  "hasOwnAcademy": true },
+    "Team Vitality":  { "rank": 7,  "quality": 7.6,  "hasOwnAcademy": true },
+    "Gentle Mates":   { "rank": 8,  "quality": 7.2,  "hasOwnAcademy": true },
+    "G2 Esports":     { "rank": 9,  "quality": 6.8,  "hasOwnAcademy": true },
+    "Gen.G":          { "rank": 10, "quality": 6.4,  "hasOwnAcademy": true },
+    "T1":             { "rank": 11, "quality": 6.0,  "hasOwnAcademy": true },
+    "Paper Rex":      { "rank": 12, "quality": 5.6,  "hasOwnAcademy": true },
+    "Sentinels":      { "rank": 13, "quality": 5.2,  "hasOwnAcademy": true },
+    "100 Thieves":    { "rank": 14, "quality": 4.8,  "hasOwnAcademy": true },
+    "EDward Gaming":  { "rank": 15, "quality": 4.4,  "hasOwnAcademy": true },
+    "TYLOO":          { "rank": 16, "quality": 4.0,  "hasOwnAcademy": true },
+    "Bilibili Gaming":{ "rank": 17, "quality": 3.6,  "hasOwnAcademy": true },
+    "Weibo Gaming":   { "rank": 18, "quality": 3.2,  "hasOwnAcademy": true },
+    "Xi Lai Gaming":  { "rank": 19, "quality": 2.8,  "hasOwnAcademy": true },
+    "Trace Esports":  { "rank": 20, "quality": 2.4,  "hasOwnAcademy": true },
+    "NRG":            { "rank": null, "quality": null, "hasOwnAcademy": false }
+  }
+}

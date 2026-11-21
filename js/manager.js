@@ -71,6 +71,24 @@
     if (!career.mapPrep) career.mapPrep = {};
     if (!career.coachCourse) career.coachCourse = null;
     if (typeof career.ended !== "boolean") career.ended = false;
+    if (!career.negCooldown) career.negCooldown = {};
+    const ensureContractFields = p => {
+      if (typeof p.contractYears !== "number") p.contractYears = p.isAcademy ? 3 : 2;
+      if (!p.promisedRole) p.promisedRole = p.isAcademy ? "prospect" : (p.sub ? "rotation" : "starter");
+      if (typeof p.releaseClause !== "number") p.releaseClause = Math.round((calcPlayerValue(p) * 1.35) / 1000) * 1000;
+      if (typeof p.winBonus !== "number") p.winBonus = p.isAcademy ? 1000 : 2500;
+      if (typeof p.forSale !== "boolean") p.forSale = false;
+      if (typeof p.askingPrice !== "number") p.askingPrice = Math.round((calcPlayerValue(p) * 1.18) / 1000) * 1000;
+      if (typeof p.weeksOnMarket !== "number") p.weeksOnMarket = 0;
+      if (typeof p.unhappyWeeks !== "number") p.unhappyWeeks = 0;
+      if (typeof p.transferRequested !== "boolean") p.transferRequested = false;
+      if (!p.sellOn) p.sellOn = null;
+    };
+    for (const cName in (career.clubs || {})) {
+      (career.clubs[cName].players || []).forEach(ensureContractFields);
+    }
+    (career.freeAgents || []).forEach(ensureContractFields);
+    (career.academy || []).forEach(ensureContractFields);
     if (typeof career.startBudget !== "number" && career.clubs && career.clubs[career.userTeam]) {
       career.startBudget = career.clubs[career.userTeam].budget;
     }
@@ -590,9 +608,19 @@
       hushProgress: Math.round(hushInit * 100),
       deltas: { aim: 0, fd: 0, clutch: 0, entry: 0, util: 0, igl: 0, conf: 0, cons: 0 },
       seasonMaps: 0,
-      seasonRatingSum: 0
+      seasonRatingSum: 0,
+      contractYears: raw.contractYears || (raw.isAcademy ? 3 : (estAge <= 21 ? 3 : 2)),
+      promisedRole: raw.promisedRole || (raw.isAcademy ? "prospect" : (raw.sub ? "rotation" : "starter")),
+      winBonus: raw.winBonus || (raw.isAcademy ? 1000 : 2500),
+      forSale: false,
+      weeksOnMarket: 0,
+      unhappyWeeks: 0,
+      transferRequested: false,
+      sellOn: raw.sellOn || null
     };
     obj.salary = calcPlayerSalary(obj);
+    obj.releaseClause = raw.releaseClause || Math.round((calcPlayerValue(obj) * 1.35) / 1000) * 1000;
+    obj.askingPrice = Math.round((calcPlayerValue(obj) * 1.18) / 1000) * 1000;
     return obj;
   }
 
@@ -623,19 +651,63 @@
     return full;
   }
 
-  function generateAcademyProspect(usedSet, forcedRole = null) {
+  const FALLBACK_ACADEMIES = {
+    regionalTier2: { AMERICAS: 6.2, EMEA: 6.8, PACIFIC: 6.0, CHINA: 4.2 },
+    clubs: {
+      "Leviatán": { rank: 1, quality: 10.0, hasOwnAcademy: true }, "LOUD": { rank: 2, quality: 9.6, hasOwnAcademy: true },
+      "FUT Esports": { rank: 3, quality: 9.2, hasOwnAcademy: true }, "Fnatic": { rank: 4, quality: 8.8, hasOwnAcademy: true },
+      "Team Heretics": { rank: 5, quality: 8.4, hasOwnAcademy: true }, "Karmine Corp": { rank: 6, quality: 8.0, hasOwnAcademy: true },
+      "Team Vitality": { rank: 7, quality: 7.6, hasOwnAcademy: true }, "Gentle Mates": { rank: 8, quality: 7.2, hasOwnAcademy: true },
+      "G2 Esports": { rank: 9, quality: 6.8, hasOwnAcademy: true }, "Gen.G": { rank: 10, quality: 6.4, hasOwnAcademy: true },
+      "T1": { rank: 11, quality: 6.0, hasOwnAcademy: true }, "Paper Rex": { rank: 12, quality: 5.6, hasOwnAcademy: true },
+      "Sentinels": { rank: 13, quality: 5.2, hasOwnAcademy: true }, "100 Thieves": { rank: 14, quality: 4.8, hasOwnAcademy: true },
+      "EDward Gaming": { rank: 15, quality: 4.4, hasOwnAcademy: true }, "TYLOO": { rank: 16, quality: 4.0, hasOwnAcademy: true },
+      "Bilibili Gaming": { rank: 17, quality: 3.6, hasOwnAcademy: true }, "Weibo Gaming": { rank: 18, quality: 3.2, hasOwnAcademy: true },
+      "Xi Lai Gaming": { rank: 19, quality: 2.8, hasOwnAcademy: true }, "Trace Esports": { rank: 20, quality: 2.4, hasOwnAcademy: true },
+      "NRG": { rank: null, quality: null, hasOwnAcademy: false }
+    }
+  };
+
+  function getClubAcademyInfo(clubName) {
+    const cfg = (typeof window !== "undefined" && window.DATA && window.DATA.academies) || FALLBACK_ACADEMIES;
+    const entry = cfg.clubs && cfg.clubs[clubName];
+    const reg = (M && M.clubs && M.clubs[clubName] && M.clubs[clubName].reg) || (TEAM_META[clubName] && TEAM_META[clubName].reg) || "AMERICAS";
+    const hasOwn = !!(entry && entry.hasOwnAcademy && typeof entry.quality === "number");
+    const quality = clamp(hasOwn ? entry.quality : ((cfg.regionalTier2 && cfg.regionalTier2[reg]) || 5.0), 1, 10);
+    const jewelMult = Number((0.45 + (quality / 10) * 1.45).toFixed(2)); // 0.60x (calidad 1) hasta 1.90x (calidad 10)
+    const jewelChancePct = Math.min(38, Math.round(10 * jewelMult));
+    const tierLabel = quality >= 9.0 ? "ÉLITE MUNDIAL" : quality >= 7.2 ? "ALTA" : quality >= 5.0 ? "MEDIA" : "EN DESARROLLO";
+    return {
+      quality: Number(quality.toFixed(1)),
+      rank: hasOwn ? entry.rank : null,
+      source: hasOwn ? `Academia Propia (#${entry.rank})` : `Escena Tier 2 ${reg}`,
+      jewelMult,
+      jewelChancePct,
+      tierLabel
+    };
+  }
+
+  function generateAcademyProspect(usedSet, forcedRole = null, clubName = null) {
     const nick = pickUniqueNick(usedSet);
     const role = forcedRole || ACADEMY_ROLES[Math.floor(Math.random() * ACADEMY_ROLES.length)];
     const rLow = role.toLowerCase();
+    const acadInfo = getClubAcademyInfo(clubName || (M && M.userTeam) || "Sentinels");
 
+    // Probabilidad de joya y potencial medio escalados por calidad de academia (1..10)
+    const pElite = clamp(0.05 * acadInfo.jewelMult, 0.02, 0.16);   // POT 94–97
+    const pJewel = clamp(0.14 * acadInfo.jewelMult, 0.06, 0.30);   // POT 90–93
+    const pSolid = clamp(0.36 + (acadInfo.quality - 5) * 0.02, 0.28, 0.48); // POT 85–89
     const roll = Math.random();
-    const pot = roll < 0.35 ? 80 + Math.floor(Math.random() * 6)
-              : roll < 0.72 ? 86 + Math.floor(Math.random() * 5)
-              : roll < 0.92 ? 91 + Math.floor(Math.random() * 3)
-              : 94 + Math.floor(Math.random() * 3);
+
+    let pot;
+    if (roll < pElite) pot = 94 + Math.floor(Math.random() * 4);
+    else if (roll < pElite + pJewel) pot = 90 + Math.floor(Math.random() * 4);
+    else if (roll < pElite + pJewel + pSolid) pot = 85 + Math.floor(Math.random() * 5);
+    else pot = clamp(78 + Math.floor(Math.random() * 7) + Math.round((acadInfo.quality - 5) * 0.4), 76, 85);
 
     const age = 16 + Math.floor(Math.random() * 4);
-    const base = 71 + Math.floor(Math.random() * 6) + (pot >= 92 ? 2 : 0);
+    const qBaseBoost = Math.round((acadInfo.quality - 5.5) * 0.65);
+    const base = clamp(71 + Math.floor(Math.random() * 6) + qBaseBoost + (pot >= 92 ? 2 : 0), 68, 82);
 
     const isDuel = rLow.includes("duelista");
     const isInit = rLow.includes("iniciador");
@@ -646,14 +718,14 @@
 
     const raw = {
       n: nick, r: role,
-      aim:    clamp(base + (isDuel ? 6 : isSent ? 3 : 1) + jitter(), 68, 86),
-      fd:     clamp(base + (isDuel ? 7 : -1) + jitter(), 65, 85),
-      clutch: clamp(base + (isSent ? 6 : isCtrl ? 4 : 0) + jitter(), 66, 84),
-      entry:  clamp(base + (isDuel ? 8 : -2) + jitter(), 64, 86),
-      util:   clamp(base + (isInit || isCtrl ? 8 : isDuel ? -4 : 2) + jitter(), 64, 86),
-      igl:    clamp(isIgl ? 76 + Math.floor(Math.random() * 7) : 58 + Math.floor(Math.random() * 10), 56, 84),
-      conf:   clamp(58 + Math.floor(Math.random() * 15), 55, 73),
-      cons:   clamp(base - 2 + Math.floor(Math.random() * 6), 65, 82),
+      aim:    clamp(base + (isDuel ? 6 : isSent ? 3 : 1) + jitter(), 68, 87),
+      fd:     clamp(base + (isDuel ? 7 : -1) + jitter(), 65, 86),
+      clutch: clamp(base + (isSent ? 6 : isCtrl ? 4 : 0) + jitter(), 66, 85),
+      entry:  clamp(base + (isDuel ? 8 : -2) + jitter(), 64, 87),
+      util:   clamp(base + (isInit || isCtrl ? 8 : isDuel ? -4 : 2) + jitter(), 64, 87),
+      igl:    clamp(isIgl ? 76 + Math.floor(Math.random() * 7) : 58 + Math.floor(Math.random() * 10), 56, 85),
+      conf:   clamp(58 + Math.floor(Math.random() * 15), 55, 74),
+      cons:   clamp(base - 2 + Math.floor(Math.random() * 6), 65, 83),
       pot, age, isAcademy: true, sub: 0
     };
 
@@ -667,12 +739,12 @@
     return prospect;
   }
 
-  function generateAcademyBatch(count = 12) {
+  function generateAcademyBatch(count = 12, clubName = null) {
     const used = getAllUsedNames();
     const guaranteed = ["Duelista", "Iniciador", "Controlador", "Centinela", "Flex", "Iniciador/IGL", "Duelista/Flex", "Controlador/IGL"];
     const batch = [];
     for (let i = 0; i < count; i++) {
-      batch.push(generateAcademyProspect(used, i < guaranteed.length ? guaranteed[i] : null));
+      batch.push(generateAcademyProspect(used, i < guaranteed.length ? guaranteed[i] : null, clubName));
     }
     return batch.sort((a, b) => b.pot - a.pot || calcPlayerOvr(b) - calcPlayerOvr(a));
   }
@@ -701,6 +773,574 @@
   let activeTab = "hub";
   let marketFilter = { source: "ALL", role: "ALL", query: "", view: "players" };
   let clubsFilter = { reg: "ALL", selectedClub: null };
+  let activeNeg = null;   // Panel de negociación bidireccional (buy | sell)
+  let activeRenew = null; // Panel de renovación de contrato
+
+  const ROLE_PROMISE_LABELS = {
+    starter:  "Titular garantizado",
+    rotation: "Rotación / 6th",
+    prospect: "Promesa / Desarrollo"
+  };
+
+  function getClubPersonality(clubName) {
+    const cl = M.clubs[clubName];
+    const ovr = calcRosterOvr(cl.players, cl.coach);
+    if (ovr >= 87.5) return { id: "ambitious", label: "Ambicioso", sellMult: 1.16, sellOnPref: 0.7 };
+    if (ovr <= 83.5 || cl.budget < 180000) return { id: "seller", label: "Vendedor", sellMult: 0.94, sellOnPref: 1.35 };
+    return { id: "balanced", label: "Equilibrado", sellMult: 1.04, sellOnPref: 1.0 };
+  }
+
+  function applySellOnPayout(player, saleAmount, sellerName) {
+    if (!player.sellOn || !player.sellOn.pct || !M.clubs[player.sellOn.club]) return 0;
+    if (player.sellOn.club === sellerName) return 0;
+    const cut = Math.round((saleAmount * (player.sellOn.pct / 100)) / 500) * 500;
+    if (cut <= 0) return 0;
+    M.clubs[player.sellOn.club].budget += cut;
+    if (player.sellOn.club === M.userTeam) {
+      M.financeLog.unshift({ s: M.season, w: M.week, concept: `Cláusula % venta (${player.sellOn.pct}%) de ${player.n}`, amount: cut });
+      addInbox("FINANZAS", `Ingreso por % de venta: ${player.n}`, `Recibiste ${fmtMoney(cut)} (${player.sellOn.pct}%) por el traspaso de ${player.n}.`);
+    } else if (sellerName === M.userTeam) {
+      M.financeLog.unshift({ s: M.season, w: M.week, concept: `Pago % futura venta a ${player.sellOn.club} (${player.n})`, amount: -cut });
+    }
+    return cut;
+  }
+
+  // ===== 2.2 PONER JUGADORES EN VENTA =====
+  window.mgrToggleForSale = function (idx) {
+    if (!M) return;
+    const p = M.clubs[M.userTeam].players[idx];
+    if (!p) return;
+    p.forSale = !p.forSale;
+    p.weeksOnMarket = 0;
+    if (p.forSale) {
+      p.askingPrice = Math.round((calcPlayerValue(p) * 1.18) / 1000) * 1000;
+      addInbox("MERCADO", `${p.n} puesto en el mercado`, `Precio objetivo: ${fmtMoney(p.askingPrice)}. Los clubes interesados enviarán ofertas en las próximas semanas.`);
+    }
+    saveCareer();
+    renderManager();
+  };
+
+  window.mgrSetAskingPrice = function (idx, val) {
+    if (!M) return;
+    const p = M.clubs[M.userTeam].players[idx];
+    if (!p) return;
+    p.askingPrice = Math.max(10000, Math.round((parseInt(val, 10) || calcPlayerValue(p)) / 1000) * 1000);
+    saveCareer();
+  };
+
+  // ===== 2.3 RENOVACIÓN DE CONTRATOS =====
+  window.mgrOpenRenew = function (idx) {
+    if (!M) return;
+    const p = M.clubs[M.userTeam].players[idx];
+    if (!p) return;
+    const minSal = Math.max(p.salary, calcPlayerSalary(p));
+    activeNeg = null;
+    activeRenew = {
+      idx,
+      playerName: p.n,
+      years: 2,
+      salary: Math.round((minSal * 1.08) / 100) * 100,
+      promisedRole: calcPlayerOvr(p) >= 85 ? "starter" : p.promisedRole || "rotation",
+      releaseClause: Math.round((calcPlayerValue(p) * 1.4) / 1000) * 1000,
+      winBonus: p.winBonus || 2500,
+      feedback: ""
+    };
+    renderManager();
+  };
+
+  window.mgrUpdateRenew = function (field, val) {
+    if (!activeRenew) return;
+    if (field === "promisedRole") activeRenew[field] = val;
+    else activeRenew[field] = Math.max(0, parseInt(val, 10) || 0);
+  };
+
+  window.mgrCloseRenew = function () { activeRenew = null; renderManager(); };
+
+  window.mgrSubmitRenew = function () {
+    if (!M || !activeRenew) return;
+    const p = M.clubs[M.userTeam].players[activeRenew.idx];
+    if (!p) { activeRenew = null; renderManager(); return; }
+
+    const diffMult = typeof getDiffCfg === "function" ? getDiffCfg().costMult : 1.0;
+    const ovr = calcPlayerOvr(p);
+    const wantedSal = Math.round((Math.max(p.salary, calcPlayerSalary(p)) * (p.transferRequested ? 1.25 : 1.05) * diffMult) / 100) * 100;
+    const wantsStarter = ovr >= 86;
+
+    if (wantsStarter && activeRenew.promisedRole !== "starter" && activeRenew.salary < wantedSal * 1.18) {
+      activeRenew.feedback = `${p.n} (OVR ${ovr}) exige rol de Titular garantizado o un salario >= ${fmtMoney(wantedSal * 1.18)}/sem.`;
+      renderManager();
+      return;
+    }
+    if (activeRenew.salary < wantedSal * 0.94) {
+      activeRenew.feedback = `Oferta rechazada: ${p.n} pide al menos ${fmtMoney(wantedSal)}/sem para renovar ${activeRenew.years} temporada(s).`;
+      renderManager();
+      return;
+    }
+
+    p.contractYears = clamp(activeRenew.years, 1, 4);
+    p.salary = activeRenew.salary;
+    p.promisedRole = activeRenew.promisedRole;
+    p.releaseClause = Math.max(calcPlayerValue(p), activeRenew.releaseClause);
+    p.winBonus = activeRenew.winBonus;
+    p.transferRequested = false;
+    p.unhappyWeeks = 0;
+    p.morale = clamp(p.morale + 10, 15, 100);
+    addInbox("CONTRATO", `Renovación cerrada: ${p.n}`, `${p.n} firmó por ${p.contractYears} temp. (${fmtMoney(p.salary)}/sem · ${ROLE_PROMISE_LABELS[p.promisedRole]} · Cláusula ${fmtMoney(p.releaseClause)}).`);
+    activeRenew = null;
+    saveCareer();
+    renderManager();
+  };
+
+  // ===== 2.1 MOTOR DE NEGOCIACIÓN BIDIRECCIONAL =====
+  window.mgrOpenBuyNeg = function (sellerName, playerName) {
+    if (!M || sellerName === M.userTeam) return;
+    const cdKey = `${sellerName}::${playerName}`;
+    const nowTick = M.season * 100 + M.week;
+    if (M.negCooldown && M.negCooldown[cdKey] && nowTick < M.negCooldown[cdKey]) {
+      alert(`${sellerName} rompió conversaciones por ${playerName}. Espera ${M.negCooldown[cdKey] - nowTick} semana(s).`);
+      return;
+    }
+    const seller = M.clubs[sellerName];
+    const target = seller && seller.players.find(p => p.n === playerName);
+    if (!target) return;
+
+    const val = calcPlayerValue(target);
+    activeRenew = null;
+    activeNeg = {
+      dir: "buy",
+      clubName: sellerName,
+      playerName: target.n,
+      round: 1,
+      cash: Math.round((val * 0.95) / 1000) * 1000,
+      swapPlayer: "",
+      sellOnPct: 0,
+      years: 2,
+      salary: Math.round((Math.max(target.salary, calcPlayerSalary(target)) * 1.05) / 100) * 100,
+      promisedRole: calcPlayerOvr(target) >= 85 ? "starter" : "rotation",
+      releaseClause: Math.round((val * 1.45) / 1000) * 1000,
+      winBonus: target.winBonus || 2500,
+      counter: null,
+      status: "open",
+      log: [`Negociación abierta con ${sellerName} (${getClubPersonality(sellerName).label}) por ${target.n} (Valor est. ${fmtMoney(val)} · Cláusula ${fmtMoney(target.releaseClause)}).`]
+    };
+    renderManager();
+  };
+
+  window.mgrOpenSellNeg = function () {
+    if (!M || !M.pendingOffer) return;
+    const off = M.pendingOffer;
+    const target = M.clubs[M.userTeam].players.find(p => p.n === off.player);
+    if (!target) return;
+
+    activeRenew = null;
+    activeNeg = {
+      dir: "sell",
+      clubName: off.buyer,
+      playerName: off.player,
+      round: 1,
+      cash: off.amount,
+      swapPlayer: off.swapPlayer || "",
+      sellOnPct: off.sellOnPct || 0,
+      counter: null,
+      status: "open",
+      log: [`${off.buyer} ofrece ${fmtMoney(off.amount)}${off.sellOnPct ? ` + ${off.sellOnPct}% futura venta` : ""} por ${off.player}. Puedes aceptar, contraofertar o rechazar.`]
+    };
+    renderManager();
+  };
+
+  window.mgrUpdateNeg = function (field, val) {
+    if (!activeNeg) return;
+    if (field === "swapPlayer" || field === "promisedRole") activeNeg[field] = val;
+    else activeNeg[field] = Math.max(0, parseInt(val, 10) || 0);
+  };
+
+  window.mgrCloseNeg = function () { activeNeg = null; renderManager(); };
+
+  function executeTransferDeal(buyerName, sellerName, playerName, cash, swapPlayerName, sellOnPct, contractObj) {
+    const buyer = M.clubs[buyerName];
+    const seller = M.clubs[sellerName];
+    const pIdx = seller.players.findIndex(p => p.n === playerName);
+    if (pIdx < 0) return false;
+
+    const [moved] = seller.players.splice(pIdx, 1);
+    const prevSellCut = applySellOnPayout(moved, cash, sellerName);
+
+    buyer.budget -= cash;
+    seller.budget += (cash - prevSellCut);
+
+    if (swapPlayerName) {
+      const sIdx = buyer.players.findIndex(p => p.n === swapPlayerName);
+      if (sIdx >= 0) {
+        const [swapped] = buyer.players.splice(sIdx, 1);
+        swapped.sub = 1;
+        swapped.forSale = false;
+        swapped.transferRequested = false;
+        seller.players.push(swapped);
+      }
+    }
+
+    if (seller.players.length < 5 && sellerName !== M.userTeam) {
+      if (M.freeAgents.length) {
+        const rep = M.freeAgents.shift();
+        rep.sub = 0;
+        seller.players.push(rep);
+      } else ensureHealthyLineupForAI(seller);
+    }
+
+    moved.forSale = false;
+    moved.weeksOnMarket = 0;
+    moved.transferRequested = false;
+    moved.unhappyWeeks = 0;
+    moved.morale = 86;
+    moved.sellOn = sellOnPct > 0 ? { club: sellerName, pct: sellOnPct } : null;
+
+    if (contractObj) {
+      moved.contractYears = clamp(contractObj.years || 2, 1, 4);
+      moved.salary = contractObj.salary || moved.salary;
+      moved.promisedRole = contractObj.promisedRole || "starter";
+      moved.releaseClause = Math.max(calcPlayerValue(moved), contractObj.releaseClause || moved.releaseClause);
+      moved.winBonus = contractObj.winBonus || 2500;
+    }
+
+    const activeCount = buyer.players.filter(p => !p.sub && !(p.injuredWeeks > 0)).length;
+    moved.sub = activeCount >= 5 ? 1 : 0;
+    buyer.players.push(moved);
+
+    const isUserBuy = buyerName === M.userTeam;
+    const swapTxt = swapPlayerName ? ` (+ ${swapPlayerName})` : "";
+    const sellTxt = sellOnPct > 0 ? ` · ${sellOnPct}% fut. venta` : "";
+
+    M.transferLog.unshift({
+      s: M.season, w: M.week,
+      type: isUserBuy ? "FICHAJE" : "VENTA",
+      player: moved.n,
+      from: sellerName,
+      to: buyerName,
+      fee: cash
+    });
+    if (isUserBuy || sellerName === M.userTeam) {
+      M.financeLog.unshift({
+        s: M.season, w: M.week,
+        concept: `${isUserBuy ? "Fichaje" : "Venta"} ${moved.n} (${isUserBuy ? sellerName : buyerName}${swapTxt}${sellTxt})`,
+        amount: isUserBuy ? -cash : cash
+      });
+      addInbox("FICHAJE", `TRASPASO CERRADO: ${moved.n}`, `${moved.n} pasa de ${sellerName} a ${buyerName} por ${fmtMoney(cash)}${swapTxt}${sellTxt}.`);
+    }
+    return true;
+  }
+
+  window.mgrSubmitNeg = function () {
+    if (!M || !activeNeg) return;
+    const diffMult = typeof getDiffCfg === "function" ? getDiffCfg().costMult : 1.0;
+
+    if (activeNeg.dir === "buy") {
+      const buyer = M.clubs[M.userTeam];
+      const seller = M.clubs[activeNeg.clubName];
+      const target = seller && seller.players.find(p => p.n === activeNeg.playerName);
+      if (!target) { activeNeg = null; renderManager(); return; }
+
+      if (buyer.budget < activeNeg.cash) {
+        activeNeg.log.unshift(`Presupuesto insuficiente: ofreces ${fmtMoney(activeNeg.cash)} y tienes ${fmtMoney(buyer.budget)}.`);
+        renderManager();
+        return;
+      }
+      if (activeNeg.swapPlayer && buyer.players.length <= 5) {
+        activeNeg.log.unshift("No puedes incluir un jugador en intercambio si tu plantilla tiene 5 jugadores.");
+        renderManager();
+        return;
+      }
+
+      const pers = getClubPersonality(activeNeg.clubName);
+      const baseVal = calcPlayerValue(target);
+      const sortedOvr = seller.players.slice().sort((a, b) => calcPlayerOvr(b) - calcPlayerOvr(a));
+      const isKeyStar = sortedOvr.slice(0, 2).some(x => x.n === target.n);
+      const sameRoleCnt = seller.players.filter(x => getPrimaryRoleFromStr(x.r) === getPrimaryRoleFromStr(target.r)).length;
+      const needMult = (isKeyStar ? 1.14 : 1.0) * (sameRoleCnt <= 1 ? 1.09 : 0.96) * (target.contractYears <= 1 ? 0.85 : 1.0);
+      const requiredClubVal = Math.min(target.releaseClause * diffMult, Math.round((baseVal * pers.sellMult * needMult * diffMult) / 1000) * 1000);
+
+      let swapVal = 0;
+      if (activeNeg.swapPlayer) {
+        const sp = buyer.players.find(p => p.n === activeNeg.swapPlayer);
+        if (sp) {
+          const fillsNeed = getPrimaryRoleFromStr(sp.r) === getPrimaryRoleFromStr(target.r) ? 1.08 : 0.88;
+          swapVal = calcPlayerValue(sp) * fillsNeed;
+        }
+      }
+      const sellOnVal = (activeNeg.sellOnPct / 100) * baseVal * 0.55 * pers.sellOnPref * (target.age <= 22 ? 1.25 : 0.85);
+      const offeredTotal = activeNeg.cash + swapVal + sellOnVal;
+
+      // Evaluar si el jugador acepta el contrato propuesto
+      const minSal = Math.round((Math.max(target.salary, calcPlayerSalary(target)) * 0.96 * diffMult) / 100) * 100;
+      const wantsStarter = calcPlayerOvr(target) >= 86;
+      const contractBad = activeNeg.salary < minSal || (wantsStarter && activeNeg.promisedRole !== "starter" && activeNeg.salary < minSal * 1.2);
+
+      // Si pagas la cláusula de salida exacta en cash, el club no puede bloquear
+      const clauseTriggered = activeNeg.cash >= target.releaseClause;
+
+      if ((clauseTriggered || offeredTotal >= requiredClubVal * 0.97) && !contractBad) {
+        executeTransferDeal(M.userTeam, activeNeg.clubName, target.n, activeNeg.cash, activeNeg.swapPlayer, activeNeg.sellOnPct, activeNeg);
+        activeNeg = null;
+        saveCareer();
+        renderManager();
+        return;
+      }
+
+      if (!clauseTriggered && (offeredTotal < requiredClubVal * 0.65 || activeNeg.round >= 3)) {
+        M.negCooldown = M.negCooldown || {};
+        M.negCooldown[`${activeNeg.clubName}::${target.n}`] = M.season * 100 + M.week + 4;
+        activeNeg.status = "rejected";
+        activeNeg.log.unshift(`${activeNeg.clubName} RECHAZA y cierra negociaciones (oferta muy por debajo de su valoración de ${fmtMoney(requiredClubVal)}).`);
+        saveCareer();
+        renderManager();
+        return;
+      }
+
+      // Contraoferta del club / jugador
+      activeNeg.round++;
+      const gap = Math.max(0, requiredClubVal - offeredTotal);
+      const counterCash = Math.round((activeNeg.cash + gap * 1.06) / 1000) * 1000;
+      const counterSellOn = pers.id === "seller" ? Math.max(activeNeg.sellOnPct, 15) : activeNeg.sellOnPct;
+      const counterSal = contractBad ? Math.round((minSal * 1.08) / 100) * 100 : activeNeg.salary;
+      const counterRole = wantsStarter ? "starter" : activeNeg.promisedRole;
+
+      activeNeg.counter = { cash: counterCash, swapPlayer: activeNeg.swapPlayer, sellOnPct: counterSellOn, salary: counterSal, promisedRole: counterRole };
+      activeNeg.log.unshift(
+        `${activeNeg.clubName} CONTRAOFERTA (Ronda ${activeNeg.round}/3): pide ${fmtMoney(counterCash)}${activeNeg.swapPlayer ? ` + ${activeNeg.swapPlayer}` : ""}${counterSellOn ? ` + ${counterSellOn}% fut. venta` : ""}${contractBad ? ` · ${target.n} exige ${fmtMoney(counterSal)}/sem y ${ROLE_PROMISE_LABELS[counterRole]}` : ""}.`
+      );
+      renderManager();
+      return;
+    }
+
+    // ===== MODO INVERSO (VENTA: CONTRAOFERTAR A UN CLUB IA) =====
+    if (activeNeg.dir === "sell") {
+      const myClub = M.clubs[M.userTeam];
+      const buyer = M.clubs[activeNeg.clubName];
+      const target = myClub.players.find(p => p.n === activeNeg.playerName);
+      if (!target || !buyer) { activeNeg = null; renderManager(); return; }
+      if (myClub.players.length <= 5 && !activeNeg.swapPlayer) {
+        activeNeg.log.unshift("No puedes quedar con menos de 5 jugadores (pide un jugador en intercambio o ficha antes).");
+        renderManager();
+        return;
+      }
+
+      const pers = getClubPersonality(activeNeg.clubName);
+      const baseVal = calcPlayerValue(target);
+      const maxWilling = Math.min(buyer.budget, Math.round((baseVal * (pers.id === "ambitious" ? 1.32 : 1.18) / diffMult) / 1000) * 1000);
+
+      let swapCost = 0;
+      if (activeNeg.swapPlayer) {
+        const sp = buyer.players.find(p => p.n === activeNeg.swapPlayer);
+        if (sp) swapCost = calcPlayerValue(sp) * 1.1;
+      }
+      const sellOnCost = (activeNeg.sellOnPct / 100) * baseVal * 0.45;
+      const demandTotal = activeNeg.cash + swapCost + sellOnCost;
+
+      if (demandTotal <= maxWilling && activeNeg.cash <= buyer.budget) {
+        executeTransferDeal(activeNeg.clubName, M.userTeam, target.n, activeNeg.cash, activeNeg.swapPlayer, activeNeg.sellOnPct, null);
+        M.pendingOffer = null;
+        activeNeg = null;
+        saveCareer();
+        renderManager();
+        return;
+      }
+
+      if (demandTotal > maxWilling * 1.28 || activeNeg.round >= 3) {
+        activeNeg.status = "rejected";
+        activeNeg.log.unshift(`${activeNeg.clubName} RETIRA su oferta por ${target.n}: tus exigencias (${fmtMoney(demandTotal)}) exceden su límite.`);
+        M.pendingOffer = null;
+        saveCareer();
+        renderManager();
+        return;
+      }
+
+      activeNeg.round++;
+      const counterCash = Math.min(buyer.budget, Math.round((Math.min(maxWilling, demandTotal * 0.9) - sellOnCost) / 1000) * 1000);
+      activeNeg.counter = { cash: Math.max(15000, counterCash), swapPlayer: "", sellOnPct: Math.min(activeNeg.sellOnPct, 15) };
+      activeNeg.log.unshift(`${activeNeg.clubName} CONTRAOFERTA: llega hasta ${fmtMoney(activeNeg.counter.cash)}${activeNeg.counter.sellOnPct ? ` + ${activeNeg.counter.sellOnPct}% fut. venta` : ""} (sin intercambio).`);
+      renderManager();
+    }
+  };
+
+  window.mgrAcceptCounter = function () {
+    if (!M || !activeNeg || !activeNeg.counter) return;
+    const ct = activeNeg.counter;
+    if (activeNeg.dir === "buy") {
+      if (M.clubs[M.userTeam].budget < ct.cash) {
+        alert(`No tienes presupuesto suficiente (${fmtMoney(ct.cash)}).`);
+        return;
+      }
+      executeTransferDeal(M.userTeam, activeNeg.clubName, activeNeg.playerName, ct.cash, ct.swapPlayer, ct.sellOnPct, {
+        years: activeNeg.years, salary: ct.salary, promisedRole: ct.promisedRole, releaseClause: activeNeg.releaseClause, winBonus: activeNeg.winBonus
+      });
+    } else {
+      executeTransferDeal(activeNeg.clubName, M.userTeam, activeNeg.playerName, ct.cash, ct.swapPlayer, ct.sellOnPct, null);
+      M.pendingOffer = null;
+    }
+    activeNeg = null;
+    saveCareer();
+    renderManager();
+  };
+
+  // ===== 2.4 MERCADO DE FICHAJES DE LA IA (RESPETANDO RITMO DE MERCADO) =====
+  function runAiTransferMarket() {
+    if (!M) return;
+    const mktCfg = typeof getMarketCfg === "function" ? getMarketCfg() : { aiMovesPerWindow: 5 };
+    const movesTarget = mktCfg.aiMovesPerWindow || 5;
+    const aiClubs = Object.keys(M.clubs).filter(c => c !== M.userTeam);
+    let movesDone = 0;
+
+    for (let attempt = 0; attempt < movesTarget * 3 && movesDone < movesTarget; attempt++) {
+      const clubName = aiClubs[Math.floor(Math.random() * aiClubs.length)];
+      const club = M.clubs[clubName];
+      const roll = Math.random();
+
+      // 1) Promoción desde su propia academia (usa la calidad real de la academia del club)
+      if (roll < 0.28 && club.players.length < 7) {
+        const used = getAllUsedNames();
+        const kid = generateAcademyProspect(used, null, clubName);
+        kid.sub = club.players.length >= 5 ? 1 : 0;
+        club.players.push(kid);
+        M.transferLog.unshift({ s: M.season, w: M.week, type: "ACADEMIA", player: kid.n, from: `Academia ${clubName}`, to: clubName, fee: 0 });
+        if (kid.pot >= 92) {
+          addInbox("MERCADO IA", `Joya promovida en ${clubName}: ${kid.n}`, `${clubName} sube desde su cantera a ${kid.n} (${kid.r}, ${kid.age} años, POT ${kid.pot}).`);
+        }
+        movesDone++;
+        continue;
+      }
+
+      // 2) Fichaje de Agente Libre
+      if (roll < 0.62 && M.freeAgents.length) {
+        const sortedFa = M.freeAgents.map((p, idx) => ({ p, idx })).sort((a, b) => calcPlayerOvr(b.p) - calcPlayerOvr(a.p));
+        const worst = club.players.slice().sort((a, b) => calcPlayerOvr(a) - calcPlayerOvr(b))[0];
+        const pick = sortedFa.find(x => calcPlayerOvr(x.p) >= calcPlayerOvr(worst) + 1 && club.budget >= calcPlayerValue(x.p) * 0.35);
+        if (pick) {
+          const fee = Math.round((calcPlayerValue(pick.p) * 0.35) / 1000) * 1000;
+          const [fa] = M.freeAgents.splice(pick.idx, 1);
+          club.budget -= fee;
+          fa.sub = club.players.length >= 5 ? 1 : 0;
+          club.players.push(fa);
+          M.transferLog.unshift({ s: M.season, w: M.week, type: "FICHAJE", player: fa.n, from: "Agente Libre", to: clubName, fee });
+          if (calcPlayerOvr(fa) >= 88) {
+            addInbox("MERCADO IA", `${clubName} ficha libre a ${fa.n}`, `${clubName} refuerza su roster con ${fa.n} (OVR ${calcPlayerOvr(fa)}).`);
+          }
+          movesDone++;
+          continue;
+        }
+      }
+
+      // 3) Traspaso entre clubes IA
+      const sellers = aiClubs.filter(c => c !== clubName && M.clubs[c].players.length >= 6);
+      if (!sellers.length) continue;
+      const sellerName = sellers[Math.floor(Math.random() * sellers.length)];
+      const seller = M.clubs[sellerName];
+      const worstMine = club.players.slice().sort((a, b) => calcPlayerOvr(a) - calcPlayerOvr(b))[0];
+      const candidate = seller.players.find(p => calcPlayerOvr(p) >= calcPlayerOvr(worstMine) + 2 && club.budget >= calcPlayerValue(p) * 1.15);
+      if (candidate) {
+        const fee = Math.round((calcPlayerValue(candidate) * 1.12) / 1000) * 1000;
+        executeTransferDeal(clubName, sellerName, candidate.n, fee, "", 0, null);
+        if (calcPlayerOvr(candidate) >= 89) {
+          addInbox("MERCADO IA", `BOMBAZO: ${candidate.n} ficha por ${clubName}`, `${clubName} pagó ${fmtMoney(fee)} a ${sellerName} por ${candidate.n} (OVR ${calcPlayerOvr(candidate)}).`);
+        }
+        movesDone++;
+      }
+    }
+  }
+
+  function renderNegotiationDrawerHTML() {
+    if (activeRenew) {
+      const p = M.clubs[M.userTeam].players[activeRenew.idx];
+      if (!p) return "";
+      return `<div class="mgr-neg-drawer">
+        <div class="t-group-head">
+          <b class="mono">RENOVAR CONTRATO · ${mEsc(p.n)} (OVR ${calcPlayerOvr(p)} · RESTAN ${p.contractYears} TEMP.)</b>
+          <button type="button" class="t-btn-sm mono" onclick="mgrCloseRenew()">Cerrar</button>
+        </div>
+        ${activeRenew.feedback ? `<div class="mono kd-neg" style="font-size:11.5px;margin-bottom:8px">${mEsc(activeRenew.feedback)}</div>` : ""}
+        <div class="cb-grid-top">
+          <label class="cb-field"><span class="tac-label">Duración (Temporadas)</span>
+            <select class="map-select mono" onchange="mgrUpdateRenew('years',this.value)">
+              ${[1, 2, 3, 4].map(y => `<option value="${y}" ${activeRenew.years === y ? "selected" : ""}>${y} temporada(s)</option>`).join("")}
+            </select>
+          </label>
+          <label class="cb-field"><span class="tac-label">Salario Semanal ($)</span>
+            <input type="number" step="100" class="search-input mono" value="${activeRenew.salary}" oninput="mgrUpdateRenew('salary',this.value)">
+          </label>
+          <label class="cb-field"><span class="tac-label">Promesa de Rol</span>
+            <select class="map-select mono" onchange="mgrUpdateRenew('promisedRole',this.value)">
+              ${Object.entries(ROLE_PROMISE_LABELS).map(([k, l]) => `<option value="${k}" ${activeRenew.promisedRole === k ? "selected" : ""}>${l}</option>`).join("")}
+            </select>
+          </label>
+          <label class="cb-field"><span class="tac-label">Cláusula Salida ($)</span>
+            <input type="number" step="5000" class="search-input mono" value="${activeRenew.releaseClause}" oninput="mgrUpdateRenew('releaseClause',this.value)">
+          </label>
+          <label class="cb-field"><span class="tac-label">Bono Título ($)</span>
+            <input type="number" step="500" class="search-input mono" value="${activeRenew.winBonus}" oninput="mgrUpdateRenew('winBonus',this.value)">
+          </label>
+        </div>
+        <div class="btn-group">
+          <button type="button" class="p mono" onclick="mgrSubmitRenew()">Enviar Propuesta de Renovación</button>
+          <button type="button" class="mono" onclick="mgrCloseRenew()">Cancelar</button>
+        </div>
+      </div>`;
+    }
+
+    if (!activeNeg) return "";
+    const isBuy = activeNeg.dir === "buy";
+    const myPlayers = M.clubs[M.userTeam].players;
+    const swapPool = isBuy ? myPlayers : (M.clubs[activeNeg.clubName] ? M.clubs[activeNeg.clubName].players : []);
+
+    return `<div class="mgr-neg-drawer">
+      <div class="t-group-head" style="flex-wrap:wrap;gap:8px">
+        <b class="mono">${isBuy ? "NEGOCIAR FICHAJE" : "CONTRAOFERTAR VENTA"} · ${mEsc(activeNeg.playerName)} (${isBuy ? mEsc(activeNeg.clubName) + " → " + mEsc(M.userTeam) : mEsc(M.userTeam) + " → " + mEsc(activeNeg.clubName)}) · RONDA ${activeNeg.round}/3</b>
+        <button type="button" class="t-btn-sm mono" onclick="mgrCloseNeg()">Cerrar</button>
+      </div>
+
+      <div class="mgr-neg-log mono">
+        ${activeNeg.log.map(line => `<div>· ${mEsc(line)}</div>`).join("")}
+      </div>
+
+      ${activeNeg.status === "rejected" ? `<button type="button" class="mono" onclick="mgrCloseNeg()">Entendido</button>` : `
+      <div class="cb-grid-top" style="margin-top:8px">
+        <label class="cb-field"><span class="tac-label">${isBuy ? "Dinero Ofrecido ($)" : "Dinero Solicitado ($)"}</span>
+          <input type="number" step="5000" class="search-input mono" value="${activeNeg.cash}" oninput="mgrUpdateNeg('cash',this.value)">
+        </label>
+        <label class="cb-field"><span class="tac-label">${isBuy ? "Incluir Jugador (Intercambio)" : "Pedir Jugador en Intercambio"}</span>
+          <select class="map-select mono" onchange="mgrUpdateNeg('swapPlayer',this.value)">
+            <option value="">-- Ninguno --</option>
+            ${swapPool.map(p => `<option value="${mEsc(p.n)}" ${activeNeg.swapPlayer === p.n ? "selected" : ""}>${mEsc(p.n)} (OVR ${calcPlayerOvr(p)} · ${fmtMoney(calcPlayerValue(p))})</option>`).join("")}
+          </select>
+        </label>
+        <label class="cb-field"><span class="tac-label">% Futura Venta</span>
+          <select class="map-select mono" onchange="mgrUpdateNeg('sellOnPct',this.value)">
+            ${[0, 10, 15, 20, 25].map(pct => `<option value="${pct}" ${activeNeg.sellOnPct === pct ? "selected" : ""}>${pct}%</option>`).join("")}
+          </select>
+        </label>
+        ${isBuy ? `
+        <label class="cb-field"><span class="tac-label">Contrato (Temp.)</span>
+          <select class="map-select mono" onchange="mgrUpdateNeg('years',this.value)">
+            ${[1, 2, 3, 4].map(y => `<option value="${y}" ${activeNeg.years === y ? "selected" : ""}>${y} temp.</option>`).join("")}
+          </select>
+        </label>
+        <label class="cb-field"><span class="tac-label">Salario Sem. ($)</span>
+          <input type="number" step="100" class="search-input mono" value="${activeNeg.salary}" oninput="mgrUpdateNeg('salary',this.value)">
+        </label>
+        <label class="cb-field"><span class="tac-label">Promesa de Rol</span>
+          <select class="map-select mono" onchange="mgrUpdateNeg('promisedRole',this.value)">
+            ${Object.entries(ROLE_PROMISE_LABELS).map(([k, l]) => `<option value="${k}" ${activeNeg.promisedRole === k ? "selected" : ""}>${l}</option>`).join("")}
+          </select>
+        </label>
+        <label class="cb-field"><span class="tac-label">Cláusula Propuesta ($)</span>
+          <input type="number" step="5000" class="search-input mono" value="${activeNeg.releaseClause}" oninput="mgrUpdateNeg('releaseClause',this.value)">
+        </label>` : ""}
+      </div>
+
+      <div class="btn-group">
+        <button type="button" class="p mono" onclick="mgrSubmitNeg()">${isBuy ? "Enviar Oferta" : "Enviar Contraoferta"}</button>
+        ${activeNeg.counter ? `<button type="button" class="mono t-btn-live" style="border-color:var(--ok);color:var(--ok)" onclick="mgrAcceptCounter()">Aceptar Contraoferta (${fmtMoney(activeNeg.counter.cash)})</button>` : ""}
+        <button type="button" class="mono" onclick="mgrCloseNeg()">Cancelar</button>
+      </div>`}
+    </div>`;
+  }
 
   function saveCareer() {
     try {
@@ -972,7 +1612,7 @@
       pendingJobOffers: []
     };
 
-    M.academy = generateAcademyBatch(12);
+    M.academy = generateAcademyBatch(12, M.userTeam);//
     buildFullYearSchedule(2027);
 
     const club = M.clubs[teamName];
@@ -1335,6 +1975,24 @@
         checkPlayerInjury(club, p, travel ? mode.injuryMult * 0.35 : mode.injuryMult * 0.75, isUser);
         if (isUser) advancePlayerLearning(p, club);
       });
+      // Chequeo de promesas de contrato y jugadores en lista de transferibles (2.2 / 2.3)
+        if (isUser) {
+          if (p.forSale) p.weeksOnMarket = (p.weeksOnMarket || 0) + 1;
+          if (p.promisedRole === "starter" && p.sub && !(p.injuredWeeks > 0)) {
+            p.unhappyWeeks = (p.unhappyWeeks || 0) + 1;
+            p.morale = clamp(p.morale - 6, 15, 100);
+            if (p.unhappyWeeks === 2) {
+              addInbox("CONTRATO", `${p.n} reclama titularidad`, `${p.n} tiene promesa de Titular garantizado y lleva 2 semanas en banca (Moral ${p.morale}).`);
+            } else if (p.unhappyWeeks >= 3 && !p.transferRequested) {
+              p.transferRequested = true;
+              p.forSale = true;
+              if (typeof adjustBoard === "function") adjustBoard(-3);
+              addInbox("CONTRATO", `${p.n} PIDE SALIR DEL CLUB`, `Por incumplir su promesa de titularidad, ${p.n} pidió traspaso y entró al mercado.`);
+            }
+          } else if (!p.sub) {
+            p.unhappyWeeks = Math.max(0, (p.unhappyWeeks || 0) - 1);
+          }
+        }
     }
   }
 
@@ -1549,28 +2207,72 @@
         }
         p.seasonMaps = 0;
         p.seasonRatingSum = 0;
+        p.contractYears = (p.contractYears || 2) - 1;
       });
+
+      // Contratos vencidos pasan a Agentes Libres (respetando mínimo de 5 en clubes IA)
+      const clubObj = M.clubs[cName];
+      const expired = clubObj.players.filter(p => p.contractYears <= 0);
+      if (expired.length) {
+        expired.forEach(expP => {
+          if (cName !== M.userTeam && clubObj.players.length <= 5) {
+            expP.contractYears = 1;
+            return;
+          }
+          const idx = clubObj.players.indexOf(expP);
+          if (idx >= 0) {
+            clubObj.players.splice(idx, 1);
+            expP.sub = 0;
+            expP.forSale = false;
+            expP.contractYears = 2;
+            M.freeAgents.unshift(expP);
+            if (cName === M.userTeam) {
+              addInbox("CONTRATO", `Contrato vencido: ${expP.n}`, `${expP.n} finalizó su vínculo sin renovación y quedó como Agente Libre.`);
+            }
+          }
+        });
+      }
     }
     M.freeAgents.forEach(p => { p.age = (p.age || 22) + 1; });
-    M.academy = generateAcademyBatch(12);
+    M.academy = generateAcademyBatch(12, M.userTeam);//
 
     addInbox("CIERRE", `Fin de Temporada ${M.season}`, `Masters 1: ${sc.stage1.mastersChamp} · Masters 2: ${sc.stage2.mastersChamp} · Champions: ${sc.championsChamp}. Nueva camada de 12 juveniles lista en Academia.`);
   }
 
   function maybeGenerateIncomingOffer() {
-    if (M.pendingOffer || Math.random() > 0.18) return;
+    if (M.pendingOffer) return;
     const myClub = M.clubs[M.userTeam];
-    if (myClub.players.length <= 5) return;
-    const candidates = myClub.players.filter(p => !(p.injuredWeeks > 0));
-    if (!candidates.length) return;
-    const target = candidates[Math.floor(Math.random() * candidates.length)];
-    const otherClubs = Object.keys(M.clubs).filter(c => c !== M.userTeam && M.clubs[c].budget >= calcPlayerValue(target) * 0.9);
+    const mktCfg = typeof getMarketCfg === "function" ? getMarketCfg() : { offerChance: 0.16 };
+    const listed = myClub.players.filter(p => p.forSale && (p.weeksOnMarket || 0) >= 1 && !(p.injuredWeeks > 0));
+
+    let target = null;
+    let isListedBid = false;
+
+    // 1) Jugadores puestos "En Venta" reciben ofertas gradualmente (1-3 semanas) y mejor pagadas
+    if (listed.length && Math.random() < Math.min(0.65, mktCfg.offerChance * 2.2 + 0.14)) {
+      target = listed[Math.floor(Math.random() * listed.length)];
+      isListedBid = true;
+    } else if (myClub.players.length > 5 && Math.random() < mktCfg.offerChance) {
+      const candidates = myClub.players.filter(p => !(p.injuredWeeks > 0));
+      if (candidates.length) target = candidates[Math.floor(Math.random() * candidates.length)];
+    }
+    if (!target) return;
+
+    const baseVal = calcPlayerValue(target);
+    const otherClubs = Object.keys(M.clubs).filter(c => c !== M.userTeam && M.clubs[c].budget >= baseVal * 0.85);
     if (!otherClubs.length) return;
     const buyer = otherClubs[Math.floor(Math.random() * otherClubs.length)];
-    const amount = Math.round((calcPlayerValue(target) * (1.08 + Math.random() * 0.22)) / 1000) * 1000;
+    const mult = isListedBid ? (1.06 + Math.random() * 0.24) : (0.98 + Math.random() * 0.18);
+    const targetRef = isListedBid ? Math.max(baseVal, target.askingPrice || baseVal) : baseVal;
+    const amount = Math.min(M.clubs[buyer].budget, Math.round((targetRef * mult) / 1000) * 1000);
+    const sellOnPct = Math.random() < 0.35 ? 10 : 0;
 
-    M.pendingOffer = { buyer, player: target.n, amount };
-    addInbox("OFERTA", `Oferta de ${buyer} por ${target.n}`, `${buyer} ofrece ${fmtMoney(amount)} por el traspaso inmediato de ${target.n}.`);
+    M.pendingOffer = { buyer, player: target.n, amount, sellOnPct, isListedBid };
+    addInbox(
+      "OFERTA",
+      `${isListedBid ? "Oferta por jugador en venta" : "Oferta de"} ${buyer}: ${target.n}`,
+      `${buyer} ofrece ${fmtMoney(amount)}${sellOnPct ? ` + ${sellOnPct}% futura venta` : ""} por ${target.n}. Puedes aceptar, contraofertar o rechazar.`
+    );
   }
 
   function advanceWeekInternal(watchUserMatchLive) {
@@ -1646,12 +2348,21 @@
     if (M.graceWeeks > 0) M.graceWeeks--;
     M.week++;
 
+    if (M.week === 2 || M.week === 14 || M.week === 33 || (getMarketCfg().id === "active" && M.week % 7 === 0)) {
+      runAiTransferMarket();
+    }
     if (M.week === 14) {
-      M.academy = generateAcademyBatch(12);
+      M.academy = generateAcademyBatch(12, M.userTeam);
       if (!M.schedule.stage2.leagueTeams.includes(M.userTeam)) {
         M.schedule.stage2 = buildRegionalLeagueForStage(2, 15);
       }
-      addInbox("MERCADO", "Ventana de Mitad de Temporada (Semana 14)", "Se abrió el mercado intermedio y llegaron 12 nuevos prospectos a la Academia antes del Stage 2.");
+      addInbox("MERCADO", "Ventana de Mitad de Temporada (Semana 14)", "Se abrió el mercado intermedio con actividad de clubes IA y nueva camada en tu Academia.");
+    }
+    if (M.week === 28) {
+      const expiring = M.clubs[M.userTeam].players.filter(p => (p.contractYears || 2) <= 1).map(p => p.n);
+      if (expiring.length) {
+        addInbox("CONTRATO", `Contratos por vencer (${expiring.length})`, `Quedan 5 semanas de temporada y finalizan contrato: ${expiring.join(", ")}. Renuévalos desde Plantilla.`);
+      }
     }
     if (M.week === 33) {
       closeCurrentSeason();
@@ -1814,7 +2525,7 @@
     const cost = 10000;
     if (club.budget < cost) { alert("Necesitas $10,000 para enviar ojeadores."); return; }
     club.budget -= cost;
-    M.academy = generateAcademyBatch(12);
+    M.academy = generateAcademyBatch(12, M.userTeam);//
     M.financeLog.unshift({ s: M.season, w: M.week, concept: "Campaña de Ojeo Juvenil (12 prospectos)", amount: -cost });
     saveCareer();
     renderManager();
@@ -2030,7 +2741,7 @@
             </div>
             <div class="mgr-club-stats mono">
               <span>OVR <b>${ovr.toFixed(1)}</b></span>
-              <span>POT <b>${avgPot}</b></span>
+              <span>ACAD <b>${getClubAcademyInfo(name).quality.toFixed(1)}</b></span>
               <span>CAJA <b class="kd-pos">${fmtMoney(budget)}</b></span>
             </div>
             <button type="button" class="p mono" style="width:100%;justify-content:center;padding:6px" onclick="mgrStartCareer('${mEsc(name)}')">Dirigir Club</button>
@@ -2135,9 +2846,10 @@
     }
     if (M.pendingOffer) {
       alerts.push(`<div class="mgr-alert-bar" style="border-color:var(--gold)">
-        <span class="mono"><b>OFERTA DE TRASPASO:</b> ${mEsc(M.pendingOffer.buyer)} ofrece <b class="kd-pos">${fmtMoney(M.pendingOffer.amount)}</b> por <b>${mEsc(M.pendingOffer.player)}</b></span>
+        <span class="mono"><b>${M.pendingOffer.isListedBid ? "OFERTA EN MERCADO" : "OFERTA DE TRASPASO"}:</b> ${mEsc(M.pendingOffer.buyer)} ofrece <b class="kd-pos">${fmtMoney(M.pendingOffer.amount)}</b>${M.pendingOffer.sellOnPct ? ` + ${M.pendingOffer.sellOnPct}% fut. venta` : ""} por <b>${mEsc(M.pendingOffer.player)}</b></span>
         <div class="btn-group">
-          <button type="button" class="t-btn-sm mono t-btn-live" onclick="mgrRespondOffer(true)">Vender</button>
+          <button type="button" class="t-btn-sm mono t-btn-live" onclick="mgrRespondOffer(true)">Aceptar</button>
+          <button type="button" class="t-btn-sm mono" style="border-color:var(--gold);color:var(--gold)" onclick="mgrOpenSellNeg()">Contraofertar</button>
           <button type="button" class="t-btn-sm mono" onclick="mgrRespondOffer(false)">Rechazar</button>
         </div>
       </div>`);
@@ -2225,7 +2937,7 @@
               <th>OVR / POT</th>
               <th>MORAL</th>
               <th>FATIGA</th>
-              <th>SUELDO</th>
+              <th>CONTRATO</th>
               <th>AIM</th><th>FD</th><th>CLU</th><th>ENT</th><th>UTI</th><th>IGL</th>
               <th style="text-align:left">Plan Individual</th>
               <th>Acciones</th>
@@ -2255,7 +2967,10 @@
                 <td class="mono"><b>${ovr}</b> <span class="mut">/ ${p.pot}</span></td>
                 <td class="mono"><div class="mgr-meter"><span>${p.morale}</span><div class="mgr-bar"><i style="width:${p.morale}%;background:${morCol}"></i></div></div></td>
                 <td class="mono"><div class="mgr-meter"><span>${p.fatigue}%</span><div class="mgr-bar"><i style="width:${p.fatigue}%;background:${fatCol}"></i></div></div></td>
-                <td class="mono mut">${fmtMoney(p.salary)}</td>
+                <td class="mono" style="font-size:11px">
+                  <span class="${(p.contractYears || 2) <= 1 ? 'kd-neg' : ''}"><b>${p.contractYears || 2}T</b></span> · ${fmtMoney(p.salary)}
+                  <small class="mut" style="display:block;font-size:9.5px">${p.promisedRole === "starter" ? "TITULAR" : p.promisedRole === "prospect" ? "PROMESA" : "ROTACIÓN"}${p.transferRequested ? ' · <b class="kd-neg">PIDE SALIR</b>' : ""}</small>
+                </td>
                 <td class="mono">${p.aim}${fmtDelta(p.deltas.aim)}</td>
                 <td class="mono">${p.fd}${fmtDelta(p.deltas.fd)}</td>
                 <td class="mono">${p.clutch}${fmtDelta(p.deltas.clutch)}</td>
@@ -2270,7 +2985,8 @@
                 <td>
                   <div class="btn-group" style="justify-content:flex-end">
                     ${isInj ? `<button type="button" class="t-btn-sm mono t-btn-live" onclick="mgrPhysio(${idx})">Fisio $15k</button>` : ""}
-                    <button type="button" class="t-btn-sm mono" onclick="mgrSellPlayer(${idx})">Vender</button>
+                    <button type="button" class="t-btn-sm mono" onclick="mgrOpenRenew(${idx})">Renovar</button>
+                    <button type="button" class="t-btn-sm mono ${p.forSale ? 'is-listed' : ''}" onclick="mgrToggleForSale(${idx})" title="Poner o quitar del mercado de transferibles">${p.forSale ? "En Venta ✓" : "En Venta"}</button>
                   </div>
                 </td>
               </tr>`;
@@ -2283,7 +2999,23 @@
 
   function renderAcademyTab() {
     const club = M.clubs[M.userTeam];
+    const acad = getClubAcademyInfo(M.userTeam);
+    const qCol = acad.quality >= 8.5 ? "var(--gold)" : acad.quality >= 6.5 ? "var(--ok)" : "var(--vct-cyan)";
     return `
+      <div class="mgr-panel" style="margin-bottom:10px">
+        <div class="t-group-head" style="flex-wrap:wrap;gap:8px">
+          <div>
+            <b class="mono">CALIDAD DE CANTERA: <span style="color:${qCol}">${acad.quality.toFixed(1)} / 10</span></b>
+            <span class="igl-tag">${mEsc(acad.tierLabel)}</span>
+            <span class="mono mut" style="font-size:11px;margin-left:6px">${mEsc(acad.source)}</span>
+          </div>
+          <div class="mono mut" style="font-size:11px">
+            MULT. JOYAS: <b style="color:${qCol}">${acad.jewelMult}x</b> · PROB. JOYA (POT 90+): <b>~${acad.jewelChancePct}%</b>
+          </div>
+        </div>
+        <div class="mgr-learn-track"><i style="width:${acad.quality * 10}%;background:${qCol}"></i></div>
+      </div>
+
       <div class="db-controls">
         <span class="mono mut" style="font-size:11.5px">PROSPECTOS DE ACADEMIA (${M.academy.length}) · Precio escalado por POT · Sueldos bajos · Mejoran 2.4x más rápido jugando partidos oficiales</span>
         <button type="button" class="t-btn-sm mono" onclick="mgrScoutMoreAcademy()">Nuevo Ojeo Juvenil ($10k)</button>
@@ -2408,7 +3140,7 @@
                 <td class="mono ${canAfford ? '' : 'kd-neg'}"><b>${fmtMoney(item.fee)}</b></td>
                 <td>${item.isFree
                   ? `<button type="button" class="t-btn-sm mono t-btn-live" ${canAfford ? "" : "disabled"} onclick="mgrSignFreeAgent(${item.faIdx})">Fichar</button>`
-                  : `<button type="button" class="t-btn-sm mono" ${canAfford ? "" : "disabled"} onclick="mgrBuyFromClub('${mEsc(item.source)}','${mEsc(p.n)}')">Cláusula</button>`
+                  : `<button type="button" class="t-btn-sm mono" style="border-color:var(--vct-cyan);color:var(--vct-cyan)" onclick="mgrOpenBuyNeg('${mEsc(item.source)}','${mEsc(p.n)}')">Negociar</button>`
                 }</td>
               </tr>`;
             }).join("")}
@@ -2540,7 +3272,7 @@
 
         <div class="t-group-card">
           <div class="t-group-head" style="flex-wrap:wrap;gap:8px">
-            <span class="t-team-cell">${renderTeamLogo(selClub.name, "mini-team-logo")}<b style="color:${mEsc(selClub.color)};font-size:15px">${mEsc(selClub.name)}</b><span class="mono mut">DT ${mEsc(selClub.coach.n)} · CAJA ${fmtMoney(selClub.budget)}</span></span>
+            <span class="t-team-cell">${renderTeamLogo(selClub.name, "mini-team-logo")}<b style="color:${mEsc(selClub.color)};font-size:15px">${mEsc(selClub.name)}</b><span class="mono mut">DT ${mEsc(selClub.coach.n)} · CAJA ${fmtMoney(selClub.budget)} · ACAD ${getClubAcademyInfo(selClub.name).quality.toFixed(1)}/10 (${mEsc(getClubAcademyInfo(selClub.name).source)})</span></span>
             <div class="btn-group">
               ${selClub.name !== M.userTeam
                 ? `<span class="mono mut" style="font-size:10.5px;align-self:center">REQ REP ${reqRep} (<b class="${chanceCls}">${chanceLabel}</b>)</span>
@@ -2582,7 +3314,7 @@
                     <td class="mono mut">${selClub.name === M.userTeam ? "-" : fmtMoney(buyout)}</td>
                     <td>${selClub.name === M.userTeam
                       ? `<span class="mono mut" style="font-size:10px">TU CLUB</span>`
-                      : `<button type="button" class="t-btn-sm mono" ${canBuy ? "" : "disabled"} onclick="mgrBuyFromClub('${mEsc(selClub.name)}','${mEsc(p.n)}')">Fichar</button>`
+                      : `<button type="button" class="t-btn-sm mono" style="border-color:var(--vct-cyan);color:var(--vct-cyan)" onclick="mgrOpenBuyNeg('${mEsc(selClub.name)}','${mEsc(p.n)}')">Negociar</button>`
                     }</td>
                   </tr>`;
                 }).join("")}
@@ -2654,7 +3386,7 @@
       pendingJobOffers: []
     };
 
-    M.academy = generateAcademyBatch(12);
+    M.academy = generateAcademyBatch(12, M.userTeam);
     buildFullYearSchedule(2027);
 
     const club = M.clubs[teamName];
@@ -2761,6 +3493,7 @@
         <button type="button" class="series-tab ${activeTab === 'finance' ? 'active' : ''}" onclick="mgrSwitchTab('finance')">FINANZAS &amp; LEGADO</button>
       </div>`}
 
+      ${renderNegotiationDrawerHTML()}
       ${body}
     `;
   }
