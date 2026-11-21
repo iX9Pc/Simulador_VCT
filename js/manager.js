@@ -187,86 +187,88 @@
   ];
 
   const FREE_COACHES_SEED = [
-    { n: "Potter",   macro: 91, micro: 87, adapt: 92, dev: 91, disc: 90, fee: 85000 },
-    { n: "mini",     macro: 92, micro: 84, adapt: 90, dev: 86, disc: 88, fee: 80000 },
-    { n: "d00mbr0s", macro: 88, micro: 85, adapt: 88, dev: 86, disc: 87, fee: 65000 },
-    { n: "Chet",     macro: 86, micro: 86, adapt: 85, dev: 82, disc: 82, fee: 55000 },
-    { n: "Termi",    macro: 89, micro: 84, adapt: 86, dev: 85, disc: 92, fee: 70000 },
-    { n: "bzkA",     macro: 85, micro: 83, adapt: 84, dev: 88, disc: 86, fee: 50000 },
-    { n: "FrosT",    macro: 82, micro: 85, adapt: 84, dev: 84, disc: 79, fee: 45000 }
+    { n: "Potter",   macro: 91, micro: 87, adapt: 92, dev: 91, disc: 90, pot: 94, exp: 7, tier: "established", fee: 85000 },
+    { n: "mini",     macro: 92, micro: 84, adapt: 90, dev: 86, disc: 88, pot: 93, exp: 7, tier: "established", fee: 80000 },
+    { n: "d00mbr0s", macro: 88, micro: 85, adapt: 88, dev: 86, disc: 87, pot: 90, exp: 6, tier: "established", fee: 65000 },
+    { n: "Chet",     macro: 86, micro: 86, adapt: 85, dev: 82, disc: 82, pot: 88, exp: 6, tier: "established", fee: 55000 },
+    { n: "Termi",    macro: 89, micro: 84, adapt: 86, dev: 85, disc: 92, pot: 91, exp: 7, tier: "established", fee: 70000 },
+    { n: "bzkA",     macro: 85, micro: 83, adapt: 84, dev: 88, disc: 86, pot: 90, exp: 5, tier: "established", fee: 50000 },
+    { n: "FrosT",    macro: 82, micro: 85, adapt: 84, dev: 84, disc: 79, pot: 87, exp: 6, tier: "established", fee: 45000 },
+    { n: "Valkyrie", macro: 76, micro: 75, adapt: 77, dev: 80, disc: 76, pot: 94, exp: 1, tier: "prospect",    fee: 22000 },
+    { n: "Kaelen",   macro: 78, micro: 77, adapt: 75, dev: 78, disc: 74, pot: 93, exp: 2, tier: "prospect",    fee: 25000 },
+    { n: "Soraia",   macro: 74, micro: 76, adapt: 79, dev: 81, disc: 77, pot: 95, exp: 1, tier: "prospect",    fee: 24000 },
+    { n: "Mendez",   macro: 77, micro: 74, adapt: 78, dev: 77, disc: 80, pot: 91, exp: 2, tier: "prospect",    fee: 20000 },
+    { n: "Haneul",   macro: 75, micro: 78, adapt: 76, dev: 79, disc: 78, pot: 94, exp: 1, tier: "prospect",    fee: 23000 }
   ];
 
-  // ===== 10 MODOS DE ENTRENAMIENTO SEMANAL =====
+  const COACH_COURSES = [
+    { id: "macro", name: "Seminario de Macro & Táctica",      cost: 24000, weeks: 3, stats: ["macro"],         desc: "Mejora lectura de mapas, rotaciones y economía." },
+    { id: "adapt", name: "Analítica Anti-Strat & Rival",      cost: 22000, weeks: 2, stats: ["adapt", "micro"], desc: "Potencia timeouts, lectura rival y micro-ajustes." },
+    { id: "dev",   name: "Certificación Desarrollo Juvenil",  cost: 20000, weeks: 3, stats: ["dev"],           desc: "Acelera el crecimiento de promesas y cantera." },
+    { id: "disc",  name: "Gestión de Vestuario & Motivación", cost: 18000, weeks: 2, stats: ["disc"],          desc: "Reduce fatiga, riesgo de lesiones y sube disciplina." },
+    { id: "pro",   name: "Licencia Master VCT Integral",      cost: 42000, weeks: 4, stats: ["macro", "micro", "adapt", "dev", "disc"], desc: "Mejora global en las 5 habilidades del Head Coach." }
+  ];
+
   const TRAINING_MODES = {
     balanced: {
-      id: "balanced",
-      name: "Rutina Equilibrada",
-      desc: "Progreso estable hacia POT con fatiga baja (+3 Fat · +1 Moral)",
-      fatigueDelta: 3, moraleDelta: 1, cost: 0, injuryMult: 0.6, xpBase: 17,
-      focus: ["aim", "util", "clutch", "cons"]
+      id: "balanced", name: "Equilibrada", category: "GENERAL", duration: "1 sem",
+      desc: "Progreso estable hacia POT (+3 Fat · +1 Moral)",
+      fatigueDelta: 3, moraleDelta: 1, cost: 0, injuryMult: 0.55, riskLabel: "BAJO",
+      xpBase: 17, focus: ["aim", "util", "clutch", "cons"]
     },
-    scrims: {
-      id: "scrims",
-      name: "Scrims Intensivos",
-      desc: "Alto crecimiento en AIM / FD / ENT (+12 Fat · -1 Moral · Riesgo leve)",
-      fatigueDelta: 12, moraleDelta: -1, cost: 0, injuryMult: 1.35, xpBase: 25,
-      focus: ["aim", "fd", "entry"]
-    },
-    aimlab: {
-      id: "aimlab",
-      name: "Aimlabs & Deathmatch",
-      desc: "Pulido mecánico puro en AIM y Primer Duelo (+7 Fat · Bajo riesgo)",
-      fatigueDelta: 7, moraleDelta: 0, cost: 0, injuryMult: 0.85, xpBase: 22,
-      focus: ["aim", "fd"]
-    },
-    tactics: {
-      id: "tactics",
-      name: "Táctica & VOD Review",
-      desc: "Crecimiento en UTI / IGL / CONS (+5 Fat · +2 Moral)",
-      fatigueDelta: 5, moraleDelta: 2, cost: 0, injuryMult: 0.5, xpBase: 20,
-      focus: ["util", "igl", "cons"]
-    },
-    clutch_lab: {
-      id: "clutch_lab",
-      name: "Lab Retakes & Clutch",
-      desc: "Simulaciones 1vX y post-plant: sube CLU / CONF / CONS (+6 Fat · +2 Moral)",
-      fatigueDelta: 6, moraleDelta: 2, cost: 0, injuryMult: 0.6, xpBase: 22,
-      focus: ["clutch", "conf", "cons"]
+    role_drill: {
+      id: "role_drill", name: "Entreno por Rol", category: "ROL", duration: "1 sem",
+      desc: "Sube atributos específicos según el rol de cada jugador (+7 Fat)",
+      fatigueDelta: 7, moraleDelta: 1, cost: 3000, injuryMult: 0.75, riskLabel: "MEDIO",
+      xpBase: 24, roleAdaptive: true, focus: ["entry", "util", "clutch", "igl"]
     },
     agent_lab: {
-      id: "agent_lab",
-      name: "Lab de Agentes & Hush",
-      desc: "Acelera x1.7 la Maestría Hush y mejora UTI / ENT (+6 Fat · +1 Moral)",
-      fatigueDelta: 6, moraleDelta: 1, cost: 0, injuryMult: 0.65, xpBase: 20, hushMult: 1.7,
-      focus: ["util", "entry", "fd"]
+      id: "agent_lab", name: "Maestría de Agentes", category: "AGENTE", duration: "1 sem",
+      desc: "Acelera Maestría Hush x1.7 + progreso extra de agente (+6 Fat)",
+      fatigueDelta: 6, moraleDelta: 1, cost: 4000, injuryMult: 0.65, riskLabel: "MEDIO",
+      xpBase: 20, hushMult: 1.7, extraLearnTick: true, focus: ["util", "entry", "fd"]
     },
-    anti_strat: {
-      id: "anti_strat",
-      name: "Anti-Strat Próximo Rival",
-      desc: "Otorga +2.2% bono táctico en el partido de esta semana (+7 Fat · Menos XP)",
-      fatigueDelta: 7, moraleDelta: 1, cost: 0, injuryMult: 0.6, xpBase: 12, matchPrepBonus: 0.022,
-      focus: ["igl", "util"]
+    map_prep: {
+      id: "map_prep", name: "Preparación de Mapa", category: "MAPA", duration: "1 sem",
+      desc: "+1.5% dominio permanente en el mapa elegido (máx +4.5%)",
+      fatigueDelta: 6, moraleDelta: 1, cost: 5000, injuryMult: 0.60, riskLabel: "MEDIO",
+      xpBase: 16, trainsMap: true, focus: ["igl", "util", "cons"]
     },
-    team_building: {
-      id: "team_building",
-      name: "Team Building ($8k)",
-      desc: "Cohesión grupal: fuerte subida de Moral (+12) y recuperación (-16 Fat)",
-      fatigueDelta: -16, moraleDelta: 12, cost: 8000, injuryMult: 0.0, xpBase: 10,
-      focus: ["conf", "cons"]
+    aimlab: {
+      id: "aimlab", name: "Puntería & Aimlabs", category: "MECÁNICA", duration: "1 sem",
+      desc: "Pulido mecánico puro: AIM y Primer Duelo (+8 Fat)",
+      fatigueDelta: 8, moraleDelta: 0, cost: 2000, injuryMult: 0.90, riskLabel: "MEDIO",
+      xpBase: 24, focus: ["aim", "fd"]
     },
-    rest: {
-      id: "rest",
-      name: "Descanso & Psicología",
-      desc: "Recuperación física máxima (-28 Fat · +8 Moral · Cero lesiones)",
-      fatigueDelta: -28, moraleDelta: 8, cost: 0, injuryMult: 0.0, xpBase: 6,
-      focus: ["conf"]
+    comms_team: {
+      id: "comms_team", name: "Comunicación & Equipo", category: "EQUIPO", duration: "1 sem",
+      desc: "Sube IGL, UTI, CONS y cohesión grupal (+6 Moral · +2 Fat)",
+      fatigueDelta: 2, moraleDelta: 6, cost: 5000, injuryMult: 0.30, riskLabel: "BAJO",
+      xpBase: 20, focus: ["igl", "util", "cons"]
+    },
+    vod_review: {
+      id: "vod_review", name: "Análisis de VODs", category: "TÁCTICA", duration: "1 sem",
+      desc: "Sube IGL, CLU y CONS + bono +1.5% Anti-Strat (+3 Fat)",
+      fatigueDelta: 3, moraleDelta: 2, cost: 3000, injuryMult: 0.25, riskLabel: "BAJO",
+      xpBase: 21, matchPrepBonus: 0.015, focus: ["igl", "clutch", "cons"]
+    },
+    scrims_pro: {
+      id: "scrims_pro", name: "Scrims vs Franquicia", category: "SCRIMS", duration: "1 sem",
+      desc: "Alto crecimiento AIM/FD/ENT/CLU (+13 Fat · Riesgo alto)",
+      fatigueDelta: 13, moraleDelta: -1, cost: 6000, injuryMult: 1.40, riskLabel: "ALTO",
+      xpBase: 30, focus: ["aim", "fd", "entry", "clutch"]
     },
     bootcamp: {
-      id: "bootcamp",
-      name: "Bootcamp Privado ($15k)",
-      desc: "Doble XP hacia POT + bono Maestría Hush (+9 Fat · +4 Moral)",
-      fatigueDelta: 9, moraleDelta: 4, cost: 15000, injuryMult: 0.85, xpBase: 36, hushMult: 1.4,
-      focus: ["aim", "fd", "clutch", "util", "cons"]
+      id: "bootcamp", name: "Bootcamp Intensivo", category: "ELITE", duration: "1 sem",
+      desc: "Máxima evolución hacia POT + bono Hush (+11 Fat · +3 Moral)",
+      fatigueDelta: 11, moraleDelta: 3, cost: 18000, injuryMult: 1.05, riskLabel: "ALTO",
+      xpBase: 38, hushMult: 1.4, focus: ["aim", "fd", "clutch", "util", "cons"]
+    },
+    rest_mental: {
+      id: "rest_mental", name: "Descanso & Mentalidad", category: "MENTAL", duration: "1 sem",
+      desc: "Psicología: -28 Fat, +10 Moral, sube CONF y cero lesiones",
+      fatigueDelta: -28, moraleDelta: 10, cost: 4000, injuryMult: 0.0, riskLabel: "NULO",
+      xpBase: 10, focus: ["conf", "clutch"]
     }
   };
 
@@ -1411,7 +1413,7 @@
           if (parsed.academyAgentPools && typeof PLAYER_AGENTS === "object") {
             Object.assign(PLAYER_AGENTS, parsed.academyAgentPools);
           }
-          M = careerData;
+          M = migrateCareerState(careerData);
           syncLearnedPoolsFromCareer(M);
           activeTab = "hub";
           saveCareer();
@@ -1575,63 +1577,6 @@
       objective,
       seasonClosed: false
     };
-  }
-
-  function startNewCareer(teamName) {
-    const clubs = {};
-    for (const t in TEAMS) {
-      const meta = TEAM_META[t] || { reg: "AMERICAS", color: "#E5484D", code: t.slice(0, 3).toUpperCase() };
-      const players = TEAMS[t].map(p => enrichPlayer(p, false));
-      const coach = { ...COACH[t] };
-      const ovr = calcRosterOvr(players, coach);
-      const startBudget = Math.round((360000 + Math.max(0, ovr - 80) * 40000) / 5000) * 5000;
-      const sponsorWeekly = Math.round((24000 + Math.max(0, ovr - 78) * 1500) / 500) * 500;
-      clubs[t] = {
-        name: t, reg: meta.reg, color: meta.color, code: meta.code,
-        players, coach, budget: startBudget, sponsorWeekly, activeSponsors: []
-      };
-    }
-
-    M = {
-      userTeam: teamName,
-      season: 2027,
-      week: 1,
-      boardConfidence: 65,
-      graceWeeks: 8,
-      fired: false,
-      winStreak: 0,
-      bestStreak: 0,
-      training: "balanced",
-      nextMatchPrepBonus: 0,
-      career: {
-        wins: 0, losses: 0,
-        regionalTitles: 0, mastersTitles: 0, championsTitles: 0,
-        clubsManaged: [teamName],
-        applyCooldown: {}
-      },
-      clubs,
-      freeAgents: FREE_AGENTS_SEED.map(p => enrichPlayer(p, true)),
-      freeCoaches: FREE_COACHES_SEED.map(c => ({ ...c })),
-      academy: [],
-      inbox: [],
-      transferLog: [],
-      financeLog: [],
-      trophies: [],
-      seasonHistory: [],
-      lastPlayedMatch: null,
-      pendingOffer: null,
-      pendingSponsorOffer: null,
-      pendingJobOffers: []
-    };
-
-    M.academy = generateAcademyBatch(12, M.userTeam);//
-    buildFullYearSchedule(2027);
-
-    const club = M.clubs[teamName];
-    addInbox("DIRECTIVA", `Contrato firmado con ${teamName}`, `La directiva confía en tu proyecto: arrancas con +65 de confianza y 8 semanas de período de gracia. Presupuesto: ${fmtMoney(club.budget)}. Calendario anual de 33 semanas con 2 semanas de viaje antes de cada Masters y Champions.`);
-    activeTab = "hub";
-    saveCareer();
-    renderManager();
   }
 
   // ===== SIMULACIÓN DE SERIES =====
@@ -1935,6 +1880,15 @@
           club.budget -= mode.cost;
           M.financeLog.unshift({ s: M.season, w: M.week, concept: mode.name, amount: -mode.cost });
         }
+        if (mode.trainsMap) {
+          const targetMap = M.prepMapTarget || Object.keys(MAP_POOL)[0];
+          M.mapPrep = M.mapPrep || {};
+          const prev = M.mapPrep[targetMap] || 0;
+          if (prev < 0.045) {
+            M.mapPrep[targetMap] = Number(Math.min(0.045, prev + 0.015).toFixed(3));
+            addInbox("TÁCTICA", `Preparación de ${targetMap}`, `El equipo elevó su dominio táctico en ${targetMap} a +${(M.mapPrep[targetMap] * 100).toFixed(1)}%.`);
+          }
+        }
       }
 
       const payroll = club.players.reduce((s, p) => s + (p.salary || 2500), 0);
@@ -1943,15 +1897,10 @@
       if (isUser) {
         M.financeLog.unshift({ s: M.season, w: M.week, concept: `Semanal (Sponsors ${fmtMoney(club.sponsorWeekly)} - Nómina ${fmtMoney(payroll)})`, amount: net });
         if (M.financeLog.length > 50) M.financeLog = M.financeLog.slice(0, 50);
-        if (club.budget < -50000) {
-          const finPen = M.graceWeeks > 0 ? 1 : 3;
-          M.boardConfidence = clamp(M.boardConfidence - finPen, -100, 100);
-          addInbox("FINANZAS", "Alerta de Déficit", `Tu caja está en ${fmtMoney(club.budget)}. Ajusta sueldos o vende jugadores.`);
-        }
-        // Control de salud financiera y gestión del plantel por la directiva
         if (club.budget < 0) {
           const defPen = club.budget < -60000 ? -6 : -3;
           adjustBoard(defPen, club.budget < -60000 ? "Déficit severo" : null);
+          if (club.budget < -50000) addInbox("FINANZAS", "Alerta de Déficit", `Tu caja está en ${fmtMoney(club.budget)}. Ajusta sueldos o vende jugadores.`);
         }
         const startersNow = club.players.filter(p => !p.sub && !(p.injuredWeeks > 0));
         if (startersNow.length) {
@@ -1981,14 +1930,23 @@
         p.fatigue = clamp(p.fatigue + fDelta, 0, 100);
         p.morale = clamp(p.morale + mode.moraleDelta + (travel ? 2 : 0), 15, 100);
 
+        let focusKeys = mode.focus;
+        if (mode.roleAdaptive) {
+          const pr = getPrimaryRoleFromStr(p.r);
+          focusKeys = pr === "Duelista" ? ["aim", "fd", "entry"]
+                    : pr === "Iniciador" ? ["util", "igl", "cons"]
+                    : pr === "Controlador" ? ["util", "clutch", "igl"]
+                    : pr === "Centinela" ? ["clutch", "aim", "cons"]
+                    : ["aim", "util", "cons"];
+        }
         const baseXp = mode.xpBase || 17;
-        grantPlayerProgression(p, club.coach, baseXp * (p.sub ? 0.65 : 1.0), mode.focus, isUser, false, mode.hushMult || 1.0);
-
+        grantPlayerProgression(p, club.coach, baseXp * (p.sub ? 0.65 : 1.0), focusKeys, isUser, false, mode.hushMult || 1.0);
         checkPlayerInjury(club, p, travel ? mode.injuryMult * 0.35 : mode.injuryMult * 0.75, isUser);
-        if (isUser) advancePlayerLearning(p, club);
 
-        // Chequeo de promesas de contrato y jugadores en lista de transferibles (2.2 / 2.3)
         if (isUser) {
+          advancePlayerLearning(p, club);
+          if (mode.extraLearnTick && p.learning && Math.random() < 0.45) advancePlayerLearning(p, club);
+
           if (p.forSale) p.weeksOnMarket = (p.weeksOnMarket || 0) + 1;
           if (p.promisedRole === "starter" && p.sub && !(p.injuredWeeks > 0)) {
             p.unhappyWeeks = (p.unhappyWeeks || 0) + 1;
@@ -1998,7 +1956,7 @@
             } else if (p.unhappyWeeks >= 3 && !p.transferRequested) {
               p.transferRequested = true;
               p.forSale = true;
-              if (typeof adjustBoard === "function") adjustBoard(-3);
+              adjustBoard(-3);
               addInbox("CONTRATO", `${p.n} PIDE SALIR DEL CLUB`, `Por incumplir su promesa de titularidad, ${p.n} pidió traspaso y entró al mercado.`);
             }
           } else if (!p.sub) {
@@ -2007,6 +1965,8 @@
         }
       });
     }
+
+    advanceCoachCourse();
   }
 
   // ===== TRANSICIONES DE TORNEOS (PREMIOS OFICIALES: $350K MASTERS / $1M CHAMPIONS) =====
@@ -2041,8 +2001,7 @@
         M.boardConfidence = clamp(M.boardConfidence + 6, -100, 100);
         addInbox("LIGA", `Stage ${stageNum}: Clasificados a Playoffs (#${myPos})`, `${M.userTeam} aseguró su lugar en Semifinales Bo3.`);
       } else if (myPos > 4) {
-        const pen = M.graceWeeks > 0 ? 3 : 8;
-        M.boardConfidence = clamp(M.boardConfidence - pen, -100, 100);
+        adjustBoard(-12, `Stage ${stageNum}: Fuera de Playoffs (#${myPos})`);
         addInbox("LIGA", `Stage ${stageNum}: Fuera de Playoffs (#${myPos})`, `No se alcanzó el Top 4 regional. Usa las semanas libres para entrenar o fichar.`);
       }
     }
@@ -2132,8 +2091,7 @@
       M.boardConfidence = clamp(M.boardConfidence + 10, -100, 100);
       addInbox("CHAMPIONS", `CLASIFICADOS A VALORANT CHAMPIONS ${M.season}`, `${M.userTeam} entra al Top 16 mundial. Tienes 2 semanas de viaje y preparación antes de Octavos (Semana 29).`);
     } else {
-      const pen = M.graceWeeks > 0 ? 3 : 8;
-      M.boardConfidence = clamp(M.boardConfidence - pen, -100, 100);
+      adjustBoard(-14, "Sin clasificación a Champions");
       addInbox("CHAMPIONS", `Fuera de VALORANT Champions ${M.season}`, `${M.userTeam} no alcanzó los Puntos VCT para el Top 16 global.`);
     }
   }
@@ -2161,8 +2119,10 @@
   }
 
   function checkBoardFiring() {
+    recordBoardSnapshot();
     if (M.graceWeeks > 0) return;
-    if (M.boardConfidence <= -30 && !M.fired) {
+    const fireAt = getDiffCfg().fireThreshold;
+    if (M.boardConfidence <= fireAt && !M.fired) {
       M.fired = true;
       const rescueClubs = Object.keys(M.clubs)
         .filter(c => c !== M.userTeam)
@@ -2176,7 +2136,7 @@
         budget: M.clubs[c].budget,
         reason: "Proyecto de reconstrucción"
       }));
-      addInbox("DESPIDO", `CESADO DE ${M.userTeam.toUpperCase()}`, `Tu confianza directiva cayó a ${M.boardConfidence}. La junta decidió rescindir tu contrato.`);
+      addInbox("DESPIDO", `CESADO DE ${M.userTeam.toUpperCase()}`, `Tu confianza directiva cayó a ${M.boardConfidence} (límite ${fireAt}). La junta decidió rescindir tu contrato.`);
     }
   }
 
@@ -2206,6 +2166,14 @@
       champions: sc.championsChamp || "-",
       ovrEnd: calcRosterOvr(M.clubs[M.userTeam].players, M.clubs[M.userTeam].coach)
     });
+
+    const objId = sc.objective && sc.objective.id;
+    const wonAnyTitle = M.trophies.some(t => t.season === M.season && t.club === M.userTeam);
+    const playedChampions = sc.champions.some(m => m.teamA === M.userTeam || m.teamB === M.userTeam);
+    const playedPO = [...sc.stage1.playoffs, ...sc.stage2.playoffs].some(m => m.teamA === M.userTeam || m.teamB === M.userTeam);
+    const metObj = objId === "title" ? wonAnyTitle : objId === "champions" ? playedChampions : playedPO;
+    if (metObj) adjustBoard(10, "Objetivo anual cumplido");
+    else adjustBoard(-16, `Objetivo incumplido (${sc.objective.label})`);
 
     for (const cName in M.clubs) {
       M.clubs[cName].players.forEach(p => {
@@ -2308,9 +2276,9 @@
     const userMatch = weekMatches.find(m => !m.played && (m.teamA === M.userTeam || m.teamB === M.userTeam));
 
     if (userMatch) {
-      const healthyStarters = myClub.players.filter(p => !p.sub && !(p.injuredWeeks > 0));
-      if (healthyStarters.length < 5) {
-        alert(`Necesitas 5 titulares sanos para disputar ${userMatch.label} (tienes ${healthyStarters.length}). Rota suplentes o ficha un chico de la Academia.`);
+      const check = validateStartingLineup(myClub);
+      if (!check.ok) {
+        alert(`Alineación inválida para ${userMatch.label}: necesitas 5 titulares sanos sin duplicados (actual: ${check.count}/5${check.hasDup ? ", hay duplicados" : ""}).`);
         activeTab = "squad";
         renderManager();
         return;
@@ -2424,8 +2392,21 @@
     startNewCareer(teamName);
   };
 
+  window.mgrSetSetupOpt = function (key, val) {
+    setupSettings[key] = val;
+    renderManager();
+  };
+
   window.mgrEndCareer = function () {
-    if (!confirm("¿Terminar el Modo Carrera actual? Se cerrará esta partida y volverás a la pantalla de selección para elegir el club que quieras desde cero.")) return;
+    if (!M) return;
+    if (!confirm("¿Finalizar esta carrera para ver el resumen completo y tu calificación final?")) return;
+    recordBoardSnapshot();
+    M.ended = true;
+    saveCareer();
+    renderManager();
+  };
+
+  window.mgrResetToClubSelect = function () {
     M = null;
     window._mgrLastSeries = null;
     saveCareer();
@@ -2452,19 +2433,21 @@
     else if (diff >= -10) accepted = Math.random() < 0.12;
 
     if (accepted) {
-      if (!confirm(`¡${targetClub} ACEPTÓ tu postulación! (Tu Rep: ${rep} vs Req: ${req}).\n¿Quieres dejar ${M.userTeam} y asumir ahora con +68 de confianza y 8 semanas de gracia?`)) return;
+      if (!confirm(`¡${targetClub} ACEPTÓ tu postulación! (Tu Rep: ${rep} vs Req: ${req}).\n¿Quieres dejar ${M.userTeam} y asumir ahora?`)) return;
       switchManagerToClub(targetClub, `Postulación aceptada · Rep ${rep}`);
     } else {
       cdMap[targetClub] = nowTick + 4;
-      addInbox("POSTULACIÓN", `${targetClub} rechazó tu candidatura`, `Tu reputación actual (${rep}) no convenció a la junta de ${targetClub} (exigen ~${req}). Mejora tu win rate o gana títulos y vuelve a intentarlo en 4 semanas.`);
+      addInbox("POSTULACIÓN", `${targetClub} rechazó tu candidatura`, `Tu reputación actual (${rep}) no convenció a ${targetClub} (exigen ~${req}). Vuelve a intentarlo en 4 semanas.`);
       saveCareer();
       renderManager();
-      alert(`${targetClub} rechazó tu postulación (Tu Rep: ${rep} / Exigencia del club: ~${req}). Sube tu reputación ganando series o títulos.`);
+      alert(`${targetClub} rechazó tu postulación (Tu Rep: ${rep} / Exigencia: ~${req}).`);
     }
   };
 
   window.mgrSwitchTab = function (tab) { activeTab = tab; renderManager(); };
   window.mgrSetTraining = function (modeId) { if (!M || !TRAINING_MODES[modeId]) return; M.training = modeId; saveCareer(); renderManager(); };
+  window.mgrSetPrepMap = function (mapName) { if (!M || !MAP_POOL[mapName]) return; M.prepMapTarget = mapName; saveCareer(); renderManager(); };
+
   window.mgrSetPlayerPlan = function (idx, planId) {
     if (!M || !PLAYER_PLANS[planId]) return;
     const p = M.clubs[M.userTeam].players[idx];
@@ -2474,25 +2457,142 @@
     renderManager();
   };
 
+  function validateStartingLineup(club) {
+    const starters = club.players.filter(p => !p.sub && !(p.injuredWeeks > 0));
+    const names = starters.map(p => p.n.toLowerCase());
+    return { ok: starters.length === 5 && new Set(names).size === names.length, count: starters.length, hasDup: new Set(names).size !== names.length };
+  }
+
   window.mgrToggleStarter = function (idx) {
     if (!M) return;
     const roster = M.clubs[M.userTeam].players;
     const target = roster[idx];
     if (!target) return;
-    if (target.injuredWeeks > 0) { alert(`${target.n} está lesionado (${target.injuryType}) por ${target.injuredWeeks} semana(s).`); return; }
+    if (target.injuredWeeks > 0) {
+      alert(`${target.n} está lesionado (${target.injuryType}) por ${target.injuredWeeks} semana(s).`);
+      return;
+    }
     if (target.sub) {
       const activeStarters = roster.filter(p => !p.sub && !(p.injuredWeeks > 0));
-      if (activeStarters.length >= 5) activeStarters[activeStarters.length - 1].sub = 1;
+      if (activeStarters.length >= 5) {
+        alert("Ya tienes 5 titulares activos. Primero pasa a la banca a un titular para dejar espacio.");
+        return;
+      }
+      if (activeStarters.some(p => p.n.toLowerCase() === target.n.toLowerCase())) {
+        alert(`Ya existe un jugador duplicado llamado ${target.n} en la alineación.`);
+        return;
+      }
       target.sub = 0;
-      target.morale = clamp(target.morale + 5, 15, 100);
+      target.morale = clamp(target.morale + 4, 15, 100);
     } else {
-      const healthySub = roster.find((p, i) => p.sub && !(p.injuredWeeks > 0) && i !== idx);
-      if (healthySub) { healthySub.sub = 0; target.sub = 1; }
-      else { alert("No tienes otro suplente sano disponible para intercambiar."); return; }
+      target.sub = 1;
     }
     saveCareer();
     renderManager();
   };
+
+  window.mgrAutoFillLineup = function () {
+    if (!M) return;
+    const roster = M.clubs[M.userTeam].players;
+    const healthy = roster.filter(p => !(p.injuredWeeks > 0)).sort((a, b) => calcPlayerOvr(b) - calcPlayerOvr(a));
+    const seen = new Set();
+    let count = 0;
+    roster.forEach(p => { p.sub = 1; });
+    healthy.forEach(p => {
+      const k = p.n.toLowerCase();
+      if (count < 5 && !seen.has(k)) { p.sub = 0; seen.add(k); count++; }
+    });
+    saveCareer();
+    renderManager();
+  };
+
+  // ===== CURSOS DE HEAD COACH (4.3) =====
+  window.mgrBuyCoachCourse = function (courseId) {
+    if (!M) return;
+    if (M.coachCourse) {
+      alert(`DT ${M.clubs[M.userTeam].coach.n} ya está cursando "${M.coachCourse.name}".`);
+      return;
+    }
+    const course = COACH_COURSES.find(c => c.id === courseId);
+    if (!course) return;
+    const club = M.clubs[M.userTeam];
+    const effCost = Math.round((course.cost * getDiffCfg().costMult) / 1000) * 1000;
+    if (club.budget < effCost) {
+      alert(`Necesitas ${fmtMoney(effCost)} para inscribir al Head Coach.`);
+      return;
+    }
+    club.budget -= effCost;
+    M.coachCourse = { ...course, cost: effCost, done: 0 };
+    M.financeLog.unshift({ s: M.season, w: M.week, concept: `Curso DT ${club.coach.n}: ${course.name}`, amount: -effCost });
+    addInbox("STAFF", `Curso iniciado: ${course.name}`, `DT ${club.coach.n} completará la formación en ${course.weeks} semana(s).`);
+    saveCareer();
+    renderManager();
+  };
+
+  function advanceCoachCourse() {
+    if (!M || !M.coachCourse) return;
+    const cc = M.coachCourse;
+    cc.done++;
+    if (cc.done < cc.weeks) return;
+
+    const coach = M.clubs[M.userTeam].coach;
+    const isProspect = coach.tier === "prospect" || (coach.exp || 5) <= 2;
+    const cap = Math.min(99, coach.pot || 94);
+    const gains = [];
+    cc.stats.forEach(k => {
+      const step = cc.id === "pro" ? (isProspect ? 2 : 1) : (isProspect ? 4 : 2);
+      const before = coach[k] || 80;
+      const after = Math.min(cap, before + step);
+      if (after > before) { coach[k] = after; gains.push(`${k.toUpperCase()} +${after - before}`); }
+    });
+    coach.exp = (coach.exp || 1) + 1;
+    M.coachCourse = null;
+    addInbox("STAFF", `DT ${coach.n} completó ${cc.name}`, gains.length ? `Mejoras: ${gains.join(" · ")} (POT ${cap}).` : `El DT alcanzó su techo actual (POT ${cap}).`);
+  }
+
+  // ===== COMPOSICIONES MANUALES POR MAPA (5.1) =====
+  let tacticsMap = "Ascent";
+
+  window.mgrSetTacticsMap = function (mapName) { tacticsMap = mapName; renderManager(); };
+
+  window.mgrSetCompAgent = function (playerName, agentName) {
+    if (!M) return;
+    M.customComps = M.customComps || {};
+    if (!M.customComps[tacticsMap]) M.customComps[tacticsMap] = {};
+    if (!agentName) {
+      delete M.customComps[tacticsMap][playerName];
+    } else {
+      for (const p in M.customComps[tacticsMap]) {
+        if (M.customComps[tacticsMap][p] === agentName && p !== playerName) delete M.customComps[tacticsMap][p];
+      }
+      M.customComps[tacticsMap][playerName] = agentName;
+    }
+    saveCareer();
+    renderManager();
+  };
+
+  window.mgrResetMapComp = function () {
+    if (!M || !M.customComps) return;
+    delete M.customComps[tacticsMap];
+    saveCareer();
+    renderManager();
+  };
+
+  function getAgentSpecLabel(agName) {
+    const ag = AGENTS[agName];
+    if (!ag) return "";
+    if (ag.smokeType === "pure") return "Smoker Puro";
+    if (ag.smokeType === "hybrid_wall") return "Híbrido Muro (req. Smoker Puro)";
+    if (ag.smokeType === "hybrid_dome") return "Híbrido Corto Alcance";
+    if (ag.sentinelType === "pure") return "Centinela Puro";
+    if (ag.sentinelType === "hybrid") return `Híbrido ${ag.secondaryRole || ""}`;
+    if (ag.initType === "recon") return "Recon / Info";
+    if (ag.initType === "flash") return "Flash / Apoyo";
+    if (ag.initType === "hybrid") return "Info + Flash";
+    if (ag.entryType === "dive") return "Entry Dive";
+    if (ag.entryType === "contact") return "Contacto (no solo entry)";
+    return ag.secondaryRole ? `Híbrido ${ag.secondaryRole}` : ag.role;
+  }
 
   window.mgrPhysio = function (idx) {
     if (!M) return;
@@ -2673,14 +2773,16 @@
     const club = M.clubs[M.userTeam];
     const c = M.freeCoaches[coachIdx];
     if (!c) return;
-    if (club.budget < c.fee) { alert(`Necesitas ${fmtMoney(c.fee)} para contratar a ${c.n}.`); return; }
-    club.budget -= c.fee;
-    const oldCoach = { ...club.coach, fee: 40000 };
+    const effFee = Math.round((c.fee * getDiffCfg().costMult) / 1000) * 1000;
+    if (club.budget < effFee) { alert(`Necesitas ${fmtMoney(effFee)} para contratar a ${c.n}.`); return; }
+    club.budget -= effFee;
+    const oldCoach = { ...club.coach, fee: club.coach.tier === "prospect" ? 24000 : 45000 };
     M.freeCoaches.splice(coachIdx, 1);
     M.freeCoaches.push(oldCoach);
-    club.coach = { n: c.n, macro: c.macro, micro: c.micro, adapt: c.adapt, dev: c.dev, disc: c.disc };
-    M.financeLog.unshift({ s: M.season, w: M.week, concept: `Contratación DT ${c.n}`, amount: -c.fee });
-    addInbox("STAFF", `Nuevo Head Coach: ${c.n}`, `${c.n} asume la pizarra (MAC ${c.macro} · ADP ${c.adapt} · DEV ${c.dev}).`);
+    club.coach = { n: c.n, macro: c.macro, micro: c.micro, adapt: c.adapt, dev: c.dev, disc: c.disc, pot: c.pot || 90, exp: c.exp || 3, tier: c.tier || "established" };
+    M.coachCourse = null;
+    M.financeLog.unshift({ s: M.season, w: M.week, concept: `Contratación DT ${c.n}`, amount: -effFee });
+    addInbox("STAFF", `Nuevo Head Coach: ${c.n}`, `${c.n} (${club.coach.tier === "prospect" ? "Promesa" : "Consagrado"} · POT ${club.coach.pot}) asume el banquillo.`);
     saveCareer();
     renderManager();
   };
@@ -2731,22 +2833,42 @@
 
   function renderClubSelectScreen() {
     const allClubs = Object.keys(TEAMS).sort((a, b) => parseFloat(getTeamOvr(b)) - parseFloat(getTeamOvr(a)));
+    const diffCfg = DIFFICULTY_CFG[setupSettings.difficulty] || DIFFICULTY_CFG.normal;
+    const mktCfg = MARKET_PACE_CFG[setupSettings.marketPace] || MARKET_PACE_CFG.normal;
+
     return `
       <div class="box-head">
         <div>
-          <h2>Modo Manager VCT 2027 · Elige tu Franquicia</h2>
-          <small class="mut">Temporadas de 33 semanas (Stage 1 + Viaje + Masters 1 + Stage 2 + Viaje + Masters 2 + Viaje + VALORANT Champions), postulación a clubes, academia, sponsors y 10 planes de entrenamiento.</small>
+          <h2>Modo Manager VCT 2027 · Configura y Elige tu Franquicia</h2>
+          <small class="mut">Define dificultad y ritmo de traspasos antes de firmar contrato con un club.</small>
         </div>
         <div class="btn-group">
           <button type="button" class="t-btn-sm mono t-btn-live" onclick="mgrImportSave()">Cargar Partida (.json)</button>
         </div>
       </div>
+
+      <div class="mgr-setup-bar">
+        <div class="mgr-setup-col">
+          <span class="tac-label">Dificultad de Carrera</span>
+          <div class="seg-group">
+            ${Object.values(DIFFICULTY_CFG).map(d => `<button type="button" class="seg-btn mono ${setupSettings.difficulty === d.id ? 'active' : ''}" onclick="mgrSetSetupOpt('difficulty','${d.id}')">${d.label}</button>`).join("")}
+          </div>
+          <small class="mut">${mEsc(diffCfg.desc)}</small>
+        </div>
+        <div class="mgr-setup-col">
+          <span class="tac-label">Ritmo del Mercado</span>
+          <div class="seg-group">
+            ${Object.values(MARKET_PACE_CFG).map(m => `<button type="button" class="seg-btn mono ${setupSettings.marketPace === m.id ? 'active' : ''}" onclick="mgrSetSetupOpt('marketPace','${m.id}')">${m.label}</button>`).join("")}
+          </div>
+          <small class="mut">${mEsc(mktCfg.desc)}</small>
+        </div>
+      </div>
+
       <div class="mgr-club-grid">
         ${allClubs.map(name => {
           const meta = TEAM_META[name] || { reg: "VCT", color: "#E5484D" };
           const ovr = parseFloat(getTeamOvr(name));
-          const avgPot = (TEAMS[name].reduce((s, p) => s + p.pot, 0) / TEAMS[name].length).toFixed(1);
-          const budget = Math.round((360000 + Math.max(0, ovr - 80) * 40000) / 5000) * 5000;
+          const budget = Math.round(((360000 + Math.max(0, ovr - 80) * 40000) * diffCfg.budgetMult) / 5000) * 5000;
           return `<div class="mgr-club-card" style="border-top:2px solid ${mEsc(meta.color)}">
             <div class="mgr-club-top">
               ${renderTeamLogo(name, "mini-team-logo")}
@@ -2763,13 +2885,133 @@
       </div>`;
   }
 
+  function calcCareerScore() {
+    const c = M.career || { wins: 0, losses: 0, regionalTitles: 0, mastersTitles: 0, championsTitles: 0 };
+    const totalMatches = c.wins + c.losses;
+    const wr = totalMatches > 0 ? c.wins / totalMatches : 0.5;
+    const club = M.clubs[M.userTeam];
+    const diffBonus = M.settings && M.settings.difficulty === "hard" ? 8 : M.settings && M.settings.difficulty === "easy" ? -5 : 0;
+
+    const titlePts = Math.min(40, c.regionalTitles * 8 + c.mastersTitles * 16 + c.championsTitles * 26);
+    const wrPts = totalMatches >= 3 ? Math.round(wr * 30) : 12;
+    const boardPts = Math.round(clamp((M.boardConfidence + 40) / 140, 0, 1) * 15);
+    const econDelta = club.budget - (M.startBudget || club.budget);
+    const econPts = club.budget < 0 ? 2 : clamp(8 + Math.round(econDelta / 150000), 4, 15);
+
+    const score = clamp(titlePts + wrPts + boardPts + econPts + diffBonus - (M.fired ? 15 : 0), 5, 100);
+    const grade = score >= 90 ? "S" : score >= 78 ? "A" : score >= 65 ? "B" : score >= 50 ? "C" : score >= 35 ? "D" : "F";
+    const verdict = score >= 90 ? "Dinastía Histórica VCT"
+                  : score >= 78 ? "Proyecto de Élite Internacional"
+                  : score >= 65 ? "Gestión Sólida y Competitiva"
+                  : score >= 50 ? "Etapa Irregular con Altibajos"
+                  : "Ciclo Fallido";
+    return { score, grade, verdict };
+  }
+
+  function renderBoardHistorySVG(history) {
+    const pts = (history && history.length >= 2) ? history : [{ val: M.boardConfidence }, { val: M.boardConfidence }];
+    const W = 420, H = 110, pad = 12;
+    const mapX = i => pad + (i / Math.max(1, pts.length - 1)) * (W - pad * 2);
+    const mapY = v => pad + ((100 - clamp(v, -100, 100)) / 200) * (H - pad * 2);
+    const zeroY = mapY(0), fireY = mapY(getDiffCfg().fireThreshold);
+    const line = pts.map((p, i) => `${mapX(i).toFixed(1)},${mapY(p.val).toFixed(1)}`).join(" ");
+    return `<svg viewBox="0 0 ${W} ${H}" class="mgr-board-svg" aria-label="Evolución de confianza directiva">
+      <line x1="${pad}" y1="${zeroY.toFixed(1)}" x2="${W - pad}" y2="${zeroY.toFixed(1)}" stroke="var(--bd-hi)" stroke-dasharray="3 3" stroke-width="1"/>
+      <line x1="${pad}" y1="${fireY.toFixed(1)}" x2="${W - pad}" y2="${fireY.toFixed(1)}" stroke="var(--vct-red)" stroke-dasharray="2 3" stroke-width="1"/>
+      <polyline fill="none" stroke="var(--vct-cyan)" stroke-width="2" points="${line}"/>
+      <text x="${W - pad}" y="${Math.max(10, fireY - 3).toFixed(1)}" text-anchor="end" fill="var(--vct-red)" font-size="9" font-family="JetBrains Mono">DESPIDO (${getDiffCfg().fireThreshold})</text>
+    </svg>`;
+  }
+
+  function renderCareerSummaryScreen() {
+    const club = M.clubs[M.userTeam], c = M.career;
+    const total = c.wins + c.losses;
+    const wrPct = total ? ((c.wins / total) * 100).toFixed(1) : "0.0";
+    const seasonsPlayed = Math.max(1, M.seasonHistory.length + (M.week > 1 ? 1 : 0));
+    const netBalance = club.budget - (M.startBudget || club.budget);
+    const { score, grade, verdict } = calcCareerScore();
+
+    const topPlayers = Object.values(M.careerPlayerStats || {})
+      .filter(p => p.maps >= 1)
+      .map(p => ({ ...p, avgRat: p.ratingSum / p.maps, avgAcs: Math.round(p.acsSum / p.maps) }))
+      .sort((a, b) => b.avgRat - a.avgRat).slice(0, 5);
+    const topBuys = (M.transferLog || []).filter(t => t.type === "FICHAJE" || t.type === "ACADEMIA").sort((a, b) => b.fee - a.fee).slice(0, 4);
+    const topSales = (M.transferLog || []).filter(t => t.type === "VENTA").sort((a, b) => b.fee - a.fee).slice(0, 4);
+
+    return `
+      <div class="mgr-summary-hero">
+        <div class="mgr-brand-left">
+          ${logoFramed(M.userTeam)}
+          <div>
+            <span class="duel-badge">RESUMEN FINAL DE CARRERA · ${getDiffCfg().label.toUpperCase()}</span>
+            <h2 style="font-size:26px;margin:4px 0 2px">${mEsc(verdict)}</h2>
+            <small class="mono mut">Clubes dirigidos: ${mEsc((c.clubsManaged || [M.userTeam]).join(" → "))} · ${seasonsPlayed} temporada(s)</small>
+          </div>
+        </div>
+        <div class="mgr-grade-box mono">
+          <small class="mut">CALIFICACIÓN</small>
+          <div class="mgr-grade-val grade-${grade.toLowerCase()}">${grade}</div>
+          <span>${score} / 100 PTS</span>
+        </div>
+      </div>
+
+      <div class="mgr-kpi-row mono" style="margin-bottom:12px">
+        <div><small class="mut">RÉCORD GLOBAL</small><b>${c.wins}W - ${c.losses}L (${wrPct}%)</b></div>
+        <div><small class="mut">TÍTULOS GANADOS</small><b style="color:var(--gold)">${M.trophies.length} (CH:${c.championsTitles} · M:${c.mastersTitles} · R:${c.regionalTitles})</b></div>
+        <div><small class="mut">CAJA FINAL / BALANCE</small><b class="${netBalance >= 0 ? 'kd-pos' : 'kd-neg'}">${fmtMoney(club.budget)} (${netBalance >= 0 ? "+" : ""}${fmtMoney(netBalance)})</b></div>
+        <div><small class="mut">DIRECTIVA FINAL</small><b class="${M.boardConfidence >= 25 ? 'kd-pos' : 'kd-neg'}">${M.boardConfidence > 0 ? "+" : ""}${M.boardConfidence}</b></div>
+      </div>
+
+      <div class="t-groups-grid" style="margin-bottom:12px">
+        <div class="t-group-card">
+          <div class="t-group-head"><b class="mono">EVOLUCIÓN DE LA DIRECTIVA</b><span class="mono mut">INICIO ${(M.boardHistory && M.boardHistory[0] ? M.boardHistory[0].val : 45)} → FINAL ${M.boardConfidence}</span></div>
+          ${renderBoardHistorySVG(M.boardHistory)}
+          <div style="margin-top:8px" class="mono">
+            ${M.trophies.length ? M.trophies.map(t => `<span class="duel-badge" style="margin:0 4px 4px 0;display:inline-block">${t.season} · ${mEsc(t.title)}</span>`).join("") : `<span class="mut" style="font-size:11px">Sin trofeos oficiales en esta etapa.</span>`}
+          </div>
+        </div>
+        <div class="t-group-card">
+          <div class="t-group-head"><b class="mono">JUGADORES DESTACADOS</b><span class="mono mut">TOP RATING 2.0</span></div>
+          <div class="sc"><table>
+            <thead><tr><th style="text-align:left">Jugador</th><th>MAP</th><th>R2.0</th><th>ACS</th><th>PICO OVR</th></tr></thead>
+            <tbody>${topPlayers.length ? topPlayers.map(p => `<tr>
+              <td style="text-align:left"><b>${mEsc(p.name)}</b> <small class="mut">${mEsc(p.role)}</small></td>
+              <td class="mono">${p.maps}</td><td class="mono rat-elite">${p.avgRat.toFixed(2)}</td>
+              <td class="mono">${p.avgAcs}</td><td class="mono"><b>${p.bestOvr}</b></td>
+            </tr>`).join("") : `<tr><td colspan="5" class="mut mono">No se disputaron mapas suficientes.</td></tr>`}</tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="t-groups-grid" style="margin-bottom:14px">
+        <div class="t-group-card">
+          <div class="t-group-head"><b class="mono">FICHAJES MÁS IMPORTANTES</b></div>
+          <div class="sc"><table><thead><tr><th style="text-align:left">Jugador</th><th style="text-align:left">Origen</th><th>Monto</th></tr></thead>
+            <tbody>${topBuys.length ? topBuys.map(t => `<tr><td style="text-align:left"><b>${mEsc(t.player)}</b></td><td style="text-align:left" class="mut">${mEsc(t.from)}</td><td class="mono kd-neg">${fmtMoney(t.fee)}</td></tr>`).join("") : `<tr><td colspan="3" class="mut mono">Sin fichajes registrados.</td></tr>`}</tbody>
+          </table></div>
+        </div>
+        <div class="t-group-card">
+          <div class="t-group-head"><b class="mono">VENTAS MÁS IMPORTANTES</b></div>
+          <div class="sc"><table><thead><tr><th style="text-align:left">Jugador</th><th style="text-align:left">Destino</th><th>Monto</th></tr></thead>
+            <tbody>${topSales.length ? topSales.map(t => `<tr><td style="text-align:left"><b>${mEsc(t.player)}</b></td><td style="text-align:left" class="mut">${mEsc(t.to)}</td><td class="mono kd-pos">${fmtMoney(t.fee)}</td></tr>`).join("") : `<tr><td colspan="3" class="mut mono">Sin ventas registradas.</td></tr>`}</tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="deck-actions">
+        <button type="button" class="mono" onclick="mgrExportSave()">Guardar Archivo de Carrera (.json)</button>
+        <button type="button" class="p mono" onclick="mgrResetToClubSelect()">Iniciar Nueva Carrera</button>
+      </div>`;
+  }
+
   function renderFiredScreen() {
+    const fireAt = getDiffCfg().fireThreshold;
     return `<div class="mgr-panel" style="border-color:var(--vct-red)">
       <div class="t-group-head">
         <b class="mono kd-neg">DESPEDIDO POR LA DIRECTIVA DE ${mEsc(M.userTeam.toUpperCase())}</b>
-        <span class="mono kd-neg">CONFIANZA FINAL: ${M.boardConfidence}</span>
+        <span class="mono kd-neg">CONFIANZA FINAL: ${M.boardConfidence} (LÍMITE ${fireAt})</span>
       </div>
-      <p style="font-size:13px;margin:8px 0 12px">Tu puntaje directivo cayó por debajo de -30 tras expirar tu período de gracia. Puedes reconstruir tu carrera aceptando una de estas ofertas o terminar la carrera:</p>
+      <p style="font-size:13px;margin:8px 0 12px">Tu puntaje directivo cayó por debajo de ${fireAt} tras expirar tu período de gracia. Puedes reconstruir tu carrera aceptando una de estas ofertas o ver tu resumen final:</p>
       <div class="mgr-club-grid" style="margin-bottom:12px">
         ${(M.pendingJobOffers || []).map((off, idx) => `<div class="mgr-club-card">
           <div class="mgr-club-top">${renderTeamLogo(off.club, "mini-team-logo")}<div><b>${mEsc(off.club)}</b><small class="mono mut">${off.reg} · ${mEsc(off.reason)}</small></div></div>
@@ -2777,7 +3019,7 @@
           <button type="button" class="p mono" style="width:100%;justify-content:center" onclick="mgrAcceptJobOffer(${idx})">Firmar Contrato</button>
         </div>`).join("")}
       </div>
-      <button type="button" class="mono" onclick="mgrEndCareer()">Terminar Modo Carrera</button>
+      <button type="button" class="mono" onclick="mgrEndCareer()">Ver Resumen Final de Carrera</button>
     </div>`;
   }
 
@@ -2885,12 +3127,25 @@
         <div style="display:flex;flex-direction:column;gap:10px">
           ${matchCard}
           <div class="mgr-panel">
-            <div class="t-group-head"><b class="mono">PLAN DE ENTRENAMIENTO SEMANAL (10 MODOS)</b><span class="mono mut">DT ${mEsc(club.coach.n)} · DEV ${club.coach.dev}</span></div>
+            <div class="t-group-head" style="flex-wrap:wrap;gap:6px">
+              <b class="mono">PLAN DE ENTRENAMIENTO SEMANAL</b>
+              <span class="mono mut">DT ${mEsc(club.coach.n)} · DEV ${club.coach.dev}</span>
+            </div>
+            ${M.training === "map_prep" ? `<div class="mono" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11px">
+              <span class="mut">MAPA OBJETIVO:</span>
+              <select class="cb-mini-sel mono" onchange="mgrSetPrepMap(this.value)">
+                ${Object.keys(MAP_POOL).map(mp => `<option value="${mp}" ${(M.prepMapTarget || "Ascent") === mp ? "selected" : ""}>${mp} (+${(((M.mapPrep && M.mapPrep[mp]) || 0) * 100).toFixed(1)}%)</option>`).join("")}
+              </select>
+            </div>` : ""}
             <div class="mgr-train-list mgr-train-compact">
               ${Object.values(TRAINING_MODES).map(tm => `
                 <button type="button" class="mgr-train-btn ${M.training === tm.id ? 'active' : ''}" onclick="mgrSetTraining('${tm.id}')">
-                  <b class="mono">${mEsc(tm.name)}</b>
+                  <div class="mono" style="display:flex;justify-content:space-between;width:100%;font-size:10.5px">
+                    <b>${mEsc(tm.name)}</b>
+                    <span class="mut">${tm.cost ? fmtMoney(tm.cost) : "FREE"}</span>
+                  </div>
                   <small>${mEsc(tm.desc)}</small>
+                  <small class="mono" style="font-size:9.5px;color:${tm.riskLabel === 'ALTO' ? 'var(--vct-red)' : tm.riskLabel === 'NULO' ? 'var(--ok)' : 'var(--mut)'}">RIESGO FATIGA: ${tm.riskLabel || "MEDIO"}</small>
                 </button>
               `).join("")}
             </div>
@@ -2901,7 +3156,7 @@
           <div class="mgr-panel">
             <div class="t-group-head">
               <b class="mono">ESTADO DEL CLUB &amp; MANAGER</b>
-              <span class="mono ${M.graceWeeks > 0 ? 'kd-pos' : 'mut'}">${M.graceWeeks > 0 ? `GRACIA: ${M.graceWeeks} SEM` : "DESPIDO EN -30"}</span>
+              <span class="mono ${M.graceWeeks > 0 ? 'kd-pos' : 'mut'}">${M.graceWeeks > 0 ? `GRACIA: ${M.graceWeeks} SEM` : `DESPIDO <= ${getDiffCfg().fireThreshold}`}</span>
             </div>
             <div class="mgr-kpi-row mono">
               <div><small class="mut">DIRECTIVA</small><b class="${confCls}">${M.boardConfidence > 0 ? "+" : ""}${M.boardConfidence}</b></div>
@@ -2934,10 +3189,13 @@
     const fmtDelta = d => d > 0 ? `<sup class="kd-pos">+${d}</sup>` : d < 0 ? `<sup class="kd-neg">${d}</sup>` : "";
 
     return `
-      ${healthyStarters < 5 ? `<div class="mgr-alert-bar" style="border-color:var(--vct-red)">
-        <span class="mono"><b>ALERTA DE QUINTETO:</b> Solo tienes ${healthyStarters}/5 titulares sanos. Activa un suplente o contrata un talento en Academia.</span>
-        <button type="button" class="t-btn-sm mono" onclick="mgrSwitchTab('academy')">Ir a Academia</button>
-      </div>` : ""}
+      <div class="db-controls">
+        <span class="mono ${healthyStarters === 5 ? 'kd-pos' : 'kd-neg'}" style="font-size:11.5px">TITULARES ACTIVOS: <b>${healthyStarters}/5</b> · Pasa a banca a cualquier titular para activar 1 o 2 suplentes</span>
+        <div class="btn-group">
+          <button type="button" class="t-btn-sm mono" onclick="mgrAutoFillLineup()">Auto-Alinear Top 5</button>
+          ${healthyStarters < 5 ? `<button type="button" class="t-btn-sm mono t-btn-live" onclick="mgrSwitchTab('academy')">Ir a Academia</button>` : ""}
+        </div>
+      </div>
 
       <div class="sc">
         <table>
@@ -3007,7 +3265,68 @@
           </tbody>
         </table>
       </div>
+      ${renderCoachPanelHTML(club)}
       ${renderLearningTableHTML(club)}`;
+  }
+
+  function renderCoachPanelHTML(club) {
+    const c = club.coach;
+    const costMult = getDiffCfg().costMult;
+    const cc = M.coachCourse;
+    const isProspect = c.tier === "prospect" || (c.exp || 5) <= 2;
+
+    const statBar = (label, val) => `
+      <div class="mgr-coach-stat">
+        <div class="mono" style="display:flex;justify-content:space-between;font-size:10.5px"><span class="mut">${label}</span><b>${val}</b></div>
+        <div class="mgr-learn-track"><i style="width:${val}%;background:${val >= 90 ? 'var(--gold)' : val >= 84 ? 'var(--ok)' : 'var(--vct-cyan)'}"></i></div>
+      </div>`;
+
+    const courseStatus = cc
+      ? `<div class="mgr-learn-prog" style="margin-bottom:8px">
+          <div class="mgr-learn-meta mono">
+            <span><span class="igl-tag" style="margin:0 5px 0 0">EN CURSO</span><b>${mEsc(cc.name)}</b></span>
+            <span class="mut">${cc.done}/${cc.weeks} SEM</span>
+          </div>
+          <div class="mgr-learn-track"><i style="width:${Math.round((cc.done / cc.weeks) * 100)}%;background:var(--vct-cyan)"></i></div>
+        </div>`
+      : "";
+
+    return `
+      <div class="mgr-panel mgr-learn-box">
+        <div class="t-group-head" style="flex-wrap:wrap;gap:8px">
+          <div>
+            <b class="mono">HEAD COACH: ${mEsc(c.n)}</b>
+            <span class="igl-tag" style="color:${isProspect ? 'var(--ok)' : 'var(--mut)'};border-color:${isProspect ? 'var(--ok)' : 'var(--bd-hi)'}">${isProspect ? "PROMESA" : "CONSAGRADO"}</span>
+            <span class="mono mut" style="font-size:11px;margin-left:6px">EXP ${c.exp || 5} AÑOS · POT ${c.pot || 92}</span>
+          </div>
+          <span class="mono mut" style="font-size:10.5px">${isProspect ? "Crecimiento acelerado en cursos (+4 por curso)" : "Cursos de especialización (+2 por curso)"}</span>
+        </div>
+        <div class="mgr-coach-grid">
+          ${statBar("TÁCTICA / MACRO", c.macro)}
+          ${statBar("LECTURA / MICRO", c.micro)}
+          ${statBar("ANTI-STRAT / ADAPT", c.adapt)}
+          ${statBar("DESARROLLO JÓVENES", c.dev)}
+          ${statBar("VESTUARIO / DISC", c.disc)}
+        </div>
+        ${courseStatus}
+        <div class="mgr-course-grid">
+          ${COACH_COURSES.map(cr => {
+            const effCost = Math.round((cr.cost * costMult) / 1000) * 1000;
+            const canBuy = !cc && club.budget >= effCost;
+            return `<div class="mgr-course-card">
+              <div class="mono" style="display:flex;justify-content:space-between;font-size:11px">
+                <b>${mEsc(cr.name)}</b>
+                <span class="${club.budget >= effCost ? 'kd-pos' : 'kd-neg'}">${fmtMoney(effCost)}</span>
+              </div>
+              <small class="mut" style="font-size:11px;line-height:1.25">${mEsc(cr.desc)}</small>
+              <div class="mono" style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:10px">
+                <span class="mut">DURACIÓN: ${cr.weeks} SEM</span>
+                <button type="button" class="t-btn-sm mono t-btn-live" ${canBuy ? "" : "disabled"} onclick="mgrBuyCoachCourse('${cr.id}')">Comprar Curso</button>
+              </div>
+            </div>`;
+          }).join("")}
+        </div>
+      </div>`;
   }
 
   function renderAcademyTab() {
@@ -3088,15 +3407,22 @@
         </div>
         <div class="sc">
           <table>
-            <thead><tr><th style="text-align:left">Head Coach</th><th>MAC</th><th>MIC</th><th>ADP</th><th>DEV</th><th>DISC</th><th>Coste</th><th>Acción</th></tr></thead>
+            <thead><tr><th style="text-align:left">Head Coach</th><th style="text-align:left">Perfil</th><th>EXP</th><th>POT</th><th>MAC</th><th>MIC</th><th>ADP</th><th>DEV</th><th>DISC</th><th>Coste</th><th>Acción</th></tr></thead>
             <tbody>
-              ${M.freeCoaches.map((c, idx) => `<tr>
-                <td style="text-align:left"><b>${mEsc(c.n)}</b></td>
-                <td class="mono">${c.macro}</td><td class="mono">${c.micro}</td><td class="mono">${c.adapt}</td>
-                <td class="mono kd-pos"><b>${c.dev}</b></td><td class="mono">${c.disc}</td>
-                <td class="mono">${fmtMoney(c.fee)}</td>
-                <td><button type="button" class="t-btn-sm mono t-btn-live" onclick="mgrHireCoach(${idx})">Contratar</button></td>
-              </tr>`).join("")}
+              ${M.freeCoaches.map((c, idx) => {
+                const isProsp = c.tier === "prospect" || (c.exp || 5) <= 2;
+                const effFee = Math.round((c.fee * getDiffCfg().costMult) / 1000) * 1000;
+                return `<tr>
+                  <td style="text-align:left"><b>${mEsc(c.n)}</b></td>
+                  <td style="text-align:left"><span class="igl-tag" style="margin:0;color:${isProsp ? 'var(--ok)' : 'var(--mut)'};border-color:${isProsp ? 'var(--ok)' : 'var(--bd-hi)'}">${isProsp ? "PROMESA" : "CONSAGRADO"}</span></td>
+                  <td class="mono mut">${c.exp || 5}a</td>
+                  <td class="mono ${(c.pot || 90) >= 93 ? 'stat-elite' : ''}"><b>${c.pot || 90}</b></td>
+                  <td class="mono">${c.macro}</td><td class="mono">${c.micro}</td><td class="mono">${c.adapt}</td>
+                  <td class="mono kd-pos"><b>${c.dev}</b></td><td class="mono">${c.disc}</td>
+                  <td class="mono ${club.budget >= effFee ? '' : 'kd-neg'}"><b>${fmtMoney(effFee)}</b></td>
+                  <td><button type="button" class="t-btn-sm mono t-btn-live" ${club.budget >= effFee ? "" : "disabled"} onclick="mgrHireCoach(${idx})">Contratar</button></td>
+                </tr>`;
+              }).join("")}
             </tbody>
           </table>
         </div>`;
@@ -3456,11 +3782,97 @@
     </div>`;
   }
 
+  function renderTacticsTab() {
+    const club = M.clubs[M.userTeam];
+    const starters = club.players.filter(p => !p.sub && !(p.injuredWeeks > 0)).slice(0, 5);
+    const previewTeam = { name: M.userTeam, players: starters, coach: club.coach, customComp: M.customComps || {} };
+    const comp = starters.length === 5 ? draftTeamComp(previewTeam, tacticsMap) : null;
+    const savedMap = (M.customComps && M.customComps[tacticsMap]) || {};
+    const prepPct = ((M.mapPrep && M.mapPrep[tacticsMap]) || 0) * 100;
+    const rolesOrder = ["Controlador", "Duelista", "Iniciador", "Centinela"];
+    const agentsByRole = {};
+    rolesOrder.forEach(r => { agentsByRole[r] = Object.keys(AGENTS).filter(a => AGENTS[a].role === r); });
+
+    return `
+      <div class="db-controls">
+        <div class="region-tabs">
+          ${Object.keys(MAP_POOL).map(mp => {
+            const hasCustom = M.customComps && M.customComps[mp] && Object.keys(M.customComps[mp]).length > 0;
+            return `<button type="button" class="tab-btn mono ${tacticsMap === mp ? 'active' : ''}" onclick="mgrSetTacticsMap('${mp}')">${mp.toUpperCase()}${hasCustom ? " *" : ""}</button>`;
+          }).join("")}
+        </div>
+        <div class="btn-group">
+          <span class="mono mut" style="font-size:11px;align-self:center">PREP MAPA: <b class="kd-pos">+${prepPct.toFixed(1)}%</b></span>
+          <button type="button" class="t-btn-sm mono" onclick="mgrResetMapComp()">Restaurar Auto (${tacticsMap})</button>
+        </div>
+      </div>
+
+      ${!comp ? `<div class="mgr-alert-bar" style="border-color:var(--vct-red)"><span class="mono">Necesitas 5 titulares sanos en Plantilla para diseñar composiciones.</span></div>` : `
+      <div class="mgr-panel" style="margin-bottom:12px">
+        <div class="t-group-head" style="flex-wrap:wrap;gap:8px">
+          <div>
+            <b class="mono">EVALUACIÓN TÁCTICA EN ${tacticsMap.toUpperCase()}</b>
+            <span class="ovr-pill mono" style="margin-left:8px">COMP ${comp.compScore}</span>
+            <span class="igl-tag">${mEsc(comp.archetype)}</span>
+          </div>
+          <span class="mono mut" style="font-size:11px">${mEsc(MAP_POOL[tacticsMap].desc)}</span>
+        </div>
+        <div class="comp-axes mono" style="margin-bottom:8px">
+          ${[["MAC", comp.bonuses.macro], ["UTI", comp.bonuses.util], ["ENT", comp.bonuses.entrada], ["DEF", comp.bonuses.defensa], ["FLX", comp.bonuses.flex]].map(([l, v]) => {
+            const pct = (v * 100).toFixed(1);
+            const cls = v > 0.004 ? "kd-pos" : v < -0.004 ? "kd-neg" : "mut";
+            return `<span class="axis-pill ${cls}">${l} ${v > 0 ? "+" : ""}${pct}%</span>`;
+          }).join("")}
+        </div>
+        ${(comp.synergies && comp.synergies.length) ? `<div class="mono kd-pos" style="font-size:11px;margin-bottom:4px">SINERGIAS: ${comp.synergies.map(mEsc).join(" · ")}</div>` : ""}
+        ${(comp.warnings && comp.warnings.length) ? `<div class="mono kd-neg" style="font-size:11px">PENALIZACIONES: ${comp.warnings.map(mEsc).join(" · ")}</div>` : `<div class="mono kd-pos" style="font-size:11px">REQUISITOS TÁCTICOS COMPLETOS: sin penalizaciones de rol.</div>`}
+      </div>
+
+      <div class="sc">
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align:left">Titular</th>
+              <th style="text-align:left">Agente Asignado</th>
+              <th style="text-align:left">Clasificación Táctica</th>
+              <th>FIT MAPA</th>
+              <th>CONFORT</th>
+              <th style="text-align:left">Elegir Agente Manual</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${comp.assignments.map(a => {
+              const chosenManual = savedMap[a.playerName] || "";
+              const agObj = AGENTS[a.agent] || {};
+              const warnHybrid = agObj.cannotSoloRole ? "color:var(--gold)" : "";
+              return `<tr>
+                <td style="text-align:left"><b>${mEsc(a.playerName)}</b></td>
+                <td style="text-align:left" class="mono">${getRoleIcon(a.role)} <b>${mEsc(a.agent)}</b> ${a.manual ? '<span class="igl-tag">MANUAL</span>' : '<span class="mut" style="font-size:10px">(AUTO)</span>'}</td>
+                <td style="text-align:left" class="mono mut" style="font-size:11px"><span style="${warnHybrid}">${mEsc(getAgentSpecLabel(a.agent))}</span></td>
+                <td class="mono ${a.mapFit >= 92 ? 'stat-elite' : a.mapFit >= 85 ? 'kd-pos' : 'mut'}"><b>${a.mapFit}</b></td>
+                <td class="mono ${a.comfort ? 'kd-pos' : 'kd-neg'}">${a.comfort ? "SÍ" : "FUERA POOL"}</td>
+                <td style="text-align:left">
+                  <select class="cb-mini-sel mono" style="width:215px" onchange="mgrSetCompAgent('${mEsc(a.playerName)}', this.value)">
+                    <option value="">-- Automático (DT ${mEsc(club.coach.n)}) --</option>
+                    ${rolesOrder.map(r => `<optgroup label="${r.toUpperCase()}">
+                      ${agentsByRole[r].map(agName => `<option value="${mEsc(agName)}" ${chosenManual === agName ? "selected" : ""}>${mEsc(agName)} · Fit ${AGENTS[agName].maps[tacticsMap]} (${getAgentSpecLabel(agName)})</option>`).join("")}
+                    </optgroup>`).join("")}
+                  </select>
+                </td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>`}
+    `;
+  }
+
   function renderManager() {
     const root = document.getElementById("manager");
     if (!root) return;
 
     if (!M) { root.innerHTML = renderClubSelectScreen(); return; }
+    if (M.ended) { root.innerHTML = renderCareerSummaryScreen(); return; }
 
     const club = M.clubs[M.userTeam];
     const ovr = calcRosterOvr(club.players, club.coach);
@@ -3469,6 +3881,7 @@
     if (M.fired) body = renderFiredScreen();
     else if (activeTab === "hub") body = renderHubTab();
     else if (activeTab === "squad") body = renderSquadTab();
+    else if (activeTab === "tactics") body = renderTacticsTab();
     else if (activeTab === "academy") body = renderAcademyTab();
     else if (activeTab === "market") body = renderMarketTab();
     else if (activeTab === "calendar") body = renderCalendarTab();
@@ -3499,6 +3912,7 @@
       ${M.fired ? "" : `<div class="series-tabs" style="margin-bottom:12px">
         <button type="button" class="series-tab ${activeTab === 'hub' ? 'active' : ''}" onclick="mgrSwitchTab('hub')">RESUMEN &amp; SEMANA</button>
         <button type="button" class="series-tab ${activeTab === 'squad' ? 'active' : ''}" onclick="mgrSwitchTab('squad')">PLANTILLA (${club.players.length})</button>
+        <button type="button" class="series-tab ${activeTab === 'tactics' ? 'active' : ''}" onclick="mgrSwitchTab('tactics')">TÁCTICA &amp; COMPS</button>
         <button type="button" class="series-tab ${activeTab === 'academy' ? 'active' : ''}" onclick="mgrSwitchTab('academy')">ACADEMIA (${M.academy.length})</button>
         <button type="button" class="series-tab ${activeTab === 'market' ? 'active' : ''}" onclick="mgrSwitchTab('market')">FICHAJES &amp; STAFF</button>
         <button type="button" class="series-tab ${activeTab === 'calendar' ? 'active' : ''}" onclick="mgrSwitchTab('calendar')">CALENDARIO (33S)</button>
