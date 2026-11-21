@@ -19,6 +19,112 @@
     return Number((avg + cb).toFixed(1));
   }
 
+  // ===== CONFIGURACIÓN DE DIFICULTAD Y RITMO DE MERCADO (P6 / FASE A) =====
+  const DIFFICULTY_CFG = {
+    easy: {
+      id: "easy", label: "Fácil",
+      desc: "Presupuesto +25%, rivales más accesibles, directiva paciente y negociaciones favorables.",
+      rivalMod: -0.022, budgetMult: 1.25, prizeMult: 1.15, costMult: 0.88,
+      startConf: 60, graceWeeks: 6, fireThreshold: -35, lossPenMult: 0.75, gainMult: 1.15
+    },
+    normal: {
+      id: "normal", label: "Normal",
+      desc: "Balance estándar VCT: economía realista, directiva exigente y rivales calibrados.",
+      rivalMod: 0.0, budgetMult: 1.0, prizeMult: 1.0, costMult: 1.0,
+      startConf: 45, graceWeeks: 4, fireThreshold: -20, lossPenMult: 1.0, gainMult: 1.0
+    },
+    hard: {
+      id: "hard", label: "Difícil",
+      desc: "Presupuesto -20%, rivales +2.4%, directiva impaciente (despido en -10) y cláusulas caras.",
+      rivalMod: 0.024, budgetMult: 0.80, prizeMult: 0.85, costMult: 1.15,
+      startConf: 30, graceWeeks: 2, fireThreshold: -10, lossPenMult: 1.35, gainMult: 0.85
+    }
+  };
+
+  const MARKET_PACE_CFG = {
+    calm:   { id: "calm",   label: "Tranquilo", desc: "Pocos traspasos por ventana, plantillas muy estables.", offerChance: 0.08, aiMovesPerWindow: 2 },
+    normal: { id: "normal", label: "Normal",    desc: "Actividad estándar entre Stages y post-Champions.",     offerChance: 0.16, aiMovesPerWindow: 5 },
+    active: { id: "active", label: "Movido",    desc: "Mercado agresivo: constantes ofertas, bombazos y rotaciones.", offerChance: 0.28, aiMovesPerWindow: 9 }
+  };
+
+  let setupSettings = { difficulty: "normal", marketPace: "normal" };
+
+  function getDiffCfg() {
+    const id = (M && M.settings && M.settings.difficulty) || "normal";
+    return DIFFICULTY_CFG[id] || DIFFICULTY_CFG.normal;
+  }
+
+  function getMarketCfg() {
+    const id = (M && M.settings && M.settings.marketPace) || "normal";
+    return MARKET_PACE_CFG[id] || MARKET_PACE_CFG.normal;
+  }
+
+  function migrateCareerState(career) {
+    if (!career) return career;
+    if (!career.settings) career.settings = { difficulty: "normal", marketPace: "normal" };
+    if (typeof career.lossStreak !== "number") career.lossStreak = 0;
+    if (!Array.isArray(career.boardHistory)) {
+      career.boardHistory = [{ s: career.season || 2027, w: career.week || 1, val: career.boardConfidence ?? 45 }];
+    }
+    if (!career.careerPlayerStats) career.careerPlayerStats = {};
+    if (!career.customComps) career.customComps = {};
+    if (!career.mapPrep) career.mapPrep = {};
+    if (!career.coachCourse) career.coachCourse = null;
+    if (typeof career.ended !== "boolean") career.ended = false;
+    if (typeof career.startBudget !== "number" && career.clubs && career.clubs[career.userTeam]) {
+      career.startBudget = career.clubs[career.userTeam].budget;
+    }
+
+    // Asegurar POT/EXP en coaches de todos los clubes y mercado
+    for (const cName in (career.clubs || {})) {
+      const c = career.clubs[cName].coach;
+      if (c) {
+        const avg = Math.round((c.macro + c.micro + c.adapt + c.dev + c.disc) / 5);
+        if (typeof c.pot !== "number") c.pot = clamp(avg + 4, 84, 96);
+        if (typeof c.exp !== "number") c.exp = 5;
+        if (!c.tier) c.tier = "established";
+      }
+    }
+    if (Array.isArray(career.freeCoaches)) {
+      const existingNames = new Set(career.freeCoaches.map(x => x.n));
+      FREE_COACHES_SEED.forEach(seed => {
+        if (!existingNames.has(seed.n) && seed.tier === "prospect") {
+          career.freeCoaches.push({ ...seed });
+        }
+      });
+      career.freeCoaches.forEach(c => {
+        const avg = Math.round((c.macro + c.micro + c.adapt + c.dev + c.disc) / 5);
+        if (typeof c.pot !== "number") c.pot = clamp(avg + 4, 84, 96);
+        if (typeof c.exp !== "number") c.exp = 4;
+        if (!c.tier) c.tier = "established";
+      });
+    }
+    return career;
+  }
+
+  function adjustBoard(delta, reason = null) {
+    if (!M || delta === 0) return;
+    const cfg = getDiffCfg();
+    let eff = delta > 0 ? Math.round(delta * cfg.gainMult) : Math.round(delta * cfg.lossPenMult);
+    if (delta < 0 && M.graceWeeks > 0) eff = Math.min(-1, Math.round(eff * 0.45));
+    M.boardConfidence = clamp(M.boardConfidence + eff, -100, 100);
+    if (reason && Math.abs(eff) >= 6) {
+      addInbox("DIRECTIVA", `${eff > 0 ? "+" : ""}${eff} Confianza · ${reason}`, `La valoración actual de la directiva es ${M.boardConfidence > 0 ? "+" : ""}${M.boardConfidence} (umbral de despido: ${cfg.fireThreshold}).`);
+    }
+  }
+
+  function recordBoardSnapshot() {
+    if (!M) return;
+    M.boardHistory = M.boardHistory || [];
+    const last = M.boardHistory[M.boardHistory.length - 1];
+    if (!last || last.s !== M.season || last.w !== M.week) {
+      M.boardHistory.push({ s: M.season, w: M.week, val: M.boardConfidence });
+      if (M.boardHistory.length > 120) M.boardHistory.shift();
+    } else {
+      last.val = M.boardConfidence;
+    }
+  }
+
   // ===== NOMBRES Y ROLES DE ACADEMIA =====
   const ACADEMY_NICKS = [
     "kurox", "zexy", "vandalz", "m1ko", "kael", "draven", "soryn", "luxen", "nexo", "ryze",
@@ -908,12 +1014,23 @@
   function buildTeamPayloadForEngine(clubName) {
     const club = M.clubs[clubName];
     if (clubName !== M.userTeam) ensureHealthyLineupForAI(club);
-    const prep = clubName === M.userTeam ? (M.nextMatchPrepBonus || 0) : 0;
+    const diffCfg = getDiffCfg();
+    const isUser = clubName === M.userTeam;
+    const prep = isUser ? (M.nextMatchPrepBonus || 0) : 0;
+    const diffMod = isUser ? 0 : diffCfg.rivalMod;
+
     const activePlayers = club.players
       .filter(p => !p.sub && !(p.injuredWeeks > 0))
       .slice(0, 5)
-      .map(p => ({ ...p, _mgrMod: getPlayerMgrMod(p, prep) }));
-    return { name: clubName, players: activePlayers, coach: { ...club.coach } };
+      .map(p => ({ ...p, _mgrMod: getPlayerMgrMod(p, prep + diffMod) }));
+
+    return {
+      name: clubName,
+      players: activePlayers,
+      coach: { ...club.coach },
+      customComp: isUser ? (M.customComps || {}) : null,
+      mapPrep: isUser ? (M.mapPrep || {}) : null
+    };
   }
 
   function simManagerSeries(teamAName, teamBName, fmt) {
@@ -1033,6 +1150,17 @@
         p.seasonMaps = (p.seasonMaps || 0) + mapsPlayed;
         p.seasonRatingSum = (p.seasonRatingSum || 0) + (rat * mapsPlayed);
 
+        if (isUser) {
+          M.careerPlayerStats = M.careerPlayerStats || {};
+          const cs = M.careerPlayerStats[p.n] || { name: p.n, role: p.r, club: clubName, maps: 0, ratingSum: 0, acsSum: 0, bestOvr: calcPlayerOvr(p) };
+          cs.maps += mapsPlayed;
+          cs.ratingSum += rat * mapsPlayed;
+          cs.acsSum += (perf.acs || 190) * mapsPlayed;
+          cs.bestOvr = Math.max(cs.bestOvr, calcPlayerOvr(p));
+          cs.club = clubName;
+          M.careerPlayerStats[p.n] = cs;
+        }
+
         const fatGain = Math.round(mapsPlayed * 5.2 * (1 - (club.coach.disc - 75) / 180));
         p.fatigue = clamp(p.fatigue + fatGain, 0, 100);
 
@@ -1064,34 +1192,47 @@
 
     if (isUser) {
       const oppName = series.maps[0].teams[1 - teamIdx].name;
+      const myOvr = calcRosterOvr(club.players, club.coach);
+      const oppOvr = M.clubs[oppName] ? calcRosterOvr(M.clubs[oppName].players, M.clubs[oppName].coach) : myOvr;
+      const ovrDiff = myOvr - oppOvr; // > 0 somos favoritos
+      const diffCfg = getDiffCfg();
+
       if (won) {
         M.career.wins++;
-        const matchPrize = matchStage === "champions" ? 60000
-                         : matchStage.startsWith("masters") ? 40000
-                         : matchStage.endsWith("_po") ? 28000
-                         : 18000;
+        M.lossStreak = 0;
+        const basePrize = matchStage === "champions" ? 60000
+                        : matchStage.startsWith("masters") ? 40000
+                        : matchStage.endsWith("_po") ? 28000
+                        : 18000;
+        const matchPrize = Math.round((basePrize * diffCfg.prizeMult) / 500) * 500;
         club.budget += matchPrize;
         M.financeLog.unshift({ s: M.season, w: M.week, concept: `Victoria vs ${oppName} (${matchStage.toUpperCase()})`, amount: matchPrize });
 
         M.winStreak = (M.winStreak || 0) + 1;
         M.bestStreak = Math.max(M.bestStreak || 0, M.winStreak);
 
-        const confGain = matchStage === "champions" ? 10 : matchStage.startsWith("masters") ? 8 : 5;
-        M.boardConfidence = clamp(M.boardConfidence + confGain, -100, 100);
+        // Ganar como underdog da más crédito; ganar como gran favorito da menos
+        const baseGain = matchStage === "champions" ? 7 : matchStage.startsWith("masters") ? 5 : 3;
+        const upsetBonus = ovrDiff <= -2.5 ? 3 : ovrDiff >= 3.0 ? -1 : 0;
+        adjustBoard(Math.max(1, baseGain + upsetBonus));
 
         if (M.winStreak >= 5) {
-          const streakBonus = 20000 + (M.winStreak - 5) * 10000;
+          const streakBonus = Math.round(((20000 + (M.winStreak - 5) * 10000) * diffCfg.prizeMult) / 500) * 500;
           club.budget += streakBonus;
-          M.boardConfidence = clamp(M.boardConfidence + 4, -100, 100);
-          M.financeLog.unshift({ s: M.season, w: M.week, concept: `Bono Racha Ganadora (${M.winStreak} victorias seguidas)`, amount: streakBonus });
-          addInbox("RACHA", `BONO DE RACHA: ${M.winStreak} VICTORIAS SEGUIDAS`, `La directiva premia tu racha con ${fmtMoney(streakBonus)} (+4 Confianza).`);
+          adjustBoard(3);
+          M.financeLog.unshift({ s: M.season, w: M.week, concept: `Bono Racha Ganadora (${M.winStreak}W)`, amount: streakBonus });
+          addInbox("RACHA", `BONO DE RACHA: ${M.winStreak} VICTORIAS SEGUIDAS`, `La directiva premia tu racha con ${fmtMoney(streakBonus)}.`);
         }
       } else {
         M.career.losses++;
         M.winStreak = 0;
-        const baseLoss = matchStage === "champions" ? 3 : 4;
-        const actualLoss = M.graceWeeks > 0 ? 1 : baseLoss;
-        M.boardConfidence = clamp(M.boardConfidence - actualLoss, -100, 100);
+        M.lossStreak = (M.lossStreak || 0) + 1;
+
+        // Perder siendo favorito o encadenar derrotas golpea fuerte a la directiva
+        const baseLoss = matchStage === "champions" ? -5 : matchStage.startsWith("masters") ? -6 : -7;
+        const upsetPen = ovrDiff >= 2.5 ? -4 : ovrDiff <= -3.0 ? 2 : 0;
+        const streakPen = M.lossStreak >= 2 ? -(M.lossStreak * 2) : 0;
+        adjustBoard(baseLoss + upsetPen + streakPen, M.lossStreak >= 3 ? `Mala racha (${M.lossStreak} derrotas)` : null);
       }
     }
   }
@@ -1154,6 +1295,18 @@
           const finPen = M.graceWeeks > 0 ? 1 : 3;
           M.boardConfidence = clamp(M.boardConfidence - finPen, -100, 100);
           addInbox("FINANZAS", "Alerta de Déficit", `Tu caja está en ${fmtMoney(club.budget)}. Ajusta sueldos o vende jugadores.`);
+        }
+        // Control de salud financiera y gestión del plantel por la directiva
+        if (club.budget < 0) {
+          const defPen = club.budget < -60000 ? -6 : -3;
+          adjustBoard(defPen, club.budget < -60000 ? "Déficit severo" : null);
+        }
+        const startersNow = club.players.filter(p => !p.sub && !(p.injuredWeeks > 0));
+        if (startersNow.length) {
+          const avgMor = startersNow.reduce((s, p) => s + p.morale, 0) / startersNow.length;
+          const avgFat = startersNow.reduce((s, p) => s + p.fatigue, 0) / startersNow.length;
+          if (avgMor < 55) adjustBoard(-3);
+          if (avgFat > 74) adjustBoard(-2);
         }
       }
 
@@ -2438,6 +2591,81 @@
           </div>
         </div>
       </div>`;
+  }
+  function startNewCareer(teamName) {
+    const diffCfg = DIFFICULTY_CFG[setupSettings.difficulty] || DIFFICULTY_CFG.normal;
+    const mktCfg = MARKET_PACE_CFG[setupSettings.marketPace] || MARKET_PACE_CFG.normal;
+
+    const clubs = {};
+    for (const t in TEAMS) {
+      const meta = TEAM_META[t] || { reg: "AMERICAS", color: "#E5484D", code: t.slice(0, 3).toUpperCase() };
+      const players = TEAMS[t].map(p => enrichPlayer(p, false));
+      const baseC = COACH[t];
+      const cAvg = Math.round((baseC.macro + baseC.micro + baseC.adapt + baseC.dev + baseC.disc) / 5);
+      const coach = { ...baseC, pot: clamp(cAvg + 4, 84, 96), exp: 5, tier: "established" };
+      const ovr = calcRosterOvr(players, coach);
+      const mult = t === teamName ? diffCfg.budgetMult : 1.0;
+      const startBudget = Math.round(((360000 + Math.max(0, ovr - 80) * 40000) * mult) / 5000) * 5000;
+      const sponsorWeekly = Math.round((24000 + Math.max(0, ovr - 78) * 1500) / 500) * 500;
+      clubs[t] = {
+        name: t, reg: meta.reg, color: meta.color, code: meta.code,
+        players, coach, budget: startBudget, sponsorWeekly, activeSponsors: []
+      };
+    }
+
+    M = {
+      userTeam: teamName,
+      season: 2027,
+      week: 1,
+      settings: { difficulty: diffCfg.id, marketPace: mktCfg.id },
+      boardConfidence: diffCfg.startConf,
+      graceWeeks: diffCfg.graceWeeks,
+      boardHistory: [{ s: 2027, w: 1, val: diffCfg.startConf }],
+      fired: false,
+      ended: false,
+      winStreak: 0,
+      lossStreak: 0,
+      bestStreak: 0,
+      startBudget: clubs[teamName].budget,
+      training: "balanced",
+      nextMatchPrepBonus: 0,
+      mapPrep: {},
+      customComps: {},
+      coachCourse: null,
+      careerPlayerStats: {},
+      career: {
+        wins: 0, losses: 0,
+        regionalTitles: 0, mastersTitles: 0, championsTitles: 0,
+        clubsManaged: [teamName],
+        applyCooldown: {}
+      },
+      clubs,
+      freeAgents: FREE_AGENTS_SEED.map(p => enrichPlayer(p, true)),
+      freeCoaches: FREE_COACHES_SEED.map(c => ({ ...c })),
+      academy: [],
+      inbox: [],
+      transferLog: [],
+      financeLog: [],
+      trophies: [],
+      seasonHistory: [],
+      lastPlayedMatch: null,
+      pendingOffer: null,
+      pendingSponsorOffer: null,
+      pendingJobOffers: []
+    };
+
+    M.academy = generateAcademyBatch(12);
+    buildFullYearSchedule(2027);
+
+    const club = M.clubs[teamName];
+    addInbox(
+      "DIRECTIVA",
+      `Contrato firmado con ${teamName} (${diffCfg.label} · Mercado ${mktCfg.label})`,
+      `Inicias con +${diffCfg.startConf} de confianza, ${diffCfg.graceWeeks} semanas de gracia y despido en <= ${diffCfg.fireThreshold}. Presupuesto inicial: ${fmtMoney(club.budget)}. Objetivo anual: ${M.schedule.objective.label}.`
+    );
+    activeTab = "hub";
+    saveCareer();
+    renderManager();
   }
 
   function renderFinanceTab() {

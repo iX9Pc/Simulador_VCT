@@ -86,45 +86,45 @@ const MAP_POOL = {
   }
 };
 
-// ===== TODOS LOS 30 AGENTES JUGABLES DE VALORANT (INCLUYE HUSH, MIKS Y VETO) =====
+// ===== TODOS LOS 30 AGENTES JUGABLES (AUDITADOS: PUROS VS HÍBRIDOS Y REQUISITOS MÍNIMOS) =====
 const AGENTS = {
-  // Duelistas (9)
-  "Phoenix":   { role: "Duelista",    op: false, ecoBoost: 1.02, maps: { Ascent: 82, Bind: 84, Breeze: 72, Haven: 85, Lotus: 80, Split: 84, Sunset: 86 } },
-  "Jett":      { role: "Duelista",    op: true,  ecoBoost: 1.00, maps: { Ascent: 96, Bind: 76, Breeze: 97, Haven: 93, Lotus: 82, Split: 85, Sunset: 82 } },
-  "Reyna":     { role: "Duelista",    op: false, ecoBoost: 1.03, maps: { Ascent: 78, Bind: 76, Breeze: 82, Haven: 80, Lotus: 78, Split: 80, Sunset: 81 } },
-  "Raze":      { role: "Duelista",    op: false, ecoBoost: 1.00, maps: { Ascent: 79, Bind: 98, Breeze: 71, Haven: 80, Lotus: 96, Split: 98, Sunset: 92 } },
-  "Yoru":      { role: "Duelista",    op: true,  ecoBoost: 1.02, maps: { Ascent: 86, Bind: 94, Breeze: 95, Haven: 91, Lotus: 87, Split: 90, Sunset: 85 } },
-  "Neon":      { role: "Duelista",    op: false, ecoBoost: 1.02, maps: { Ascent: 83, Bind: 84, Breeze: 86, Haven: 96, Lotus: 94, Split: 89, Sunset: 96 } },
-  "Iso":       { role: "Duelista",    op: false, ecoBoost: 1.04, maps: { Ascent: 85, Bind: 80, Breeze: 85, Haven: 92, Lotus: 86, Split: 82, Sunset: 84 } },
-  "Waylay":    { role: "Duelista",    op: true,  ecoBoost: 1.00, maps: { Ascent: 90, Bind: 84, Breeze: 89, Haven: 90, Lotus: 88, Split: 88, Sunset: 89 } },
-  "Hush":      { role: "Duelista",    op: false, ecoBoost: 1.03, hush: true, maps: { Ascent: 90, Bind: 92, Breeze: 84, Haven: 93, Lotus: 95, Split: 96, Sunset: 95 } },
+  // Duelistas (9) — entryType: "dive" (abre espacio) | "hybrid" | "contact" (no sirve solo como entry principal)
+  "Jett":      { role: "Duelista",    secondaryRole: null,          entryType: "dive",    cannotSoloRole: false, op: true,  ecoBoost: 1.00, maps: { Ascent: 96, Bind: 76, Breeze: 97, Haven: 93, Lotus: 82, Split: 85, Sunset: 82 } },
+  "Raze":      { role: "Duelista",    secondaryRole: null,          entryType: "dive",    cannotSoloRole: false, op: false, ecoBoost: 1.00, maps: { Ascent: 79, Bind: 98, Breeze: 71, Haven: 80, Lotus: 96, Split: 98, Sunset: 92 } },
+  "Neon":      { role: "Duelista",    secondaryRole: null,          entryType: "dive",    cannotSoloRole: false, op: false, ecoBoost: 1.02, maps: { Ascent: 83, Bind: 84, Breeze: 86, Haven: 96, Lotus: 94, Split: 89, Sunset: 96 } },
+  "Waylay":    { role: "Duelista",    secondaryRole: null,          entryType: "dive",    cannotSoloRole: false, op: true,  ecoBoost: 1.00, maps: { Ascent: 90, Bind: 84, Breeze: 89, Haven: 90, Lotus: 88, Split: 88, Sunset: 89 } },
+  "Hush":      { role: "Duelista",    secondaryRole: null,          entryType: "dive",    cannotSoloRole: false, op: false, ecoBoost: 1.03, hush: true, maps: { Ascent: 90, Bind: 92, Breeze: 84, Haven: 93, Lotus: 95, Split: 96, Sunset: 95 } },
+  "Yoru":      { role: "Duelista",    secondaryRole: "Iniciador",   entryType: "hybrid",  cannotSoloRole: false, op: true,  ecoBoost: 1.02, maps: { Ascent: 86, Bind: 94, Breeze: 95, Haven: 91, Lotus: 87, Split: 90, Sunset: 85 } },
+  "Phoenix":   { role: "Duelista",    secondaryRole: "Iniciador",   entryType: "contact", cannotSoloRole: true,  op: false, ecoBoost: 1.02, maps: { Ascent: 82, Bind: 84, Breeze: 72, Haven: 85, Lotus: 80, Split: 84, Sunset: 86 } },
+  "Iso":       { role: "Duelista",    secondaryRole: null,          entryType: "contact", cannotSoloRole: true,  op: false, ecoBoost: 1.04, maps: { Ascent: 85, Bind: 80, Breeze: 85, Haven: 92, Lotus: 86, Split: 82, Sunset: 84 } },
+  "Reyna":     { role: "Duelista",    secondaryRole: null,          entryType: "contact", cannotSoloRole: true,  op: false, ecoBoost: 1.03, maps: { Ascent: 78, Bind: 76, Breeze: 82, Haven: 80, Lotus: 78, Split: 80, Sunset: 81 } },
 
-  // Iniciadores (7)
-  "Sova":      { role: "Iniciador",   op: false, ecoBoost: 1.00, maps: { Ascent: 98, Bind: 78, Breeze: 98, Haven: 96, Lotus: 83, Split: 74, Sunset: 89 } },
-  "Breach":    { role: "Iniciador",   op: false, ecoBoost: 1.00, maps: { Ascent: 80, Bind: 83, Breeze: 70, Haven: 94, Lotus: 90, Split: 93, Sunset: 93 } },
-  "Skye":      { role: "Iniciador",   op: false, ecoBoost: 1.00, maps: { Ascent: 80, Bind: 95, Breeze: 87, Haven: 85, Lotus: 83, Split: 93, Sunset: 82 } },
-  "KAY/O":     { role: "Iniciador",   op: false, ecoBoost: 1.00, maps: { Ascent: 95, Bind: 78, Breeze: 89, Haven: 87, Lotus: 81, Split: 85, Sunset: 85 } },
-  "Fade":      { role: "Iniciador",   op: false, ecoBoost: 1.00, maps: { Ascent: 84, Bind: 93, Breeze: 76, Haven: 83, Lotus: 96, Split: 91, Sunset: 89 } },
-  "Gekko":     { role: "Iniciador",   op: false, ecoBoost: 1.01, maps: { Ascent: 83, Bind: 92, Breeze: 79, Haven: 83, Lotus: 88, Split: 86, Sunset: 93 } },
-  "Tejo":      { role: "Iniciador",   op: false, ecoBoost: 1.02, maps: { Ascent: 86, Bind: 94, Breeze: 83, Haven: 92, Lotus: 94, Split: 91, Sunset: 90 } },
+  // Iniciadores (7) — initType: "recon" (info) | "flash" (apoyo) | "hybrid" (info + apoyo)
+  "Sova":      { role: "Iniciador",   secondaryRole: null,          initType: "recon",    cannotSoloRole: false, op: false, ecoBoost: 1.00, maps: { Ascent: 98, Bind: 78, Breeze: 98, Haven: 96, Lotus: 83, Split: 74, Sunset: 89 } },
+  "Fade":      { role: "Iniciador",   secondaryRole: null,          initType: "recon",    cannotSoloRole: false, op: false, ecoBoost: 1.00, maps: { Ascent: 84, Bind: 93, Breeze: 76, Haven: 83, Lotus: 96, Split: 91, Sunset: 89 } },
+  "Skye":      { role: "Iniciador",   secondaryRole: null,          initType: "hybrid",   cannotSoloRole: false, op: false, ecoBoost: 1.00, maps: { Ascent: 80, Bind: 95, Breeze: 87, Haven: 85, Lotus: 83, Split: 93, Sunset: 82 } },
+  "Gekko":     { role: "Iniciador",   secondaryRole: null,          initType: "hybrid",   cannotSoloRole: false, op: false, ecoBoost: 1.01, maps: { Ascent: 83, Bind: 92, Breeze: 79, Haven: 83, Lotus: 88, Split: 86, Sunset: 93 } },
+  "Tejo":      { role: "Iniciador",   secondaryRole: null,          initType: "hybrid",   cannotSoloRole: false, op: false, ecoBoost: 1.02, maps: { Ascent: 86, Bind: 94, Breeze: 83, Haven: 92, Lotus: 94, Split: 91, Sunset: 90 } },
+  "KAY/O":     { role: "Iniciador",   secondaryRole: "Duelista",    initType: "flash",    cannotSoloRole: true,  op: false, ecoBoost: 1.00, maps: { Ascent: 95, Bind: 78, Breeze: 89, Haven: 87, Lotus: 81, Split: 85, Sunset: 85 } },
+  "Breach":    { role: "Iniciador",   secondaryRole: null,          initType: "flash",    cannotSoloRole: true,  op: false, ecoBoost: 1.00, maps: { Ascent: 80, Bind: 83, Breeze: 70, Haven: 94, Lotus: 90, Split: 93, Sunset: 93 } },
 
-  // Controladores (7)
-  "Brimstone": { role: "Controlador", op: false, ecoBoost: 1.00, maps: { Ascent: 78, Bind: 97, Breeze: 70, Haven: 78, Lotus: 76, Split: 82, Sunset: 78 } },
-  "Omen":      { role: "Controlador", op: false, ecoBoost: 1.01, maps: { Ascent: 98, Bind: 82, Breeze: 80, Haven: 97, Lotus: 97, Split: 96, Sunset: 95 } },
-  "Viper":     { role: "Controlador", op: false, ecoBoost: 1.00, wall: true, maps: { Ascent: 79, Bind: 97, Breeze: 99, Haven: 83, Lotus: 95, Split: 90, Sunset: 85 } },
-  "Astra":     { role: "Controlador", op: false, ecoBoost: 1.00, maps: { Ascent: 85, Bind: 86, Breeze: 79, Haven: 89, Lotus: 88, Split: 94, Sunset: 85 } },
-  "Harbor":    { role: "Controlador", op: false, ecoBoost: 1.00, wall: true, maps: { Ascent: 78, Bind: 84, Breeze: 90, Haven: 80, Lotus: 83, Split: 81, Sunset: 82 } },
-  "Clove":     { role: "Controlador", op: false, ecoBoost: 1.03, maps: { Ascent: 84, Bind: 82, Breeze: 78, Haven: 85, Lotus: 86, Split: 87, Sunset: 89 } },
-  "Miks":      { role: "Controlador", op: false, ecoBoost: 1.02, maps: { Ascent: 86, Bind: 92, Breeze: 77, Haven: 88, Lotus: 91, Split: 93, Sunset: 92 } },
+  // Controladores (7) — smokeType: "pure" (smoker principal) | "hybrid_dome" (corto alcance) | "hybrid_wall" (requiere smoker puro)
+  "Omen":      { role: "Controlador", secondaryRole: null,          smokeType: "pure",        cannotSoloRole: false, op: false, ecoBoost: 1.01, maps: { Ascent: 98, Bind: 82, Breeze: 80, Haven: 97, Lotus: 97, Split: 96, Sunset: 95 } },
+  "Brimstone": { role: "Controlador", secondaryRole: null,          smokeType: "pure",        cannotSoloRole: false, op: false, ecoBoost: 1.00, maps: { Ascent: 78, Bind: 97, Breeze: 70, Haven: 78, Lotus: 76, Split: 82, Sunset: 78 } },
+  "Astra":     { role: "Controlador", secondaryRole: null,          smokeType: "pure",        cannotSoloRole: false, op: false, ecoBoost: 1.00, maps: { Ascent: 85, Bind: 86, Breeze: 79, Haven: 89, Lotus: 88, Split: 94, Sunset: 85 } },
+  "Miks":      { role: "Controlador", secondaryRole: null,          smokeType: "pure",        cannotSoloRole: false, op: false, ecoBoost: 1.02, maps: { Ascent: 86, Bind: 92, Breeze: 77, Haven: 88, Lotus: 91, Split: 93, Sunset: 92 } },
+  "Clove":     { role: "Controlador", secondaryRole: "Duelista",    smokeType: "hybrid_dome", cannotSoloRole: false, op: false, ecoBoost: 1.03, maps: { Ascent: 84, Bind: 82, Breeze: 74, Haven: 85, Lotus: 86, Split: 87, Sunset: 89 } },
+  "Viper":     { role: "Controlador", secondaryRole: "Centinela",   smokeType: "hybrid_wall", cannotSoloRole: true,  op: false, ecoBoost: 1.00, wall: true, maps: { Ascent: 79, Bind: 97, Breeze: 99, Haven: 83, Lotus: 95, Split: 90, Sunset: 85 } },
+  "Harbor":    { role: "Controlador", secondaryRole: "Iniciador",   smokeType: "hybrid_wall", cannotSoloRole: true,  op: false, ecoBoost: 1.00, wall: true, maps: { Ascent: 78, Bind: 84, Breeze: 90, Haven: 80, Lotus: 83, Split: 81, Sunset: 82 } },
 
-  // Centinelas (7)
-  "Sage":      { role: "Centinela",   op: false, ecoBoost: 1.00, maps: { Ascent: 80, Bind: 83, Breeze: 74, Haven: 82, Lotus: 79, Split: 89, Sunset: 84 } },
-  "Cypher":    { role: "Centinela",   op: false, ecoBoost: 1.00, maps: { Ascent: 89, Bind: 90, Breeze: 95, Haven: 94, Lotus: 88, Split: 96, Sunset: 98 } },
-  "Killjoy":   { role: "Centinela",   op: false, ecoBoost: 1.00, maps: { Ascent: 97, Bind: 83, Breeze: 79, Haven: 92, Lotus: 95, Split: 84, Sunset: 81 } },
-  "Chamber":   { role: "Centinela",   op: true,  ecoBoost: 1.13, maps: { Ascent: 82, Bind: 85, Breeze: 98, Haven: 88, Lotus: 90, Split: 79, Sunset: 86 } },
-  "Deadlock":  { role: "Centinela",   op: false, ecoBoost: 1.00, maps: { Ascent: 87, Bind: 91, Breeze: 76, Haven: 83, Lotus: 85, Split: 90, Sunset: 85 } },
-  "Vyse":      { role: "Centinela",   op: false, ecoBoost: 1.00, maps: { Ascent: 90, Bind: 92, Breeze: 80, Haven: 91, Lotus: 90, Split: 94, Sunset: 89 } },
-  "Veto":      { role: "Centinela",   op: false, ecoBoost: 1.02, maps: { Ascent: 90, Bind: 93, Breeze: 84, Haven: 91, Lotus: 94, Split: 93, Sunset: 91 } }
+  // Centinelas (7) — sentinelType: "pure" (ancla + flank watch) | "hybrid" (sin flank confiable o parcial)
+  "Cypher":    { role: "Centinela",   secondaryRole: null,          sentinelType: "pure",   cannotSoloRole: false, op: false, ecoBoost: 1.00, maps: { Ascent: 89, Bind: 90, Breeze: 95, Haven: 94, Lotus: 88, Split: 96, Sunset: 98 } },
+  "Killjoy":   { role: "Centinela",   secondaryRole: null,          sentinelType: "pure",   cannotSoloRole: false, op: false, ecoBoost: 1.00, maps: { Ascent: 97, Bind: 83, Breeze: 79, Haven: 92, Lotus: 95, Split: 84, Sunset: 81 } },
+  "Vyse":      { role: "Centinela",   secondaryRole: null,          sentinelType: "pure",   cannotSoloRole: false, op: false, ecoBoost: 1.00, maps: { Ascent: 90, Bind: 92, Breeze: 80, Haven: 91, Lotus: 90, Split: 94, Sunset: 89 } },
+  "Veto":      { role: "Centinela",   secondaryRole: null,          sentinelType: "pure",   cannotSoloRole: false, op: false, ecoBoost: 1.02, maps: { Ascent: 90, Bind: 93, Breeze: 84, Haven: 91, Lotus: 94, Split: 93, Sunset: 91 } },
+  "Chamber":   { role: "Centinela",   secondaryRole: "Duelista",    sentinelType: "hybrid", cannotSoloRole: true,  op: true,  ecoBoost: 1.13, maps: { Ascent: 82, Bind: 85, Breeze: 98, Haven: 88, Lotus: 90, Split: 79, Sunset: 86 } },
+  "Deadlock":  { role: "Centinela",   secondaryRole: "Iniciador",   sentinelType: "hybrid", cannotSoloRole: true,  op: false, ecoBoost: 1.00, maps: { Ascent: 87, Bind: 91, Breeze: 76, Haven: 83, Lotus: 85, Split: 90, Sunset: 85 } },
+  "Sage":      { role: "Centinela",   secondaryRole: "Controlador", sentinelType: "hybrid", cannotSoloRole: true,  op: false, ecoBoost: 1.00, maps: { Ascent: 80, Bind: 83, Breeze: 74, Haven: 82, Lotus: 79, Split: 89, Sunset: 84 } }
 };
 
 // ===== MAESTRÍA DE HUSH (RESTRINGIDO A QUIENES YA LO MASTERIZARON) =====
@@ -313,7 +313,7 @@ function getPlayerAgents(player) {
   return merged;
 }
 
-// ===== EVALUADOR DE COMPOSICIÓN DE 5 EJES (SEGÚN SISTEMA DE BONUS VCT) =====
+// ===== EVALUADOR DE COMPOSICIÓN DE 5 EJES + SINERGIAS/PENALIZACIONES REALES (SECCIÓN 5.2 / 5.3) =====
 function evaluateTeamComposition(teamObj, assignments, mapName) {
   const starters = teamObj.players.filter(p => !p.sub).slice(0, 5);
   const coach = teamObj.coach;
@@ -330,27 +330,57 @@ function evaluateTeamComposition(teamObj, assignments, mapName) {
     for (const ax in pts) pts[ax] += tbl[ax] * weight;
   };
 
+  let pureSmokers = 0, hybridDomeSmokers = 0, hybridWallSmokers = 0;
+  let diveDuelists = 0, contactOnlyDuelists = 0;
+  let reconInits = 0, flashInits = 0;
+  let pureSentinels = 0, hybridSentinels = 0;
+
   assignments.forEach((a, idx) => {
     const p = starters[idx];
-    const agRole = a.role; // Duelista, Iniciador, Controlador, Centinela
+    const ag = AGENTS[a.agent] || {};
+    const agRole = a.role;
     const occ = roleCounts[agRole] || 0;
     const dec = COMP_CONFIG.decrecimiento[Math.min(occ, COMP_CONFIG.decrecimiento.length - 1)];
     roleCounts[agRole] = occ + 1;
     addRolePoints(agRole, dec);
 
-    // Capa 1: Roles secundarios al 50% (incluye rasgo Flex de jugadores duales/Flex)
-    const { primary, secondary } = parsePlayerRoles(p.r);
-    const secRole = secondary && secondary !== agRole ? secondary : (primary === "Flex" ? "Flex" : null);
-    if (secRole && COMP_CONFIG.rol_puntos[secRole]) {
-      const sOcc = secCounts[secRole] || 0;
+    // Aporte del rol secundario del agente (ej: Viper aporta 50% de Centinela)
+    if (ag.secondaryRole && COMP_CONFIG.rol_puntos[ag.secondaryRole]) {
+      const sOcc = secCounts[ag.secondaryRole] || 0;
       const sDec = COMP_CONFIG.decrecimiento[Math.min(sOcc, COMP_CONFIG.decrecimiento.length - 1)];
-      secCounts[secRole] = sOcc + 1;
-      addRolePoints(secRole, COMP_CONFIG.rol_secundario * sDec);
+      secCounts[ag.secondaryRole] = sOcc + 1;
+      addRolePoints(ag.secondaryRole, 0.5 * sDec);
     }
+
+    // Aporte del rol secundario del jugador
+    if (p) {
+      const { primary, secondary } = parsePlayerRoles(p.r);
+      const secRole = secondary && secondary !== agRole ? secondary : (primary === "Flex" ? "Flex" : null);
+      if (secRole && COMP_CONFIG.rol_puntos[secRole]) {
+        const sOcc = secCounts[secRole] || 0;
+        const sDec = COMP_CONFIG.decrecimiento[Math.min(sOcc, COMP_CONFIG.decrecimiento.length - 1)];
+        secCounts[secRole] = sOcc + 1;
+        addRolePoints(secRole, COMP_CONFIG.rol_secundario * sDec);
+      }
+    }
+
+    // Conteo de capacidades funcionales reales
+    if (ag.smokeType === "pure") pureSmokers++;
+    else if (ag.smokeType === "hybrid_dome") hybridDomeSmokers++;
+    else if (ag.smokeType === "hybrid_wall") hybridWallSmokers++;
+
+    if (ag.entryType === "dive" || ag.entryType === "hybrid") diveDuelists++;
+    else if (ag.entryType === "contact") contactOnlyDuelists++;
+
+    if (ag.initType === "recon") reconInits++;
+    else if (ag.initType === "flash") flashInits++;
+    else if (ag.initType === "hybrid") { reconInits++; flashInits++; }
+
+    if (ag.sentinelType === "pure") pureSentinels++;
+    else if (ag.sentinelType === "hybrid") hybridSentinels++;
   });
 
-  // Atributos promedio relevantes de los jugadores para escalar cada eje
-  const avgAttr = fn => starters.reduce((sum, p) => sum + fn(p), 0) / starters.length;
+  const avgAttr = fn => starters.reduce((sum, p) => sum + fn(p), 0) / Math.max(1, starters.length);
   const maxIgl = Math.max(...starters.map(p => p.igl));
   const axisAttrs = {
     macro:   (maxIgl + coach.macro) / 2,
@@ -360,38 +390,93 @@ function evaluateTeamComposition(teamObj, assignments, mapName) {
     flex:    (coach.adapt + avgAttr(p => p.cons)) / 2
   };
 
-  // Equilibrio 1-1-1-1-1: cubre los 4 roles base y no sobreapila 3 del mismo rol
-  const hasCore4 = roleCounts.Duelista >= 1 && roleCounts.Iniciador >= 1 && roleCounts.Controlador >= 1 && roleCounts.Centinela >= 1;
-  const isBalanced = hasCore4 && Math.max(roleCounts.Duelista, roleCounts.Iniciador, roleCounts.Controlador, roleCounts.Centinela) <= 2;
+  const warnings = [];
+  const synergies = [];
+  const penalty = { macro: 0, util: 0, entrada: 0, defensa: 0, flex: 0 };
+
+  // 1. Controlador / Smoker Puro obligatorio
+  const hasViableMainSmoker = pureSmokers >= 1 || (hybridDomeSmokers >= 1 && !mapInfo.longRange);
+  if (roleCounts.Controlador === 0) {
+    warnings.push("Sin Controlador (-7.5% Macro/Def)");
+    penalty.macro -= 0.055; penalty.defensa -= 0.045;
+  } else if (!hasViableMainSmoker) {
+    if (hybridWallSmokers > 0) {
+      warnings.push("Sin Smoker Puro (Viper/Harbor no cubren solos)");
+      penalty.macro -= 0.045; penalty.defensa -= 0.032;
+    } else if (hybridDomeSmokers > 0 && mapInfo.longRange) {
+      warnings.push(`Clove solo sufre en ${mapName} (mapa largo)`);
+      penalty.macro -= 0.025; penalty.defensa -= 0.018;
+    }
+  } else if (pureSmokers >= 1 && hybridWallSmokers >= 1) {
+    const wallBonus = mapInfo.preferWall ? 0.026 : 0.014;
+    penalty.macro += wallBonus; penalty.defensa += wallBonus * 0.8;
+    synergies.push("Doble Controller (Smoker Puro + Muro)");
+  }
+
+  // 2. Duelista / Capacidad de Entrada
+  if (diveDuelists === 0) {
+    if (contactOnlyDuelists > 0) {
+      warnings.push("Sin Entry Dive (solo duelista de contacto)");
+      penalty.entrada -= 0.030;
+    } else {
+      warnings.push("Sin Duelista de Entrada");
+      penalty.entrada -= 0.042;
+    }
+  }
+
+  // 3. Iniciador (Info + Flash)
+  if (roleCounts.Iniciador === 0) {
+    warnings.push("Sin Iniciador (-4% Util)");
+    penalty.util -= 0.040; penalty.entrada -= 0.015;
+  } else if (reconInits === 0 && flashInits > 0) {
+    warnings.push("Sin Recon/Info (solo flash)");
+    penalty.util -= 0.016;
+  } else if (reconInits > 0 && flashInits > 0) {
+    penalty.util += 0.018; penalty.entrada += 0.012;
+    synergies.push("Sinergia Info + Flash");
+  }
+
+  // 4. Centinela / Flank Watch
+  const hasViperAnchor = assignments.some(a => a.agent === "Viper");
+  if (pureSentinels === 0) {
+    if (hybridSentinels > 0 && hasViperAnchor) {
+      synergies.push("Anclaje Híbrido (Viper + Centinela)");
+    } else if (hybridSentinels > 0 || hasViperAnchor) {
+      warnings.push("Flank Watch débil (sin Centinela puro)");
+      penalty.defensa -= 0.020;
+    } else {
+      warnings.push("Sin Centinela ni anclaje de sitio");
+      penalty.defensa -= 0.040;
+    }
+  }
+
+  // 5. Sinergia Dive + Recon
+  if (diveDuelists >= 1 && reconInits >= 1) {
+    penalty.entrada += 0.012;
+    synergies.push("Combo Dive + Recon");
+  }
+
+  const hasCore4 = hasViableMainSmoker && diveDuelists >= 1 && roleCounts.Iniciador >= 1 && (pureSentinels >= 1 || (hybridSentinels >= 1 && hasViperAnchor));
+  const isBalanced = hasCore4 && warnings.length === 0 && Math.max(roleCounts.Duelista, roleCounts.Iniciador, roleCounts.Controlador, roleCounts.Centinela) <= 2;
 
   const bonuses = {};
   for (const ax of ["macro", "util", "entrada", "defensa", "flex"]) {
     const diff = pts[ax] - COMP_CONFIG.ideal[ax];
     let val = diff * COMP_CONFIG.factor_eje * (1 + axisAttrs[ax] / 200);
-    // Capa 2: El mapa modifica los pesos (±10%)
     val *= (mapAxisMult[ax] || 1.0);
-    // Capa 3: El DT amplifica o mitiga
-    if (ax === "macro" && val > 0) {
-      val *= 1 + Math.max(0, (coach.macro - 80) / 100);
-    }
+    val += penalty[ax];
+
+    if (ax === "macro" && val > 0) val *= 1 + Math.max(0, (coach.macro - 80) / 100);
     if (val < 0) {
-      // ADP alto reduce penalización de composiciones extremas
-      const adpMit = Math.max(0.58, 1 - Math.max(0, coach.adapt - 75) / 95);
+      const adpMit = Math.max(0.62, 1 - Math.max(0, coach.adapt - 75) / 100);
       val *= adpMit;
-      if (ax === "defensa" || ax === "macro") {
-        const discMit = Math.max(0.72, 1 - Math.max(0, coach.disc - 75) / 140);
-        val *= discMit;
-      }
     }
-    // Tope estricto ±8%
     bonuses[ax] = Math.max(-COMP_CONFIG.tope_eje, Math.min(COMP_CONFIG.tope_eje, val));
   }
 
   const eqBonus = isBalanced ? COMP_CONFIG.bonus_equilibrio : 0;
-  // Varianza por agresividad (composiciones con alta entrada generan rondas más explosivas)
   const varianceBoost = Math.max(0, bonuses.entrada) * 0.45;
 
-  // Etiqueta de arquetipo táctico (reglas de sinergia)
   let archetype = "ESTÁNDAR";
   if (roleCounts.Controlador >= 2 && roleCounts.Duelista >= 2) archetype = "2 CTRL + 2 DUEL";
   else if (roleCounts.Controlador >= 2) archetype = "DOBLE CONTROLADOR";
@@ -400,39 +485,55 @@ function evaluateTeamComposition(teamObj, assignments, mapName) {
   else if (roleCounts.Centinela >= 2) archetype = "DOBLE CENTINELA";
   else if (isBalanced) archetype = "1-1-1-1-1 EQUILIBRIO";
 
-  const warnings = [];
-  if (roleCounts.Controlador === 0) warnings.push("Sin Controlador");
-  if (roleCounts.Centinela === 0 && secCounts.Centinela === 0) warnings.push("Sin Centinela");
-  if (roleCounts.Iniciador === 0 && secCounts.Iniciador === 0) warnings.push("Sin Iniciador");
-
-  return {
-    roleCounts,
-    pts,
-    bonuses,
-    eqBonus,
-    varianceBoost,
-    isBalanced,
-    archetype,
-    warnings
-  };
+  return { roleCounts, pts, bonuses, eqBonus, varianceBoost, isBalanced, archetype, warnings, synergies };
 }
 
-// ===== DRAFT INTELIGENTE DE COMPOSICIÓN (5 AGENTES ÚNICOS + HUSH MASTERY + SINERGIA) =====
+// ===== DRAFT DE COMPOSICIÓN (5 AGENTES ÚNICOS + HUSH + SMOKER PURO + COMPS PERSONALIZADAS) =====
 function draftTeamComp(teamObj, mapName) {
   const m = MAP_POOL[mapName] || MAP_POOL["Ascent"];
   const starters = teamObj.players.filter(p => !p.sub).slice(0, 5);
   const used = new Set();
   const roleCount = { Duelista: 0, Iniciador: 0, Controlador: 0, Centinela: 0 };
+  let hasPureSmoker = false;
 
+  const customMap = (teamObj.customComp && (teamObj.customComp[mapName] || teamObj.customComp.DEFAULT)) || null;
+  const assigned = new Array(starters.length);
+
+  // 1. Elecciones manuales del jugador (Sección 5.1)
+  if (customMap) {
+    starters.forEach((p, idx) => {
+      const forcedAg = customMap[p.n];
+      if (forcedAg && AGENTS[forcedAg] && !used.has(forcedAg)) {
+        const agObj = AGENTS[forcedAg];
+        const sigList = (PLAYER_AGENTS[p.n] || []).filter(a => AGENTS[a]);
+        used.add(forcedAg);
+        roleCount[agObj.role] = (roleCount[agObj.role] || 0) + 1;
+        if (agObj.smokeType === "pure") hasPureSmoker = true;
+
+        assigned[idx] = {
+          playerName: p.n,
+          agent: forcedAg,
+          role: agObj.role,
+          mapFit: agObj.maps[mapName] || 82,
+          comfort: sigList.includes(forcedAg),
+          isOpBoost: !!(agObj.op && m.longRange && p.aim >= 88 && p.fd >= 82),
+          hushMastery: agObj.hush ? Math.max(HUSH_MASTERY[p.n] || 0, p._hushMastery || 0) : 0,
+          ecoBoost: agObj.ecoBoost || 1.0,
+          manual: true
+        };
+      }
+    });
+  }
+
+  // 2. Completar automáticamente los slots no asignados
   const priorityOrder = starters
     .map((p, origIdx) => {
       const pr = getPrimaryRoleFromStr(p.r);
       const prio = pr === "Controlador" ? 1 : pr === "Duelista" ? 2 : pr === "Iniciador" ? 3 : pr === "Centinela" ? 4 : 5;
       return { p, origIdx, pr, prio };
     })
+    .filter(x => !assigned[x.origIdx])
     .sort((a, b) => a.prio - b.prio);
-
-  const assigned = new Array(starters.length);
 
   priorityOrder.forEach(({ p, origIdx, pr }) => {
     const sigList = (PLAYER_AGENTS[p.n] || []).filter(a => AGENTS[a]);
@@ -450,76 +551,56 @@ function draftTeamComp(teamObj, mapName) {
       const comfortBonus = sigIdx === 0 ? 7.5 : sigIdx === 1 ? 5.5 : sigIdx === 2 ? 3.5 : sigIdx >= 3 ? 1.5 : -4.0;
       const roleMatchBonus = ag.role === pr ? 4.0 : 0;
 
-      // Restricción real de Hush Mastery: solo quienes lo dominan lo eligen
       let hushMod = 0;
       if (ag.hush) {
-        const mastery = HUSH_MASTERY[p.n] || 0;
-        if (mastery >= 0.9) hushMod = 8.5;
-        else if (mastery > 0) hushMod = 1.5; // aspas (en menor medida)
-        else hushMod = -45.0; // No masterizado: bloqueado en draft competitivo
+        const mastery = Math.max(HUSH_MASTERY[p.n] || 0, p._hushMastery || 0);
+        hushMod = mastery >= 0.9 ? 8.5 : mastery > 0 ? 1.5 : -45.0;
       }
 
       let teamNeedBonus = 0;
-      if (ag.role === "Controlador" && roleCount.Controlador === 0) teamNeedBonus += 10;
-      if (ag.role === "Controlador" && m.preferWall && ag.wall && roleCount.Controlador <= 1) teamNeedBonus += 7;
-      if (ag.role === "Iniciador" && roleCount.Iniciador === 0) teamNeedBonus += 6;
-      if (ag.role === "Duelista" && roleCount.Duelista === 0) teamNeedBonus += 7;
-      if (ag.role === "Centinela" && roleCount.Centinela === 0) teamNeedBonus += 5;
+      // Garantizar al menos 1 Smoker Puro antes de elegir Viper/Harbor
+      if (!hasPureSmoker && ag.smokeType === "pure") teamNeedBonus += 13;
+      if (!hasPureSmoker && ag.smokeType === "hybrid_wall" && roleCount.Controlador === 0) teamNeedBonus -= 10;
+      if (hasPureSmoker && m.preferWall && ag.wall && roleCount.Controlador === 1) teamNeedBonus += 8;
+
+      if (ag.role === "Iniciador" && roleCount.Iniciador === 0) teamNeedBonus += ag.cannotSoloRole ? 2 : 7;
+      if (ag.role === "Duelista" && roleCount.Duelista === 0) teamNeedBonus += ag.cannotSoloRole ? 1 : 8;
+      if (ag.role === "Centinela" && roleCount.Centinela === 0) teamNeedBonus += ag.cannotSoloRole ? 2 : 6;
       if (roleCount[ag.role] >= 2) teamNeedBonus -= 9;
 
-      // Sinergia de Operator en mapas largos (Chamber/Jett en Breeze, Ascent, Haven)
       let opSynergy = 0;
-      if (ag.op && m.longRange && p.aim >= 89 && p.fd >= 84) {
-        opSynergy = mapName === "Breeze" ? 9.0 : 5.5;
-      }
-      if (!m.longRange && (agName === "Raze" || agName === "Neon" || agName === "Hush") && p.entry >= 88) {
-        opSynergy += 3.8;
-      }
+      if (ag.op && m.longRange && p.aim >= 89 && p.fd >= 84) opSynergy = mapName === "Breeze" ? 9.0 : 5.5;
+      if (!m.longRange && (agName === "Raze" || agName === "Neon" || agName === "Hush") && p.entry >= 88) opSynergy += 3.8;
 
       const total = mapFit + comfortBonus + roleMatchBonus + teamNeedBonus + opSynergy + hushMod;
-      if (total > bestScore) {
-        bestScore = total;
-        bestAg = agName;
-      }
-      // Dentro de evalList.forEach:
-      if (ag.hush) {
-        const mastery = Math.max(HUSH_MASTERY[p.n] || 0, p._hushMastery || 0);
-        if (mastery >= 0.9) hushMod = 8.5;
-        else if (mastery > 0) hushMod = 1.5;
-        else hushMod = -45.0;
-      }
+      if (total > bestScore) { bestScore = total; bestAg = agName; }
     });
 
     used.add(bestAg);
     const agObj = AGENTS[bestAg];
     roleCount[agObj.role] = (roleCount[agObj.role] || 0) + 1;
-    const isComfort = sigList.includes(bestAg);
-    const isOpBoost = !!(agObj.op && m.longRange && p.aim >= 88 && p.fd >= 82);
-    const hushMastery = agObj.hush ? Math.max(HUSH_MASTERY[p.n] || 0, p._hushMastery || 0) : 0;
+    if (agObj.smokeType === "pure") hasPureSmoker = true;
 
-    
     assigned[origIdx] = {
       playerName: p.n,
       agent: bestAg,
       role: agObj.role,
       mapFit: agObj.maps[mapName] || 82,
-      comfort: isComfort,
-      isOpBoost,
-      hushMastery,
+      comfort: sigList.includes(bestAg),
+      isOpBoost: !!(agObj.op && m.longRange && p.aim >= 88 && p.fd >= 82),
+      hushMastery: agObj.hush ? Math.max(HUSH_MASTERY[p.n] || 0, p._hushMastery || 0) : 0,
       ecoBoost: agObj.ecoBoost || 1.0
     };
   });
 
   const evalData = evaluateTeamComposition(teamObj, assigned, mapName);
-  const avgFit = assigned.reduce((s, a) => s + a.mapFit, 0) / assigned.length;
+  const avgFit = assigned.reduce((s, a) => s + a.mapFit, 0) / Math.max(1, assigned.length);
   const comfortHits = assigned.filter(a => a.comfort).length;
-  const hasWall = assigned.some(a => AGENTS[a.agent] && AGENTS[a.agent].wall);
   const opCarrier = assigned.find(a => a.isOpBoost);
   const hushCarrier = assigned.find(a => a.hushMastery > 0);
 
   let extraScore = 0;
-  const tags = [evalData.archetype];
-  if (evalData.isBalanced) tags[0] = "1-1-1-1-1 (+2% EQ)";
+  const tags = [evalData.isBalanced ? "1-1-1-1-1 (+2% EQ)" : evalData.archetype];
   if (hushCarrier) {
     extraScore += hushCarrier.hushMastery >= 0.9 ? 2.4 : 0.9;
     tags.push(`Hush ${hushCarrier.hushMastery >= 0.9 ? "Master" : "Flex"} (${hushCarrier.playerName})`);
@@ -528,16 +609,11 @@ function draftTeamComp(teamObj, mapName) {
     extraScore += mapName === "Breeze" ? 3.2 : 1.8;
     tags.push(`${opCarrier.agent} OP (${opCarrier.playerName})`);
   }
-  if (m.preferWall && hasWall) {
-    extraScore += 2.2;
-    tags.push("Muro Viper/Harbor");
-  } else if (mapName === "Breeze" && !hasWall) {
-    extraScore -= 3.5;
-  }
+  evalData.synergies.forEach(s => tags.push(s));
   evalData.warnings.forEach(w => tags.push(w));
 
   const netAxes = (evalData.bonuses.macro + evalData.bonuses.util + evalData.bonuses.entrada + evalData.bonuses.defensa + evalData.bonuses.flex) / 5;
-  const compScore = Math.max(70, Math.min(99, avgFit + extraScore + (evalData.eqBonus * 100) + (netAxes * 65) + (comfortHits - 3) * 0.6));
+  const compScore = Math.max(60, Math.min(99, avgFit + extraScore + (evalData.eqBonus * 100) + (netAxes * 75) + (comfortHits - 3) * 0.6));
 
   return {
     mapName,
@@ -547,7 +623,9 @@ function draftTeamComp(teamObj, mapName) {
     eqBonus: evalData.eqBonus,
     varianceBoost: evalData.varianceBoost,
     archetype: evalData.archetype,
-    tags: tags.slice(0, 3)
+    synergies: evalData.synergies,
+    warnings: evalData.warnings,
+    tags: tags.slice(0, 4)
   };
 }
 
@@ -855,7 +933,11 @@ function simMatch(tLeft, tRight, mapSpec) {
     })
   }));
 
-  const igm = teams.map(t => 1 + ((Math.max(...t.units.map(u => u.p.igl)) * mapMod.igl - 80) / 800) + ((t.coach.macro * mapMod.igl - 80) / 1000));
+  const igm = teams.map((t, idx) => {
+    const rawT = idx === 0 ? tLeft : tRight;
+    const prepBonus = (rawT.mapPrep && rawT.mapPrep[mapName]) ? rawT.mapPrep[mapName] : 0;
+    return 1 + prepBonus + ((Math.max(...t.units.map(u => u.p.igl)) * mapMod.igl - 80) / 800) + ((t.coach.macro * mapMod.igl - 80) / 1000);
+  });
   let sc = [0, 0], cr = [800, 800], ls = [0, 0], timeoutsLeft = [2, 2], timeoutActive = [0, 0], rounds = [], n = 0;
 
   while (true) {

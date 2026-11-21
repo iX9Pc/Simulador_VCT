@@ -52,11 +52,11 @@
    "code": "100T",
    "logoCls": "",
    "players": [
-    { "n": "Cryocells", "r": "Duelista/Centinela", "aim": 93, "fd": 90, "clutch": 88, "entry": 87, "util": 74, "igl": 64, "conf": 85, "cons": 83, "pot": 91, "sub": 0 },
-    { "n": "Asuna", "r": "Duelista/Flex", "aim": 89, "fd": 91, "clutch": 83, "entry": 92, "util": 86, "igl": 70, "conf": 87, "cons": 83, "pot": 86, "sub": 0 },
-    { "n": "Timotino", "r": "Flex/Duelista", "aim": 91, "fd": 92, "clutch": 81, "entry": 96, "util": 80, "igl": 64, "conf": 66, "cons": 76, "pot": 91, "sub": 0 },
-    { "n": "bang", "r": "Controlador", "aim": 85, "fd": 77, "clutch": 90, "entry": 76, "util": 91, "igl": 71, "conf": 80, "cons": 88, "pot": 86, "sub": 0 },
-    { "n": "vora", "r": "Iniciador/IGL", "aim": 87, "fd": 74, "clutch": 87, "entry": 71, "util": 94, "igl": 86, "conf": 81, "cons": 89, "pot": 87, "sub": 0 }
+    { "n": "Cryocells", "r": "Duelista/Centinela", "aim": 94, "fd": 90, "clutch": 89, "entry": 87, "util": 75, "igl": 64, "conf": 86, "cons": 85, "pot": 92, "sub": 0 },
+    { "n": "Asuna", "r": "Duelista/Flex", "aim": 90, "fd": 91, "clutch": 84, "entry": 92, "util": 87, "igl": 70, "conf": 87, "cons": 85, "pot": 87, "sub": 0 },
+    { "n": "Timotino", "r": "Flex/Duelista", "aim": 91, "fd": 92, "clutch": 82, "entry": 96, "util": 81, "igl": 64, "conf": 72, "cons": 79, "pot": 92, "sub": 0 },
+    { "n": "bang", "r": "Controlador", "aim": 87, "fd": 79, "clutch": 90, "entry": 77, "util": 92, "igl": 72, "conf": 82, "cons": 89, "pot": 88, "sub": 0 },
+    { "n": "vora", "r": "Iniciador/IGL", "aim": 88, "fd": 75, "clutch": 87, "entry": 72, "util": 94, "igl": 88, "conf": 83, "cons": 89, "pot": 88, "sub": 0 }
    ]
   },
   "Leviatán": {

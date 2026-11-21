@@ -2433,6 +2433,109 @@ footer.closing {
   color: var(--mut);
 }
 
+/* ===== FASE A: SETUP DIFICULTAD, RESUMEN CARRERA, COACH Y TÁCTICA ===== */
+.mgr-setup-bar {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--bd-hi);
+  border-radius: 2px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 780px) {
+  .mgr-setup-bar { grid-template-columns: 1fr; }
+}
+
+.mgr-setup-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mgr-summary-hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--gold);
+  border-radius: 2px;
+  margin-bottom: 12px;
+}
+
+.mgr-grade-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 18px;
+  background: var(--card);
+  border: 1px solid var(--bd-hi);
+  border-radius: 2px;
+  min-width: 118px;
+}
+
+.mgr-grade-val {
+  font: 700 38px/1 "Barlow Condensed", sans-serif;
+  margin: 2px 0;
+}
+
+.grade-s { color: var(--gold); }
+.grade-a { color: var(--ok); }
+.grade-b { color: var(--vct-cyan); }
+.grade-c { color: var(--fg); }
+.grade-d, .grade-f { color: var(--vct-red); }
+
+.mgr-board-svg {
+  width: 100%;
+  height: 110px;
+  display: block;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 2px;
+}
+
+.mgr-coach-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 860px) {
+  .mgr-coach-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.mgr-coach-stat {
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 2px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mgr-course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 6px;
+}
+
+.mgr-course-card {
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 2px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
