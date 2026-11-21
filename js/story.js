@@ -61,9 +61,89 @@ function momentumSVG(M) {
   <text x="${pad}" y="12" font-size="10" fill="${c0}">${esc(M.teams[0].name)} por delante</text><text x="${pad}" y="${H - 4}" font-size="10" fill="${c1}">${esc(M.teams[1].name)} por delante</text></svg>`;
 }
 function economyHTML(M) {
-  const cls = { Pistol: "e-p", Eco: "e-e", Force: "e-f", Full: "e-u" };
-  const row = ti => `<div class="eco-row"><span class="eco-name" style="color:${tColor(M.teams[ti].name)}">${esc(M.teams[ti].name)}</span><div class="eco-cells">${M.rounds.map(r => `<i class="${cls[r.econ[ti]] || "e-e"}${r.win === ti ? " won" : ""}" style="--tc:${tColor(M.teams[ti].name)}" title="R${r.n}: ${r.econ[ti]}${r.win === ti ? " · ganó" : ""}"></i>`).join("")}</div></div>`;
-  return row(0) + row(1) + `<div class="eco-legend"><span><i class="e-p"></i>Pistol</span><span><i class="e-e"></i>Eco</span><span><i class="e-f"></i>Force</span><span><i class="e-u"></i>Full buy</span><span><i class="won" style="--tc:var(--fg)"></i>Ronda ganada</span></div>`;
+  const rounds = M.rounds || [];
+  if (!rounds.length) return "";
+
+  const CODE = { Pistol: "P", Eco: "E", Force: "F", Full: "$" };
+  const CLS = { Pistol: "is-pistol", Eco: "is-eco", Force: "is-force", Full: "is-full" };
+
+  const conv = [0, 1].map(ti => {
+    const c = { Pistol: [0, 0], Eco: [0, 0], Force: [0, 0], Full: [0, 0] };
+    rounds.forEach(r => {
+      const k = r.econ[ti] || "Full";
+      if (!c[k]) c[k] = [0, 0];
+      c[k][1]++;
+      if (r.win === ti) c[k][0]++;
+    });
+    return c;
+  });
+
+  const renderHeaderCells = () => rounds.map((r, i) => {
+    const sep = (i === 12 || i === 24)
+      ? `<span class="econ-half-sep" title="${i === 12 ? "Cambio de lado" : "Overtime"}"></span>`
+      : "";
+    return `${sep}<span class="econ-rnum mono">${r.n}</span>`;
+  }).join("");
+
+  const renderTeamRow = ti => {
+    const teamName = M.teams[ti].name;
+    const colorCls = ti === 0 ? "ca" : "cb";
+    const winCls = ti === 0 ? "is-win-a" : "is-win-b";
+
+    const cells = rounds.map((r, i) => {
+      const sep = (i === 12 || i === 24) ? `<span class="econ-half-sep"></span>` : "";
+      const type = r.econ[ti] || "Full";
+      const oppType = r.econ[1 - ti] || "Full";
+      const won = r.win === ti;
+      const thrifty = won && type === "Eco" && oppType === "Full";
+      const title = `R${r.n} · ${teamName}: ${type} vs ${oppType} · ${won ? "GANADA" : "PERDIDA"}${thrifty ? " (THRIFTY)" : ""}`;
+      return `${sep}<button type="button" class="econ-cell mono ${CLS[type] || "is-full"} ${won ? winCls : "is-loss"}${thrifty ? " is-thrifty" : ""}" onclick="jumpToRound(${r.n})" title="${esc(title)}">${CODE[type] || "$"}</button>`;
+    }).join("");
+
+    const c = conv[ti];
+    const fmtStat = (label, pair) => pair[1] ? `<span>${label} <b>${pair[0]}/${pair[1]}</b></span>` : "";
+    const summary = [
+      fmtStat("FULL", c.Full),
+      fmtStat("FRC", c.Force),
+      fmtStat("ECO", c.Eco),
+      fmtStat("PST", c.Pistol)
+    ].filter(Boolean).join("");
+
+    return `<div class="econ-row">
+      <div class="econ-team">
+        <span class="team-dot" style="background:var(${ti ? "--b" : "--a"})"></span>
+        <b class="${colorCls}">${esc(teamName)}</b>
+      </div>
+      <div class="econ-track">${cells}</div>
+      <div class="econ-conv mono">${summary}</div>
+    </div>`;
+  };
+
+  return `<div class="econ-matrix-wrap">
+    <div class="econ-matrix-head mono">
+      <span>ECONOMÍA POR RONDA (${esc(M.mapName.toUpperCase())})</span>
+      <span class="mut">CLIC EN UNA RONDA PARA INSPECCIONAR EN EL VISOR 2D</span>
+    </div>
+    <div class="sc">
+      <div class="econ-matrix">
+        <div class="econ-row is-head">
+          <div class="econ-team mono mut" style="font-size:10px">EQUIPO</div>
+          <div class="econ-track">${renderHeaderCells()}</div>
+          <div class="econ-conv mono mut" style="font-size:10px">CONVERSIÓN (G/J)</div>
+        </div>
+        ${renderTeamRow(0)}
+        ${renderTeamRow(1)}
+      </div>
+    </div>
+    <div class="econ-legend mono">
+      <span><i class="econ-swatch is-pistol">P</i> Pistol</span>
+      <span><i class="econ-swatch is-eco">E</i> Eco</span>
+      <span><i class="econ-swatch is-force">F</i> Force</span>
+      <span><i class="econ-swatch is-full">$</i> Full buy</span>
+      <span><i class="econ-swatch is-win-demo"></i> Ronda ganada</span>
+      <span><i class="econ-swatch is-thrifty-demo">E</i> Thrifty (Eco vs Full)</span>
+    </div>
+  </div>`;
 }
 function whyWon(M, S) {
   const w = M.sc[0] > M.sc[1] ? 0 : 1, l = 1 - w, W = M.teams[w].name, L = M.teams[l].name, R = M.rounds;
@@ -87,7 +167,7 @@ function renderStory(M, S, isSeries, done) {
     const mvp = `<div class="mvp" style="--tc:${mc}"><small>MVP ${isSeries ? "de la serie" : "del mapa"}</small><b>${esc(m.u.p.n)}</b><span>${esc(M.teams[m.ti].name)}</span><div class="mvp-stats"><span><b>${m.k}/${m.d}/${m.a}</b>K/D/A</span><span><b>${m.acs || "-"}</b>ACS</span><span><b>${m.rating}</b>Rating</span></div></div>`;
     let body;
     if (isSeries) body = `<div class="story-grid">${mvp}<div><h3>Cómo se decidió</h3><p>${esc(SERIES.maps.map(x => x.mapName + " " + x.sc[0] + "-" + x.sc[1]).join(" · "))}</p></div></div>`;
-    else body = `<div class="story-grid">${mvp}<div><h3>Por qué ganó</h3><ul>${whyWon(M, S).map(t => `<li>${esc(t)}</li>`).join("")}</ul></div></div><h3>Ventaja de rondas</h3>${momentumSVG(M)}<h3>Economía por ronda</h3>${economyHTML(M)}`;
+    else body = `<div class="story-grid">${mvp}<div><h3>Por qué ganó</h3><ul>${whyWon(M, S).map(t => `<li>${esc(t)}</li>`).join("")}</ul></div></div><h3>Ventaja de rondas</h3>${momentumSVG(M)}${economyHTML(M)}`;
     out.insertAdjacentHTML("afterbegin", `<section class="box story"><div class="box-head"><h2>Resumen del ${isSeries ? "partido" : "mapa"}</h2></div>${body}</section>`);
   } catch (e) { console.error(e); }
 }

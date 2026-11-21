@@ -426,27 +426,41 @@ function render() {
   </div>`;
 
   if (!isSeriesSummary && M.comps) {
-    const renderCompSide = (teamObj, compObj, colorCls) => {
+    const renderCompSide = (teamObj, compObj, colorCls, dotVar) => {
       const chips = compObj.assignments.map(a => {
         const hiCls = a.isOpBoost ? "is-op" : (a.hushMastery >= 0.9 ? "is-hush" : "");
-        return `<span class="agent-chip ${hiCls}" title="${a.playerName} · ${a.agent} (${a.role}) · Fit Mapa ${a.mapFit}">
-          ${getRoleIcon(a.role)}<span>${a.agent}</span>
-        </span>`;
+        const badge = a.isOpBoost ? `<em class="chip-mark is-op">OP</em>` : (a.hushMastery >= 0.9 ? `<em class="chip-mark is-hush">M</em>` : "");
+        return `<div class="agent-chip ${hiCls}" title="${a.playerName} · ${a.agent} (${a.role}) · Fit Mapa ${a.mapFit}">
+          <div class="chip-top">${getRoleIcon(a.role)}<span class="chip-ag">${a.agent}</span>${badge}</div>
+          <span class="chip-pl mono">${a.playerName}</span>
+        </div>`;
       }).join("");
-      const tags = compObj.tags.length ? `<span class="comp-tags mono">${compObj.tags.join(" · ")}</span>` : "";
+
+      const warnSet = new Set(compObj.warnings || []);
+      const tagPills = (compObj.tags || []).map(tag => {
+        const isWarn = warnSet.has(tag) || tag.startsWith("Sin ") || tag.includes("débil");
+        const isEq = tag.includes("EQ") || tag.includes("Combo") || tag.includes("Sinergia") || tag.includes("Doble Controller");
+        const cls = isWarn ? "is-warn" : isEq ? "is-syn" : "";
+        return `<span class="comp-tag-pill ${cls}">${tag}</span>`;
+      }).join("");
+
+      const scoreCls = compObj.compScore >= 94 ? "stat-elite" : compObj.compScore >= 88 ? "kd-pos" : "";
       return `<div class="comp-side">
         <div class="comp-head">
-          <b class="${colorCls}">${teamObj.name}</b>
-          <span class="mono comp-fit">COMP ${compObj.compScore}</span>
-          ${tags}
+          <div class="comp-title-row">
+            <span class="team-dot" style="background:var(${dotVar})"></span>
+            <b class="comp-team-name ${colorCls}">${teamObj.name}</b>
+          </div>
+          <span class="mono comp-fit ${scoreCls}">COMP <b>${compObj.compScore}</b></span>
         </div>
+        ${tagPills ? `<div class="comp-tags mono">${tagPills}</div>` : ""}
         <div class="comp-chips">${chips}</div>
         ${renderAxisBadges(compObj)}
       </div>`;
     };
     h += `<div class="comp-bar">
-      ${renderCompSide(t0, M.comps[0], "ca")}
-      ${renderCompSide(t1, M.comps[1], "cb")}
+      ${renderCompSide(t0, M.comps[0], "ca", "--a")}
+      ${renderCompSide(t1, M.comps[1], "cb", "--b")}
     </div>`;
   }
 
