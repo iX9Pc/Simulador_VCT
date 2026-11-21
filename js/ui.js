@@ -706,7 +706,16 @@ function advanceLiveRound() {
 
   if (SERIES.liveShown < activeM.rounds.length) {
     SERIES.liveShown++;
-    if (SERIES.liveShown >= activeM.rounds.length && SERIES.liveMapIdx === SERIES.maps.length - 1) {
+    const justPlayed = activeM.rounds[SERIES.liveShown - 1];
+    const mapDoneNow = SERIES.liveShown >= activeM.rounds.length;
+    if (window.VCTSound && justPlayed) {
+      if (mapDoneNow) window.VCTSound.mapEnd();
+      else if (justPlayed.hl && justPlayed.hl.some(h => h.t === "ace")) window.VCTSound.ace();
+      else if (justPlayed.cl && justPlayed.cl.won && justPlayed.cl.x >= 2) window.VCTSound.clutch();
+      else if (justPlayed.timeouts && justPlayed.timeouts.length) window.VCTSound.timeout();
+      else window.VCTSound.roundEnd();
+    }
+    if (mapDoneNow && SERIES.liveMapIdx === SERIES.maps.length - 1) {
       SERIES.liveFinished = true;
       SERIES.revealedMaps = SERIES.maps.length;
       if (!SERIES._isExternal && typeof window.recordCompletedSeries === "function") window.recordCompletedSeries(SERIES);

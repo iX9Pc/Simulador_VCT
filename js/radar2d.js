@@ -1032,9 +1032,33 @@
     if (!state.lastTs) state.lastTs = ts;
     const dt = Math.min(0.1, (ts - state.lastTs) / 1000) * state.speed;
     state.lastTs = ts;
+    const prevT = state.time;
     state.time = Math.min(state.plan.duration, state.time + dt);
+
+    if (window.VCTSound && window.VCTSound.isEnabled()) {
+      const p = state.plan;
+      for (const ev of p.events) {
+        if (ev.t > prevT && ev.t <= state.time) window.VCTSound.kill(ev.fb);
+      }
+      if (p.plantTime !== null && p.plantTime > prevT && p.plantTime <= state.time) {
+        window.VCTSound.plant();
+      }
+      if (p.defuseTime !== null && p.defuseTime > prevT && p.defuseTime <= state.time) {
+        window.VCTSound.defuse();
+      }
+    }
+
     drawFrame();
-    if (state.time >= state.plan.duration) { stopLoop(); return; }
+    if (state.time >= state.plan.duration) {
+      if (window.VCTSound && window.VCTSound.isEnabled()) {
+        const R = state.plan.round;
+        if (R.hl && R.hl.some(h => h.t === "ace")) window.VCTSound.ace();
+        else if (R.cl && R.cl.won && R.cl.x >= 2) window.VCTSound.clutch();
+        else window.VCTSound.roundEnd();
+      }
+      stopLoop();
+      return;
+    }
     state.rafId = requestAnimationFrame(tick);
   }
 

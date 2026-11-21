@@ -3056,6 +3056,69 @@ footer.closing {
 .econ-swatch.is-win-demo     { background: var(--bg2); border-bottom: 2px solid var(--fg); }
 .econ-swatch.is-thrifty-demo { background: transparent; border: 1px solid var(--gold); color: var(--gold); }
 
+/* ===== P6.3 & P6.4: SONIDO GLOBAL Y PACKS DE DATOS ===== */
+.sfx-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-transform: uppercase;
+}
+
+.sfx-btn.is-muted {
+  color: var(--mut);
+  border-color: var(--bd);
+}
+
+.dp-panel {
+  background: var(--bg);
+  border: 1px solid var(--bd-hi);
+  border-radius: 2px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dp-top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.dp-active-pill {
+  display: inline-block;
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 2px;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+}
+
+.dp-active-pill.is-official {
+  background: var(--card);
+  border-color: var(--bd);
+  color: var(--mut);
+}
+
+.dp-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--bd);
+}
+
+.dp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
