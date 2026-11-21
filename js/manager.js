@@ -1986,8 +1986,8 @@
 
         checkPlayerInjury(club, p, travel ? mode.injuryMult * 0.35 : mode.injuryMult * 0.75, isUser);
         if (isUser) advancePlayerLearning(p, club);
-      });
-      // Chequeo de promesas de contrato y jugadores en lista de transferibles (2.2 / 2.3)
+
+        // Chequeo de promesas de contrato y jugadores en lista de transferibles (2.2 / 2.3)
         if (isUser) {
           if (p.forSale) p.weeksOnMarket = (p.weeksOnMarket || 0) + 1;
           if (p.promisedRole === "starter" && p.sub && !(p.injuredWeeks > 0)) {
@@ -2005,6 +2005,7 @@
             p.unhappyWeeks = Math.max(0, (p.unhappyWeeks || 0) - 1);
           }
         }
+      });
     }
   }
 
