@@ -222,7 +222,14 @@
       playoffs,
       playoffsSeeded: false,
       champion: null,
-      runnerUp: null
+      runnerUp: null,
+      news: [{
+        cat: "OFICIAL",
+        tag: "PREVIA",
+        headline: `Arranca ${cfg.name} con ${pool.length} franquicias`,
+        body: `Favoritos por OVR: ${pool.slice(0, 3).join(", ")}. Map pool activo: ${Object.keys(MAP_POOL).join(", ")}.`,
+        hot: false
+      }]
     };
     selectedTeams = pool.slice();
     renderTournament();
@@ -316,6 +323,50 @@
         T.runnerUp = m.winner === m.teamA ? m.teamB : m.teamA;
       }
     }
+
+    // Generar titulares dinámicos de prensa y rumores del torneo
+    T.news = T.news || [];
+    const loser = m.winner === m.teamA ? m.teamB : m.teamA;
+    const wOvr = parseFloat(getTeamOvr(m.winner));
+    const lOvr = parseFloat(getTeamOvr(loser));
+    const S = computeSeriesStats(s);
+    const topP = Object.values(S).sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating))[0];
+    const mapStr = s.maps.map(x => `${x.mapName} ${x.sc[0]}-${x.sc[1]}`).join(" · ");
+
+    if (T.champion && m.id === "PO-GF") {
+      T.news.unshift({
+        cat: "OFICIAL", tag: "CAMPEÓN", hot: true,
+        headline: `${T.champion} CONQUISTA ${T.cfg.name.toUpperCase()} (${m.scoreA}-${m.scoreB})`,
+        body: `${T.champion} superó a ${T.runnerUp} en la Gran Final (${mapStr})${topP ? ` con ${topP.u.p.n} en ${topP.rating} R2.0` : ""}.`
+      });
+    } else if (lOvr - wOvr >= 1.6) {
+      T.news.unshift({
+        cat: "UPSET", tag: m.label, hot: true,
+        headline: `SORPRESA EN ${m.label.toUpperCase()}: ${m.winner} derrota a ${loser} (${m.scoreA}-${m.scoreB})`,
+        body: `${m.winner} (OVR ${wOvr}) da el golpe contra el favorito ${loser} (OVR ${lOvr}) · ${mapStr}.`
+      });
+    } else if (topP && parseFloat(topP.rating) >= 1.38) {
+      T.news.unshift({
+        cat: "OFICIAL", tag: m.label, hot: false,
+        headline: `Recital de ${topP.u.p.n}: ${topP.rating} Rating 2.0 en ${m.winner} vs ${loser}`,
+        body: `${topP.u.p.n} lideró con ${topP.acs} ACS (${topP.k}/${topP.d}/${topP.a}) en la serie ${m.scoreA}-${m.scoreB}.`
+      });
+    } else if (m.stage === "playoff") {
+      T.news.unshift({
+        cat: "DRAMA", tag: m.label, hot: true,
+        headline: `${loser} queda eliminado en ${m.roundLabel} ante ${m.winner}`,
+        body: `Dura caída ${m.scoreA}-${m.scoreB} (${mapStr}). Crecen los rumores de cambios en el roster de ${loser}.`
+      });
+    } else if (Math.random() < 0.25) {
+      const loserStar = TEAMS[loser] && TEAMS[loser][0] ? TEAMS[loser][0].n : "su estrella";
+      T.news.unshift({
+        cat: "RUMOR", tag: "PADDOCK VCT", hot: false,
+        headline: `Rumor en el torneo: dudas en el planteamiento de DT ${COACH[loser].n} (${loser})`,
+        body: `Tras caer ante ${m.winner} (${m.scoreA}-${m.scoreB}), analistas debaten si ${loser} depende demasiado de ${loserStar}.`
+      });
+    }
+    if (T.news.length > 35) T.news = T.news.slice(0, 35);
+
     return true;
   }
 
@@ -731,6 +782,21 @@
     </div>`;
   }
 
+  function renderTournamentNewsHTML() {
+    const list = (T && T.news) || [];
+    if (!list.length) return `<p class="mut mono" style="font-size:12px">Simula series para generar cobertura de prensa y rumores del torneo.</p>`;
+    return `<div class="news-grid">
+      ${list.map(n => `<article class="news-card ${n.hot ? 'is-hot' : ''}">
+        <div class="news-head mono">
+          <span class="news-tag cat-${n.cat.toLowerCase()}">${tEsc(n.cat)}</span>
+          <span class="mut">${tEsc(n.tag || "VCT")}</span>
+        </div>
+        <h3>${tEsc(n.headline)}</h3>
+        <p>${tEsc(n.body)}</p>
+      </article>`).join("")}
+    </div>`;
+  }
+
   function renderTournament() {
     const root = document.getElementById("torneo");
     if (!root || !T) return;
@@ -770,7 +836,17 @@
     if (activeSubTab === "groups") bodyHTML = renderGroupTablesHTML();
     else if (activeSubTab === "schedule") bodyHTML = renderScheduleHTML();
     else if (activeSubTab === "bracket") bodyHTML = renderBracketHTML();
+    else if (activeSubTab === "news") bodyHTML = renderTournamentNewsHTML();
     else bodyHTML = renderStatsHTML();
+
+    const latestNews = T.news && T.news[0];
+    const tickerHTML = latestNews
+      ? `<div class="news-ticker mono">
+          <span class="news-tag cat-${latestNews.cat.toLowerCase()}">${tEsc(latestNews.cat)}</span>
+          <span class="news-ticker-txt"><b>${tEsc(latestNews.headline)}</b> — <span class="mut">${tEsc(latestNews.body)}</span></span>
+          <button type="button" class="t-btn-sm mono" onclick="tSwitchTab('news')">Prensa (${T.news.length})</button>
+        </div>`
+      : "";
 
     root.innerHTML = `
       <div class="box-head">
@@ -799,6 +875,7 @@
       </div>
 
       ${showSetupPicker ? renderSetupPickerHTML() : ""}
+      ${tickerHTML}
       ${champBanner}
 
       <div class="series-tabs" style="margin-top:10px">
@@ -806,6 +883,7 @@
         <button type="button" class="series-tab ${activeSubTab === 'schedule' ? 'active' : ''}" onclick="tSwitchTab('schedule')">CALENDARIO (${playedMatches}/${totalMatches})</button>
         <button type="button" class="series-tab ${activeSubTab === 'bracket' ? 'active' : ''}" onclick="tSwitchTab('bracket')">BRACKET PLAYOFFS</button>
         <button type="button" class="series-tab ${activeSubTab === 'stats' ? 'active' : ''}" onclick="tSwitchTab('stats')">RANKING MVP</button>
+        <button type="button" class="series-tab ${activeSubTab === 'news' ? 'active' : ''}" onclick="tSwitchTab('news')">NOTICIAS (${(T.news || []).length})</button>
       </div>
 
       ${bodyHTML}

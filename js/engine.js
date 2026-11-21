@@ -40,8 +40,8 @@ const COMP_CONFIG = {
   mapa_mult: 0.10
 };
 
-// ===== POOL DE 7 MAPAS COMPETITIVOS + PESOS POR EJE (±10%) =====
-const MAP_POOL = {
+// ===== CATÁLOGO COMPLETO DE 13 MAPAS VCT + POOL ACTIVO DE 7 MAPAS (ROTACIÓN) =====
+const ALL_MAPS = {
   "Ascent": {
     desc: "Ascent · Control de medio y Operator (+AIM/FD, Defensor)",
     aim: 1.05, fd: 1.07, util: 0.99, entry: 1.00, clu: 1.00, igl: 1.03,
@@ -83,9 +83,75 @@ const MAP_POOL = {
     aim: 1.02, fd: 1.03, util: 1.04, entry: 1.07, clu: 1.07, igl: 1.01,
     atkBias: 1.02, defBias: 0.98, longRange: false, preferWall: false,
     axisMult: { macro: 0.98, util: 1.10, entrada: 1.02, defensa: 1.10, flex: 1.02 }
+  },
+  "Abyss": {
+    desc: "Abyss · Largas líneas, caídas al vacío y post-plants (+AIM/Macro/Flex)",
+    aim: 1.06, fd: 1.06, util: 1.02, entry: 1.02, clu: 1.05, igl: 1.04,
+    atkBias: 1.03, defBias: 0.97, longRange: true, preferWall: false,
+    axisMult: { macro: 1.08, util: 1.02, entrada: 1.00, defensa: 0.98, flex: 1.08 }
+  },
+  "Corrode": {
+    desc: "Corrode · Pasillos industriales y pelea de medio (+Utilidad/Defensa)",
+    aim: 1.01, fd: 1.02, util: 1.08, entry: 1.05, clu: 1.04, igl: 1.04,
+    atkBias: 0.98, defBias: 1.02, longRange: false, preferWall: true,
+    axisMult: { macro: 1.04, util: 1.08, entrada: 1.04, defensa: 1.06, flex: 0.98 }
+  },
+  "Fracture": {
+    desc: "Fracture · Pinches desde 2 frentes y utilidad explosiva (+Entrada/Utilidad)",
+    aim: 1.01, fd: 1.04, util: 1.10, entry: 1.11, clu: 1.00, igl: 1.05,
+    atkBias: 1.05, defBias: 0.95, longRange: false, preferWall: false,
+    axisMult: { macro: 1.04, util: 1.08, entrada: 1.10, defensa: 0.94, flex: 1.04 }
+  },
+  "Icebox": {
+    desc: "Icebox · Muro obligatorio, verticalidad y retakes duros (+AIM/Macro/Clutch)",
+    aim: 1.06, fd: 1.05, util: 1.02, entry: 1.03, clu: 1.06, igl: 1.02,
+    atkBias: 1.02, defBias: 0.98, longRange: true, preferWall: true,
+    axisMult: { macro: 1.08, util: 0.98, entrada: 1.02, defensa: 1.04, flex: 1.04 }
+  },
+  "Pearl": {
+    desc: "Pearl · B Long, Plaza y post-plants tácticos (+Macro/Utilidad/Clutch)",
+    aim: 1.03, fd: 1.03, util: 1.06, entry: 1.01, clu: 1.07, igl: 1.06,
+    atkBias: 1.02, defBias: 0.98, longRange: true, preferWall: true,
+    axisMult: { macro: 1.08, util: 1.06, entrada: 0.98, defensa: 1.02, flex: 1.04 }
+  },
+  "Summit": {
+    desc: "Summit · Rotaciones rápidas y duelos de media distancia (+Flex/Entrada/IGL)",
+    aim: 1.03, fd: 1.04, util: 1.05, entry: 1.06, clu: 1.03, igl: 1.05,
+    atkBias: 1.00, defBias: 1.00, longRange: false, preferWall: false,
+    axisMult: { macro: 1.04, util: 1.04, entrada: 1.06, defensa: 1.02, flex: 1.08 }
   }
 };
 
+const DEFAULT_ACTIVE_MAPS = ["Ascent", "Bind", "Breeze", "Haven", "Lotus", "Split", "Sunset"];
+const MAP_POOL = {};
+
+function setActiveMapPool(mapList) {
+  const valid = Array.isArray(mapList) ? [...new Set(mapList.filter(m => ALL_MAPS[m]))] : [];
+  const final7 = valid.slice(0, 7);
+  for (const m of Object.keys(ALL_MAPS)) {
+    if (final7.length >= 7) break;
+    if (!final7.includes(m)) final7.push(m);
+  }
+  for (const k in MAP_POOL) delete MAP_POOL[k];
+  final7.forEach(m => { MAP_POOL[m] = ALL_MAPS[m]; });
+  if (typeof syncMapSelector === "function") syncMapSelector();
+  return final7;
+}
+
+function rotateActiveMapPool(outCount = 2) {
+  const current = Object.keys(MAP_POOL);
+  const bench = Object.keys(ALL_MAPS).filter(m => !current.includes(m));
+  const swapN = Math.min(outCount, current.length, bench.length);
+  const shuffledCur = current.slice().sort(() => Math.random() - 0.5);
+  const shuffledBench = bench.slice().sort(() => Math.random() - 0.5);
+  const outMaps = shuffledCur.slice(0, swapN);
+  const inMaps = shuffledBench.slice(0, swapN);
+  const nextPool = [...current.filter(m => !outMaps.includes(m)), ...inMaps];
+  setActiveMapPool(nextPool);
+  return { outMaps, inMaps, activePool: nextPool };
+}
+
+setActiveMapPool(DEFAULT_ACTIVE_MAPS);
 // ===== TODOS LOS 30 AGENTES JUGABLES (AUDITADOS: PUROS VS HÍBRIDOS Y REQUISITOS MÍNIMOS) =====
 const AGENTS = {
   // Duelistas (9) — entryType: "dive" (abre espacio) | "hybrid" | "contact" (no sirve solo como entry principal)
@@ -126,6 +192,43 @@ const AGENTS = {
   "Deadlock":  { role: "Centinela",   secondaryRole: "Iniciador",   sentinelType: "hybrid", cannotSoloRole: true,  op: false, ecoBoost: 1.00, maps: { Ascent: 87, Bind: 91, Breeze: 76, Haven: 83, Lotus: 85, Split: 90, Sunset: 85 } },
   "Sage":      { role: "Centinela",   secondaryRole: "Controlador", sentinelType: "hybrid", cannotSoloRole: true,  op: false, ecoBoost: 1.00, maps: { Ascent: 80, Bind: 83, Breeze: 74, Haven: 82, Lotus: 79, Split: 89, Sunset: 84 } }
 };
+
+// ===== FIT DE LOS 30 AGENTES EN LOS 6 MAPAS DE ROTACIÓN VCT =====
+const EXTRA_MAP_FITS = {
+  "Jett":      { Abyss: 96, Corrode: 84, Fracture: 80, Icebox: 94, Pearl: 93, Summit: 89 },
+  "Raze":      { Abyss: 78, Corrode: 94, Fracture: 97, Icebox: 79, Pearl: 82, Summit: 93 },
+  "Neon":      { Abyss: 88, Corrode: 92, Fracture: 96, Icebox: 83, Pearl: 90, Summit: 94 },
+  "Waylay":    { Abyss: 91, Corrode: 88, Fracture: 89, Icebox: 88, Pearl: 88, Summit: 90 },
+  "Hush":      { Abyss: 89, Corrode: 94, Fracture: 95, Icebox: 87, Pearl: 91, Summit: 95 },
+  "Yoru":      { Abyss: 94, Corrode: 88, Fracture: 86, Icebox: 86, Pearl: 93, Summit: 90 },
+  "Phoenix":   { Abyss: 76, Corrode: 84, Fracture: 84, Icebox: 77, Pearl: 85, Summit: 84 },
+  "Iso":       { Abyss: 84, Corrode: 85, Fracture: 83, Icebox: 84, Pearl: 86, Summit: 86 },
+  "Reyna":     { Abyss: 82, Corrode: 79, Fracture: 78, Icebox: 82, Pearl: 81, Summit: 80 },
+  "Sova":      { Abyss: 97, Corrode: 84, Fracture: 74, Icebox: 96, Pearl: 92, Summit: 91 },
+  "Fade":      { Abyss: 83, Corrode: 94, Fracture: 85, Icebox: 79, Pearl: 94, Summit: 92 },
+  "Skye":      { Abyss: 82, Corrode: 87, Fracture: 86, Icebox: 80, Pearl: 87, Summit: 86 },
+  "Gekko":     { Abyss: 85, Corrode: 88, Fracture: 88, Icebox: 94, Pearl: 87, Summit: 88 },
+  "Tejo":      { Abyss: 87, Corrode: 93, Fracture: 96, Icebox: 88, Pearl: 92, Summit: 91 },
+  "KAY/O":     { Abyss: 88, Corrode: 85, Fracture: 87, Icebox: 89, Pearl: 88, Summit: 87 },
+  "Breach":    { Abyss: 80, Corrode: 91, Fracture: 98, Icebox: 72, Pearl: 82, Summit: 90 },
+  "Omen":      { Abyss: 95, Corrode: 96, Fracture: 82, Icebox: 83, Pearl: 86, Summit: 96 },
+  "Brimstone": { Abyss: 74, Corrode: 85, Fracture: 98, Icebox: 71, Pearl: 80, Summit: 84 },
+  "Astra":     { Abyss: 95, Corrode: 88, Fracture: 84, Icebox: 76, Pearl: 97, Summit: 88 },
+  "Miks":      { Abyss: 87, Corrode: 93, Fracture: 88, Icebox: 84, Pearl: 90, Summit: 94 },
+  "Clove":     { Abyss: 80, Corrode: 87, Fracture: 84, Icebox: 79, Pearl: 84, Summit: 88 },
+  "Viper":     { Abyss: 85, Corrode: 94, Fracture: 86, Icebox: 99, Pearl: 95, Summit: 88 },
+  "Harbor":    { Abyss: 83, Corrode: 86, Fracture: 79, Icebox: 91, Pearl: 93, Summit: 83 },
+  "Cypher":    { Abyss: 95, Corrode: 95, Fracture: 94, Icebox: 82, Pearl: 93, Summit: 94 },
+  "Killjoy":   { Abyss: 84, Corrode: 89, Fracture: 93, Icebox: 97, Pearl: 94, Summit: 89 },
+  "Vyse":      { Abyss: 92, Corrode: 92, Fracture: 90, Icebox: 86, Pearl: 94, Summit: 91 },
+  "Veto":      { Abyss: 91, Corrode: 94, Fracture: 91, Icebox: 93, Pearl: 92, Summit: 93 },
+  "Chamber":   { Abyss: 89, Corrode: 84, Fracture: 89, Icebox: 87, Pearl: 87, Summit: 86 },
+  "Deadlock":  { Abyss: 85, Corrode: 89, Fracture: 88, Icebox: 84, Pearl: 85, Summit: 87 },
+  "Sage":      { Abyss: 81, Corrode: 84, Fracture: 82, Icebox: 91, Pearl: 83, Summit: 84 }
+};
+for (const agName in EXTRA_MAP_FITS) {
+  if (AGENTS[agName] && AGENTS[agName].maps) Object.assign(AGENTS[agName].maps, EXTRA_MAP_FITS[agName]);
+}
 
 // ===== MAESTRÍA DE HUSH (RESTRINGIDO A QUIENES YA LO MASTERIZARON) =====
 // 1.0 = Maestría completa | 0.55 = Maestría parcial (en menor medida)

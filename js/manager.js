@@ -72,6 +72,10 @@
     if (!career.coachCourse) career.coachCourse = null;
     if (typeof career.ended !== "boolean") career.ended = false;
     if (!career.negCooldown) career.negCooldown = {};
+    if (!Array.isArray(career.activeMapPool) || career.activeMapPool.length !== 7) {
+      career.activeMapPool = (typeof DEFAULT_ACTIVE_MAPS !== "undefined") ? DEFAULT_ACTIVE_MAPS.slice() : Object.keys(MAP_POOL);
+    }
+    if (!Array.isArray(career.news)) career.news = [];
     const ensureContractFields = p => {
       if (typeof p.contractYears !== "number") p.contractYears = p.isAcademy ? 3 : 2;
       if (!p.promisedRole) p.promisedRole = p.isAcademy ? "prospect" : (p.sub ? "rotation" : "starter");
@@ -777,6 +781,141 @@
   let clubsFilter = { reg: "ALL", selectedClub: null };
   let activeNeg = null;   // Panel de negociación bidireccional (buy | sell)
   let activeRenew = null; // Panel de renovación de contrato
+  let newsFilter = "ALL"; // ALL | RUMOR | UPSET | DRAMA | OFICIAL
+  let showMapPoolEditor = false;
+
+  function pushNews(cat, headline, body, teams = [], hot = false) {
+    if (!M) return;
+    M.news = M.news || [];
+    M.news.unshift({
+      id: "N-" + Date.now() + "-" + Math.random().toString(36).slice(2, 5),
+      s: M.season,
+      w: M.week,
+      cat, // RUMOR | UPSET | DRAMA | OFICIAL
+      headline,
+      body,
+      teams,
+      hot
+    });
+    if (M.news.length > 45) M.news = M.news.slice(0, 45);
+  }
+
+  function generateWeeklyRumorsAndDrama() {
+    if (!M) return;
+    const allClubs = Object.keys(M.clubs);
+    const mktPace = (typeof getMarketCfg === "function") ? getMarketCfg().id : "normal";
+    const rumorProb = mktPace === "active" ? 0.85 : mktPace === "normal" ? 0.62 : 0.38;
+
+    // 1. Rumor de mercado (estilo VLR / insiders)
+    if (Math.random() < rumorProb) {
+      const buyer = allClubs[Math.floor(Math.random() * allClubs.length)];
+      const otherClubs = allClubs.filter(c => c !== buyer);
+      const seller = otherClubs[Math.floor(Math.random() * otherClubs.length)];
+      const sellerStar = M.clubs[seller].players.slice().sort((a, b) => calcPlayerOvr(b) - calcPlayerOvr(a))[0];
+
+      if (sellerStar && Math.random() < 0.65) {
+        const templates = [
+          [`Fuentes: ${buyer} sondea a ${sellerStar.n} (${seller})`, `Insiders reportan contactos preliminares de ${buyer} para conocer la cláusula de ${sellerStar.n} (OVR ${calcPlayerOvr(sellerStar)}).`],
+          [`${buyer} evalúa reforzar su quinteto con ${sellerStar.n}`, `Tras los últimos scrims, el staff de ${buyer} analiza abrir negociaciones formales con ${seller}.`],
+          [`Rumor de mercado: ${sellerStar.n} en la mira de ${buyer}`, `Varios analistas señalan que ${buyer} prepara caja para tentar a la figura de ${seller} antes de la próxima ventana.`]
+        ];
+        const [hl, bd] = templates[Math.floor(Math.random() * templates.length)];
+        pushNews("RUMOR", hl, bd, [buyer, seller]);
+      } else if (M.freeAgents.length) {
+        const fa = M.freeAgents[Math.floor(Math.random() * Math.min(6, M.freeAgents.length))];
+        pushNews("RUMOR", `${buyer} prueba en scrims al agente libre ${fa.n}`, `${fa.n} (${fa.r}, OVR ${calcPlayerOvr(fa)}) fue visto entrenando con el roster de ${buyer} esta semana.`, [buyer]);
+      }
+    }
+
+    // 2. Drama de vestuario / presión mediática
+    if (Math.random() < 0.36) {
+      const unhappyUserP = M.clubs[M.userTeam].players.find(p => p.transferRequested || p.morale <= 45);
+      if (unhappyUserP) {
+        pushNews("DRAMA", `Tensión en ${M.userTeam}: ${unhappyUserP.n} evalúa su futuro`, `La prensa filtra malestar de ${unhappyUserP.n} (Moral ${unhappyUserP.morale}) dentro del vestuario de ${M.userTeam}.`, [M.userTeam], true);
+      } else if ((M.lossStreak || 0) >= 3) {
+        pushNews("DRAMA", `Crece la presión sobre el proyecto de ${M.userTeam}`, `Con ${M.lossStreak} derrotas consecutivas, analistas cuestionan la continuidad del cuerpo técnico (Directiva ${M.boardConfidence}).`, [M.userTeam], true);
+      } else {
+        const rndClub = allClubs[Math.floor(Math.random() * allClubs.length)];
+        const rndCoach = M.clubs[rndClub].coach.n;
+        const dramas = [
+          [`Debate táctico: critican las composiciones de DT ${rndCoach} (${rndClub})`, `Analistas de VLR señalan que ${rndClub} insiste en composiciones arriesgadas en el map pool actual.`],
+          [`${rndClub} intensifica scrims cerrados rumbo a la recta clave`, `Fuentes de la escena indican que DT ${rndCoach} probó nuevos setups secretos en práctica.`],
+          [`Rumores de cambios en el staff técnico de ${rndClub}`, `La directiva de ${rndClub} observa el mercado de coaches jóvenes ante posibles ajustes de mitad de año.`]
+        ];
+        const [hl, bd] = dramas[Math.floor(Math.random() * dramas.length)];
+        pushNews("DRAMA", hl, bd, [rndClub]);
+      }
+    }
+  }
+
+  function recordMatchNews(m, s) {
+    if (!M || !m || !s) return;
+    const wTeam = m.winner;
+    const lTeam = wTeam === m.teamA ? m.teamB : m.teamA;
+    const wOvr = calcRosterOvr(M.clubs[wTeam].players, M.clubs[wTeam].coach);
+    const lOvr = calcRosterOvr(M.clubs[lTeam].players, M.clubs[lTeam].coach);
+    const S = computeSeriesStats(s);
+    const topP = Object.values(S).sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating))[0];
+    const scoreTxt = `${m.scoreA}-${m.scoreB}`;
+
+    // Upset importante
+    if (lOvr - wOvr >= 1.8) {
+      pushNews(
+        "UPSET",
+        `BATACAZO: ${wTeam} sorprende a ${lTeam} (${scoreTxt})`,
+        `${wTeam} (OVR ${wOvr}) derriba al favorito ${lTeam} (OVR ${lOvr}) en ${m.label} (${m.mapsLine}).`,
+        [wTeam, lTeam],
+        true
+      );
+      return;
+    }
+
+    // Actuación histórica de un jugador
+    if (topP && parseFloat(topP.rating) >= 1.38) {
+      const pTeam = s.maps[0].teams[topP.ti].name;
+      pushNews(
+        "OFICIAL",
+        `Exhibición de ${topP.u.p.n} (${topP.rating} R2.0) en ${m.teamA} vs ${m.teamB}`,
+        `${topP.u.p.n} (${pTeam}) firmó ${topP.acs} ACS y ${topP.k}/${topP.d}/${topP.a} en el ${scoreTxt} de ${m.label}.`,
+        [m.teamA, m.teamB]
+      );
+    }
+  }
+
+  window.mgrSetNewsFilter = function (cat) { newsFilter = cat; renderManager(); };
+
+  window.mgrToggleMapPoolEditor = function () { showMapPoolEditor = !showMapPoolEditor; renderManager(); };
+
+  window.mgrToggleMapInPool = function (mapName) {
+    if (!M || typeof ALL_MAPS === "undefined" || !ALL_MAPS[mapName]) return;
+    M.activeMapPool = Array.isArray(M.activeMapPool) ? M.activeMapPool.slice() : Object.keys(MAP_POOL);
+    if (M.activeMapPool.includes(mapName)) {
+      if (M.activeMapPool.length <= 7) {
+        alert("El pool competitivo debe tener 7 mapas activos. Selecciona primero un mapa inactivo para entrar o usa 'Rotar 2 Mapas'.");
+        return;
+      }
+      M.activeMapPool = M.activeMapPool.filter(x => x !== mapName);
+    } else {
+      // Intercambia el más antiguo si ya hay 7 activos
+      if (M.activeMapPool.length >= 7) M.activeMapPool.shift();
+      M.activeMapPool.push(mapName);
+    }
+    setActiveMapPool(M.activeMapPool);
+    if (!MAP_POOL[tacticsMap]) tacticsMap = Object.keys(MAP_POOL)[0];
+    saveCareer();
+    renderManager();
+  };
+
+  window.mgrManualRotatePool = function () {
+    if (!M || typeof rotateActiveMapPool !== "function") return;
+    const rot = rotateActiveMapPool(2);
+    M.activeMapPool = rot.activePool;
+    if (!MAP_POOL[tacticsMap]) tacticsMap = rot.activePool[0];
+    pushNews("OFICIAL", `Rotación de Map Pool: entran ${rot.inMaps.join(" y ")}`, `Salen del circuito competitivo ${rot.outMaps.join(" y ")}. Pool activo de 7 mapas actualizado.`, [], true);
+    addInbox("MAP POOL", `Nuevo Map Pool (${M.season})`, `Salen: ${rot.outMaps.join(", ")} · Entran: ${rot.inMaps.join(", ")}.`);
+    saveCareer();
+    renderManager();
+  };
 
   const ROLE_PROMISE_LABELS = {
     starter:  "Titular garantizado",
@@ -1031,6 +1170,9 @@
         amount: isUserBuy ? -cash : cash
       });
       addInbox("FICHAJE", `TRASPASO CERRADO: ${moved.n}`, `${moved.n} pasa de ${sellerName} a ${buyerName} por ${fmtMoney(cash)}${swapTxt}${sellTxt}.`);
+    }
+    if (cash >= 90000 || isUserBuy || sellerName === M.userTeam) {
+      pushNews("OFICIAL", `OFICIAL: ${moved.n} ficha por ${buyerName} (${fmtMoney(cash)})`, `${buyerName} cerró el traspaso de ${moved.n} desde ${sellerName}${swapTxt}${sellTxt}.`, [buyerName, sellerName], cash >= 140000);
     }
     return true;
   }
@@ -1415,6 +1557,7 @@
           }
           M = migrateCareerState(careerData);
           syncLearnedPoolsFromCareer(M);
+          if (typeof setActiveMapPool === "function" && M.activeMapPool) setActiveMapPool(M.activeMapPool);
           activeTab = "hub";
           saveCareer();
           renderManager();
@@ -1446,6 +1589,7 @@
             (M.academy || []).forEach(ensureAg);
           }
           syncLearnedPoolsFromCareer(M);
+          if (typeof setActiveMapPool === "function" && M.activeMapPool) setActiveMapPool(M.activeMapPool);
         }
       }
     } catch (e) { M = null; }
@@ -1846,6 +1990,7 @@
     M.boardConfidence = clamp(M.boardConfidence + confBoost, -100, 100);
     M.financeLog.unshift({ s: M.season, w: M.week, concept: `Premio Título: ${titleLabel}`, amount: prizeMoney });
     addInbox("TÍTULO", `CAMPEONES: ${titleLabel}`, `Premio de ${fmtMoney(prizeMoney)} acreditado (+${confBoost} Confianza).`);
+    pushNews("OFICIAL", `${M.userTeam} SE CORONA CAMPEÓN DE ${titleLabel.toUpperCase()}`, `${M.userTeam} levanta el trofeo y se embolsa ${fmtMoney(prizeMoney)} en premios oficiales.`, [M.userTeam], true);
 
     const candidates = SPONSORS_CATALOG.filter(sp => sp.tier === tier);
     const sp = candidates[Math.floor(Math.random() * candidates.length)] || SPONSORS_CATALOG[0];
@@ -2264,8 +2409,15 @@
       M.week = 1;
       M.pendingOffer = null;
       M.pendingSponsorOffer = null;
+      if (typeof rotateActiveMapPool === "function") {
+        const rot = rotateActiveMapPool(2);
+        M.activeMapPool = rot.activePool;
+        pushNews("OFICIAL", `VCT ${M.season}: rotan ${rot.outMaps.join(" y ")} por ${rot.inMaps.join(" y ")}`, `Riot Games oficializó el nuevo Map Pool de 7 mapas para la Temporada ${M.season}: ${rot.activePool.join(", ")}.`, [], true);
+        addInbox("TEMPORADA", `Comienza ${M.season} · Nuevo Map Pool`, `Salen ${rot.outMaps.join(" y ")} · Entran ${rot.inMaps.join(" y ")}. Calendario de 33 semanas listo.`);
+      } else {
+        addInbox("TEMPORADA", `Comienza la Temporada ${M.season}`, `Nuevo año competitivo de 33 semanas listo.`);
+      }
       buildFullYearSchedule(M.season);
-      addInbox("TEMPORADA", `Comienza la Temporada ${M.season}`, `Nuevo año competitivo de 33 semanas: Stage 1, Masters 1, Stage 2, Masters 2 y VALORANT Champions ${M.season}.`);
       saveCareer();
       renderManager();
       return;
@@ -2299,6 +2451,7 @@
 
       applyMatchImpactToClub(m.teamA, s, 0, m.stage);
       applyMatchImpactToClub(m.teamB, s, 1, m.stage);
+      recordMatchNews(m, s);
 
       if (m.nextId) {
         const list = findBracketListForMatch(m);
@@ -2325,6 +2478,7 @@
     processStageTransitions(M.schedule.stage2, 2);
     seedChampionsIfReady();
     maybeGenerateIncomingOffer();
+    generateWeeklyRumorsAndDrama();
 
     if (M.graceWeeks > 0) M.graceWeeks--;
     M.week++;
@@ -3171,12 +3325,26 @@
 
           <div class="mgr-panel">
             <div class="t-group-head"><b class="mono">BUZÓN DEL MANAGER</b><span class="mono mut">${M.inbox.length} MENSAJES</span></div>
-            <div class="mgr-inbox-scroll">
+            <div class="mgr-inbox-scroll" style="max-height:220px">
               ${M.inbox.map(msg => `<div class="mgr-msg">
                 <div class="mgr-msg-top mono"><span class="mgr-tag tag-${msg.tag.toLowerCase().replace(/\s+/g, '')}">${mEsc(msg.tag)}</span><span class="mut">T${msg.season} · S${msg.week}</span></div>
                 <b>${mEsc(msg.title)}</b>
                 <p>${mEsc(msg.text)}</p>
               </div>`).join("")}
+            </div>
+          </div>
+
+          <div class="mgr-panel">
+            <div class="t-group-head">
+              <b class="mono">PRENSA VLR &amp; RUMORES</b>
+              <button type="button" class="t-btn-sm mono" onclick="mgrSwitchTab('news')">Ver Feed (${(M.news || []).length})</button>
+            </div>
+            <div class="news-feed">
+              ${(M.news && M.news.length) ? M.news.slice(0, 4).map(n => `<div class="news-card ${n.hot ? 'is-hot' : ''}">
+                <div class="news-head mono"><span class="news-tag cat-${n.cat.toLowerCase()}">${mEsc(n.cat)}</span><span class="mut">T${n.s} · S${n.w}</span></div>
+                <b>${mEsc(n.headline)}</b>
+                <p>${mEsc(n.body)}</p>
+              </div>`).join("") : `<span class="mut mono" style="font-size:11px">Avanza una semana para generar rumores y cobertura de prensa.</span>`}
             </div>
           </div>
         </div>
@@ -3702,6 +3870,8 @@
       nextMatchPrepBonus: 0,
       mapPrep: {},
       customComps: {},
+      activeMapPool: (typeof DEFAULT_ACTIVE_MAPS !== "undefined") ? DEFAULT_ACTIVE_MAPS.slice() : Object.keys(MAP_POOL),
+      news: [],
       coachCourse: null,
       careerPlayerStats: {},
       career: {
@@ -3726,6 +3896,8 @@
     };
 
     M.academy = generateAcademyBatch(12, M.userTeam);
+    if (typeof setActiveMapPool === "function") setActiveMapPool(M.activeMapPool);
+    pushNews("OFICIAL", `${teamName} inicia proyecto ${M.season}`, `La directiva de ${teamName} confirmó nuevo Manager (${diffCfg.label}) con objetivo: ${M.schedule ? "" : "competir al máximo nivel"}.`, [teamName]);
     buildFullYearSchedule(2027);
 
     const club = M.clubs[teamName];
@@ -3784,6 +3956,9 @@
 
   function renderTacticsTab() {
     const club = M.clubs[M.userTeam];
+    if (!MAP_POOL[tacticsMap]) tacticsMap = Object.keys(MAP_POOL)[0];
+    const activeNames = Object.keys(MAP_POOL);
+    const benchNames = (typeof ALL_MAPS !== "undefined") ? Object.keys(ALL_MAPS).filter(m => !MAP_POOL[m]) : [];
     const starters = club.players.filter(p => !p.sub && !(p.injuredWeeks > 0)).slice(0, 5);
     const previewTeam = { name: M.userTeam, players: starters, coach: club.coach, customComp: M.customComps || {} };
     const comp = starters.length === 5 ? draftTeamComp(previewTeam, tacticsMap) : null;
@@ -3803,9 +3978,22 @@
         </div>
         <div class="btn-group">
           <span class="mono mut" style="font-size:11px;align-self:center">PREP MAPA: <b class="kd-pos">+${prepPct.toFixed(1)}%</b></span>
+          <button type="button" class="t-btn-sm mono" onclick="mgrToggleMapPoolEditor()">${showMapPoolEditor ? "Cerrar Pool (7/13)" : "Pool VCT (7/13)"}</button>
           <button type="button" class="t-btn-sm mono" onclick="mgrResetMapComp()">Restaurar Auto (${tacticsMap})</button>
         </div>
       </div>
+
+      ${showMapPoolEditor ? `<div class="mgr-panel" style="margin-bottom:12px;border-color:var(--vct-cyan)">
+        <div class="t-group-head" style="flex-wrap:wrap;gap:8px">
+          <b class="mono">ROTACIÓN VCT DE MAPAS (7 ACTIVOS / ${benchNames.length} EN RESERVA)</b>
+          <button type="button" class="t-btn-sm mono t-btn-live" onclick="mgrManualRotatePool()">Rotar 2 Mapas Ahora</button>
+        </div>
+        <div class="mono mut" style="font-size:11px;margin-bottom:8px">Al cambiar de temporada rotan 2 mapas automáticamente. Haz clic en un mapa en reserva para meterlo al pool activo:</div>
+        <div class="map-pool-grid">
+          ${activeNames.map(m => `<span class="map-pool-chip is-active mono">${mEsc(m)} · ACTIVO</span>`).join("")}
+          ${benchNames.map(m => `<button type="button" class="map-pool-chip is-bench mono" onclick="mgrToggleMapInPool('${mEsc(m)}')" title="Meter ${mEsc(m)} al pool activo">+ ${mEsc(m)} (RESERVA)</button>`).join("")}
+        </div>
+      </div>` : ""}
 
       ${!comp ? `<div class="mgr-alert-bar" style="border-color:var(--vct-red)"><span class="mono">Necesitas 5 titulares sanos en Plantilla para diseñar composiciones.</span></div>` : `
       <div class="mgr-panel" style="margin-bottom:12px">
@@ -3867,6 +4055,34 @@
     `;
   }
 
+  function renderNewsTab() {
+    const list = (M.news || []).filter(n => newsFilter === "ALL" || n.cat === newsFilter);
+    const cats = [
+      ["ALL", `TODOS (${(M.news || []).length})`],
+      ["RUMOR", "RUMORES"],
+      ["UPSET", "UPSETS"],
+      ["DRAMA", "DRAMA"],
+      ["OFICIAL", "OFICIAL"]
+    ];
+    return `
+      <div class="db-controls">
+        <div class="region-tabs">
+          ${cats.map(([id, lab]) => `<button type="button" class="tab-btn mono ${newsFilter === id ? 'active' : ''}" onclick="mgrSetNewsFilter('${id}')">${lab}</button>`).join("")}
+        </div>
+        <span class="mono mut" style="font-size:11px">MAP POOL ACTIVO (${M.season}): <b style="color:var(--fg)">${Object.keys(MAP_POOL).join(" · ")}</b></span>
+      </div>
+      <div class="news-grid">
+        ${list.length ? list.map(n => `<article class="news-card ${n.hot ? 'is-hot' : ''}">
+          <div class="news-head mono">
+            <span class="news-tag cat-${n.cat.toLowerCase()}">${mEsc(n.cat)}</span>
+            <span class="mut">TEMPORADA ${n.s} · SEMANA ${n.w}</span>
+          </div>
+          <h3>${mEsc(n.headline)}</h3>
+          <p>${mEsc(n.body)}</p>
+        </article>`).join("") : `<p class="mut mono" style="font-size:12px">No hay titulares registrados en esta categoría todavía.</p>`}
+      </div>`;
+  }
+
   function renderManager() {
     const root = document.getElementById("manager");
     if (!root) return;
@@ -3886,8 +4102,8 @@
     else if (activeTab === "market") body = renderMarketTab();
     else if (activeTab === "calendar") body = renderCalendarTab();
     else if (activeTab === "clubs") body = renderClubsTab();
+    else if (activeTab === "news") body = renderNewsTab();
     else body = renderFinanceTab();
-
     root.innerHTML = `
       <div class="mgr-header-bar">
         <div class="mgr-brand-left">
@@ -3917,6 +4133,7 @@
         <button type="button" class="series-tab ${activeTab === 'market' ? 'active' : ''}" onclick="mgrSwitchTab('market')">FICHAJES &amp; STAFF</button>
         <button type="button" class="series-tab ${activeTab === 'calendar' ? 'active' : ''}" onclick="mgrSwitchTab('calendar')">CALENDARIO (33S)</button>
         <button type="button" class="series-tab ${activeTab === 'clubs' ? 'active' : ''}" onclick="mgrSwitchTab('clubs')">POSTULAR &amp; CLUBES</button>
+        <button type="button" class="series-tab ${activeTab === 'news' ? 'active' : ''}" onclick="mgrSwitchTab('news')">NOTICIAS (${(M.news || []).length})</button>
         <button type="button" class="series-tab ${activeTab === 'finance' ? 'active' : ''}" onclick="mgrSwitchTab('finance')">FINANZAS &amp; LEGADO</button>
       </div>`}
 

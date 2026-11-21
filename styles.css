@@ -2565,6 +2565,124 @@ footer.closing {
   background: var(--gold-soft);
 }
 
+/* ===== P6.2: NOTICIAS, RUMORES Y EDITOR DE MAP POOL (7/13) ===== */
+.news-ticker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  background: var(--bg);
+  border: 1px solid var(--bd-hi);
+  border-radius: 2px;
+  margin-bottom: 10px;
+  font-size: 11px;
+}
+
+.news-ticker-txt {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.news-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.news-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 8px;
+}
+
+.news-card {
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 2px;
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+}
+
+.news-card.is-hot {
+  border-color: var(--gold);
+}
+
+.news-card h3 {
+  margin: 0;
+  font: 700 14.5px/1.2 "Barlow Condensed", sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+.news-card p {
+  margin: 0;
+  color: var(--mut);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.news-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+}
+
+.news-tag {
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 2px;
+  border: 1px solid var(--bd-hi);
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.news-tag.cat-rumor   { color: var(--purple); border-color: var(--purple); background: var(--purple-soft); }
+.news-tag.cat-upset   { color: var(--gold);   border-color: var(--gold);   background: var(--gold-soft); }
+.news-tag.cat-drama   { color: var(--vct-red); border-color: var(--vct-red); background: var(--a-soft); }
+.news-tag.cat-oficial { color: var(--vct-cyan); border-color: var(--vct-cyan); background: rgba(56, 189, 248, 0.12); }
+
+.map-pool-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.map-pool-chip {
+  font-size: 10.5px;
+  padding: 4px 8px;
+  border-radius: 2px;
+  border: 1px solid var(--bd);
+  background: var(--card);
+  color: var(--mut);
+}
+
+.map-pool-chip.is-active {
+  border-color: var(--ok);
+  color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.map-pool-chip.is-bench {
+  cursor: pointer;
+  border-color: var(--bd-hi);
+  color: var(--fg);
+}
+
+.map-pool-chip.is-bench:hover {
+  border-color: var(--vct-cyan);
+  color: var(--vct-cyan);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
