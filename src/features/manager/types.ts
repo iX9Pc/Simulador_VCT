@@ -40,6 +40,35 @@ export type NewsCategory = "RUMOR" | "UPSET" | "DRAMA" | "OFICIAL";
 
 export type DeltaStatKey = "aim" | "fd" | "clutch" | "entry" | "util" | "igl" | "conf" | "cons";
 
+export type BoardTierId = "giant" | "contender" | "rebuild";
+export type ObjectiveStatusId = "on_track" | "at_risk" | "completed" | "failed";
+
+export interface SeasonObjectiveState {
+  id: "title" | "champions" | "playoffs";
+  tier: BoardTierId;
+  tierLabel: string;
+  shortLabel: string;
+  label: string;
+  rewardBudget: number;
+  rewardRep: number;
+  rewarded: boolean;
+  meetingTriggered: boolean;
+  meetingResolved: boolean;
+  academyStarterPromoted: boolean;
+  missedInternationalsNotified: number[];
+}
+
+export interface PendingBoardMeeting {
+  season: number;
+  week: number;
+  phaseLabel: string;
+  tier: BoardTierId;
+  tierLabel: string;
+  objectiveLabel: string;
+  reason: string;
+  giantNoTitle: boolean;
+}
+
 export interface PlayerLearningTask {
   type: "agent" | "role";
   target: string;
@@ -159,7 +188,7 @@ export interface SeasonSchedule {
   champions: ManagerMatch[];
   championsSeeded: boolean;
   championsChamp: string | null;
-  objective: { id: "title" | "champions" | "playoffs"; label: string };
+  objective: SeasonObjectiveState;
   seasonClosed: boolean;
 }
 
@@ -181,6 +210,8 @@ export interface ManagerNewsItem {
   body: string;
   teams: string[];
   hot: boolean;
+  source?: string;
+  quote?: string;
 }
 
 export interface TransferLogEntry {
@@ -301,6 +332,7 @@ export interface ManagerCareerState {
     championsTitles: number;
     clubsManaged: string[];
     applyCooldown: Record<string, number>;
+    objectiveRepBonus?: number;
   };
   clubs: Record<string, ManagerClub>;
   freeAgents: ManagerPlayer[];
@@ -316,6 +348,7 @@ export interface ManagerCareerState {
   pendingOffer: PendingTransferOffer | null;
   pendingSponsorOffer: PendingSponsorOffer | null;
   pendingJobOffers: PendingJobOffer[];
+  pendingBoardMeeting?: PendingBoardMeeting | null;
   lastSavedAt?: string;
 }
 
@@ -367,4 +400,4 @@ export interface ManagerSaveV3Payload {
   exportedAt: string;
   academyAgentPools: Record<string, string[]>;
   career: ManagerCareerState;
-}   
+}

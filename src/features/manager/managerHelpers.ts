@@ -12,6 +12,7 @@ import {
   ACADEMY_NICKS,
   ACADEMY_ROLES,
   AGENT_COMPLEXITY,
+  BOARD_EXPECTATIONS,
   DIFFICULTY_CFG,
   FALLBACK_ACADEMIES,
   FREE_AGENTS_SEED,
@@ -19,12 +20,15 @@ import {
   MARKET_PACE_CFG,
   ROLE_DISTANCE
 } from "./constants.ts";
-import type { DifficultyConfig, MarketPaceConfig } from "./constants.ts";
+import type { BoardExpectationConfig, DifficultyConfig, MarketPaceConfig } from "./constants.ts";
 import type {
+  BoardTierId,
   ManagerCareerState,
   ManagerClub,
   ManagerMatch,
   ManagerPlayer,
+  ObjectiveStatusId,
+  SeasonObjectiveState,
   SeasonSchedule,
   StageSchedule
 } from "./types.ts";
@@ -422,7 +426,8 @@ export function calcManagerReputation(career: ManagerCareerState | null): number
     c.regionalTitles * 7 + c.mastersTitles * 14 + c.championsTitles * 24;
   const streakBonus = Math.min(8, Math.max(0, (career.bestStreak || 0) - 2) * 1.5);
   const boardFactor = (career.boardConfidence - 50) * 0.14;
-  return clamp(Math.round(50 + wrBonus + trophyBonus + streakBonus + boardFactor), 12, 99);
+  const objBonus = c.objectiveRepBonus || 0;
+  return clamp(Math.round(50 + wrBonus + trophyBonus + streakBonus + boardFactor + objBonus), 12, 99);
 }
 
 export function getClubRequiredRep(club: ManagerClub): number {
@@ -627,6 +632,377 @@ export function buildChampionsBracket(seasonYear: number): ManagerMatch[] {
   return ch;
 }
 
+export function getBoardExpectationByOvr(ovr: number): BoardExpectationConfig {
+  if (ovr >= 87) return BOARD_EXPECTATIONS.giant;
+  if (ovr >= 84) return BOARD_EXPECTATIONS.contender;
+  return BOARD_EXPECTATIONS.rebuild;
+}
+
+export function buildSeasonObjective(ovr: number): SeasonObjectiveState {
+  const cfg = getBoardExpectationByOvr(ovr);
+  return {
+    id: cfg.legacyId,
+    tier: cfg.tier,
+    tierLabel: cfg.tierLabel,
+    shortLabel: cfg.shortLabel,
+    label: cfg.label,
+    rewardBudget: cfg.rewardBudget,
+    rewardRep: cfg.rewardRep,
+    rewarded: false,
+    meetingTriggered: false,
+    meetingResolved: false,
+    academyStarterPromoted: false,
+    missedInternationalsNotified: []
+  };
+}
+
+export interface ObjectiveCriterion {
+  label: string;
+  done: boolean;
+  failed: boolean;
+  detail: string;
+}
+
+export interface ObjectiveEvaluation {
+  tier: BoardTierId;
+  tierLabel: string;
+  shortLabel: string;
+  label: string;
+  status: ObjectiveStatusId;
+  statusLabel: string;
+  summary: string;
+  criteria: ObjectiveCriterion[];
+  canTriggerEarlyReward: boolean;
+  failedAfterStage2: boolean;
+  failedSeasonFinal: boolean;
+  giantNoTitle: boolean;
+  failureReason: string;
+}
+
+function isEliminatedInBracket(matches: ManagerMatch[], teamName: string): boolean {
+  return matches.some(
+    (m) =>
+      m.played &&
+      (m.teamA === teamName || m.teamB === teamName) &&
+      m.winner !== null &&
+      m.winner !== teamName
+  );
+}
+
+export function evaluateSeasonObjective(M: ManagerCareerState): ObjectiveEvaluation {
+  const club = M.clubs[M.userTeam];
+  const sc = M.schedule;
+  const obj = sc.objective || buildSeasonObjective(calcRosterOvr(club.players, club.coach));
+  const tier = obj.tier || getBoardExpectationByOvr(calcRosterOvr(club.players, club.coach)).tier;
+
+  const seasonTitles = M.trophies.filter((t) => t.season === M.season && t.club === M.userTeam);
+  const wonAnyTitle = seasonTitles.length > 0;
+  const wonRegTitle = sc.stage1.regChamp === M.userTeam || sc.stage2.regChamp === M.userTeam;
+
+  const playedPO1 =
+    sc.stage1.poSeeded &&
+    sc.stage1.playoffs.some((m) => m.teamA === M.userTeam || m.teamB === M.userTeam);
+  const playedPO2 =
+    sc.stage2.poSeeded &&
+    sc.stage2.playoffs.some((m) => m.teamA === M.userTeam || m.teamB === M.userTeam);
+  const playedAnyPO = playedPO1 || playedPO2;
+
+  const inMasters1 =
+    sc.stage1.mastersSeeded &&
+    sc.stage1.masters.some((m) => m.teamA === M.userTeam || m.teamB === M.userTeam);
+  const missedMasters1 = sc.stage1.mastersSeeded && !inMasters1;
+
+  const inMasters2 =
+    sc.stage2.mastersSeeded &&
+    sc.stage2.masters.some((m) => m.teamA === M.userTeam || m.teamB === M.userTeam);
+  const missedMasters2 = sc.stage2.mastersSeeded && !inMasters2;
+
+  const inChampions =
+    sc.championsSeeded &&
+    sc.champions.some((m) => m.teamA === M.userTeam || m.teamB === M.userTeam);
+  const missedChampions = sc.championsSeeded && !inChampions;
+
+  const reachedChampionsTop4 = sc.champions.some(
+    (m) => m.roundKey === "SF" && (m.teamA === M.userTeam || m.teamB === M.userTeam)
+  );
+  const eliminatedBeforeChTop4 =
+    missedChampions ||
+    sc.champions.some(
+      (m) =>
+        (m.roundKey === "R16" || m.roundKey === "QF") &&
+        m.played &&
+        (m.teamA === M.userTeam || m.teamB === M.userTeam) &&
+        m.winner !== M.userTeam
+    );
+
+  const aliveS1Reg =
+    !sc.stage1.regChamp && (!sc.stage1.poSeeded || (playedPO1 && !isEliminatedInBracket(sc.stage1.playoffs, M.userTeam)));
+  const aliveM1 =
+    !sc.stage1.mastersChamp && (!sc.stage1.mastersSeeded || (inMasters1 && !isEliminatedInBracket(sc.stage1.masters, M.userTeam)));
+  const aliveS2Reg =
+    !sc.stage2.regChamp && (!sc.stage2.poSeeded || (playedPO2 && !isEliminatedInBracket(sc.stage2.playoffs, M.userTeam)));
+  const aliveM2 =
+    !sc.stage2.mastersChamp && (!sc.stage2.mastersSeeded || (inMasters2 && !isEliminatedInBracket(sc.stage2.masters, M.userTeam)));
+  const aliveCh =
+    !sc.championsChamp && (!sc.championsSeeded || (inChampions && !isEliminatedInBracket(sc.champions, M.userTeam)));
+
+  const canStillWinTitle = wonAnyTitle || aliveS1Reg || aliveM1 || aliveS2Reg || aliveM2 || aliveCh;
+
+  const hasAcademyStarterNow = club.players.some(
+    (p) => p.isAcademy && !p.sub && !(p.injuredWeeks > 0)
+  );
+  const academyStarterDone = Boolean(obj.academyStarterPromoted || hasAcademyStarterNow);
+  const cashPositive = club.budget >= 0;
+
+  if (tier === "giant") {
+    const titleFailed = !wonAnyTitle && !canStillWinTitle;
+    const top4Failed = !reachedChampionsTop4 && eliminatedBeforeChTop4;
+    const completed = wonAnyTitle && reachedChampionsTop4;
+    const failed = titleFailed || top4Failed;
+    const atRisk =
+      !completed &&
+      !failed &&
+      ((M.week >= 14 && !wonAnyTitle) ||
+        missedMasters1 ||
+        missedMasters2 ||
+        (sc.stage2.mastersSeeded && !wonAnyTitle && !inMasters2) ||
+        M.boardConfidence <= 15);
+
+    const status: ObjectiveStatusId = completed
+      ? "completed"
+      : failed
+        ? "failed"
+        : atRisk
+          ? "at_risk"
+          : "on_track";
+
+    const criteria: ObjectiveCriterion[] = [
+      {
+        label: "Ganar al menos 1 título (Regional / Masters / Champions)",
+        done: wonAnyTitle,
+        failed: titleFailed,
+        detail: wonAnyTitle
+          ? `${seasonTitles.length} trofeo(s) esta temporada`
+          : titleFailed
+            ? "Sin títulos en toda la campaña"
+            : "Pendiente de levantar copa"
+      },
+      {
+        label: "Alcanzar Top 4 en VALORANT Champions",
+        done: reachedChampionsTop4,
+        failed: top4Failed,
+        detail: reachedChampionsTop4
+          ? "Semifinales alcanzadas"
+          : top4Failed
+            ? missedChampions
+              ? "No clasificó a Champions"
+              : "Eliminado antes de Semifinales"
+            : inChampions
+              ? "En carrera en Champions"
+              : "Clasificación pendiente (Sem 26)"
+      }
+    ];
+
+    const failureReason = !wonAnyTitle
+      ? "Cerraste el ciclo sin levantar ningún título oficial."
+      : "No alcanzaste el Top 4 en VALORANT Champions.";
+
+    return {
+      tier,
+      tierLabel: obj.tierLabel,
+      shortLabel: obj.shortLabel,
+      label: obj.label,
+      status,
+      statusLabel:
+        status === "completed"
+          ? "CUMPLIDO"
+          : status === "failed"
+            ? "FALLADO"
+            : status === "at_risk"
+              ? "EN RIESGO"
+              : "EN CAMINO",
+      summary: completed
+        ? "Misión de gigante superada con autoridad."
+        : failed
+          ? failureReason
+          : atRisk
+            ? "Presión máxima: sin margen de error en los torneos restantes."
+            : "En carrera por el título y las semifinales de Champions.",
+      criteria,
+      canTriggerEarlyReward: completed && !obj.rewarded,
+      failedAfterStage2: false,
+      failedSeasonFinal: failed,
+      giantNoTitle: !wonAnyTitle && (titleFailed || M.week >= 33 || (top4Failed && !canStillWinTitle)),
+      failureReason
+    };
+  }
+
+  if (tier === "contender") {
+    const intlRouteDone = inMasters1 && inMasters2 && inChampions;
+    const completed = wonRegTitle || intlRouteDone;
+    const regClosed = Boolean(sc.stage1.regChamp && sc.stage2.regChamp);
+    const failedAfterStage2 = !completed && regClosed && (missedMasters1 || missedMasters2);
+    const failed = failedAfterStage2 || (!completed && missedChampions && regClosed);
+    const atRisk =
+      !completed &&
+      !failed &&
+      (missedMasters1 || missedMasters2 || (sc.stage2.poSeeded && !playedPO2 && !wonRegTitle));
+
+    const status: ObjectiveStatusId = completed
+      ? "completed"
+      : failed
+        ? "failed"
+        : atRisk
+          ? "at_risk"
+          : "on_track";
+
+    const criteria: ObjectiveCriterion[] = [
+      {
+        label: "Clasificar a Masters 1 y Masters 2",
+        done: inMasters1 && inMasters2,
+        failed: !wonRegTitle && (missedMasters1 || missedMasters2),
+        detail: `${inMasters1 ? "M1 OK" : missedMasters1 ? "M1 FALLO" : "M1 PEND"} · ${
+          inMasters2 ? "M2 OK" : missedMasters2 ? "M2 FALLO" : "M2 PEND"
+        }`
+      },
+      {
+        label: "Clasificar a VALORANT Champions",
+        done: inChampions,
+        failed: !wonRegTitle && missedChampions,
+        detail: inChampions ? "Top 16 asegurado" : missedChampions ? "Fuera del Top 16" : "Por definir (Sem 26)"
+      },
+      {
+        label: "Alternativa directa: Ganar Liga Regional (Stage 1 o 2)",
+        done: wonRegTitle,
+        failed: regClosed && !wonRegTitle,
+        detail: wonRegTitle ? "Campeón Regional" : regClosed ? "Sin título regional" : "En disputa"
+      }
+    ];
+
+    const failureReason = missedChampions
+      ? "Quedaste fuera de VALORANT Champions y sin título regional."
+      : "Perdiste plaza en Masters y no lograste salvar la temporada ganando el Stage 2 regional.";
+
+    return {
+      tier,
+      tierLabel: obj.tierLabel,
+      shortLabel: obj.shortLabel,
+      label: obj.label,
+      status,
+      statusLabel:
+        status === "completed"
+          ? "CUMPLIDO"
+          : status === "failed"
+            ? "FALLADO"
+            : status === "at_risk"
+              ? "EN RIESGO"
+              : "EN CAMINO",
+      summary: completed
+        ? wonRegTitle
+          ? "Título regional conseguido: objetivo asegurado antes de tiempo."
+          : "Presencia perfecta en los 2 Masters y Champions."
+        : failed
+          ? failureReason
+          : atRisk
+            ? "Te quedaste fuera de un Masters: necesitas ganar el Stage 2 regional."
+            : "Ruta internacional y regional abierta.",
+      criteria,
+      canTriggerEarlyReward: completed && !obj.rewarded,
+      failedAfterStage2,
+      failedSeasonFinal: failed,
+      giantNoTitle: false,
+      failureReason
+    };
+  }
+
+  // tier === "rebuild" (OVR < 84)
+  const poFailed = sc.stage1.poSeeded && sc.stage2.poSeeded && !playedAnyPO;
+  const completed = playedAnyPO && cashPositive && academyStarterDone;
+  const failedAfterStage2 = poFailed && sc.stage2.mastersSeeded;
+  const failedAtClose = M.week >= 33 && !completed;
+  const failed = poFailed || failedAtClose;
+  const atRisk =
+    !completed &&
+    !failed &&
+    (!cashPositive ||
+      (sc.stage1.poSeeded && !playedPO1) ||
+      (M.week >= 16 && !academyStarterDone));
+
+  const status: ObjectiveStatusId = completed
+    ? "completed"
+    : failed
+      ? "failed"
+      : atRisk
+        ? "at_risk"
+        : "on_track";
+
+  const criteria: ObjectiveCriterion[] = [
+    {
+      label: "Clasificar a Playoffs Regionales (Stage 1 o Stage 2)",
+      done: playedAnyPO,
+      failed: poFailed,
+      detail: playedAnyPO
+        ? playedPO1 && playedPO2
+          ? "Stage 1 y Stage 2"
+          : playedPO1
+            ? "Stage 1 cumplido"
+            : "Stage 2 cumplido"
+        : poFailed
+          ? "Sin Playoffs en todo el año"
+          : "En lucha por Top 4"
+    },
+    {
+      label: "Mantener saldo positivo en caja (>= $0)",
+      done: cashPositive,
+      failed: !cashPositive && M.week >= 33,
+      detail: fmtMoney(club.budget)
+    },
+    {
+      label: "Subir al menos 1 jugador de Academia al quinteto titular",
+      done: academyStarterDone,
+      failed: !academyStarterDone && M.week >= 33,
+      detail: academyStarterDone
+        ? "Canterano consolidado en el 5 titular"
+        : "Alinea a un juvenil de Academia en Plantilla"
+    }
+  ];
+
+  const missingParts: string[] = [];
+  if (!playedAnyPO) missingParts.push("sin Playoffs regionales");
+  if (!cashPositive) missingParts.push("caja en déficit");
+  if (!academyStarterDone) missingParts.push("sin promover titular de Academia");
+  const failureReason = `Proyecto incompleto: ${missingParts.join(", ")}.`;
+
+  return {
+    tier,
+    tierLabel: obj.tierLabel,
+    shortLabel: obj.shortLabel,
+    label: obj.label,
+    status,
+    statusLabel:
+      status === "completed"
+        ? "CUMPLIDO"
+        : status === "failed"
+          ? "FALLADO"
+          : status === "at_risk"
+            ? "EN RIESGO"
+            : "EN CAMINO",
+    summary: completed
+      ? "Reconstrucción ejemplar: objetivo cumplido."
+      : failed
+        ? failureReason
+        : atRisk
+          ? "Revisa caja, alineación de canterano o clasificación a Playoffs."
+          : "Crecimiento estable rumbo a las metas del proyecto.",
+    criteria,
+    canTriggerEarlyReward: completed && !obj.rewarded,
+    failedAfterStage2,
+    failedSeasonFinal: failedAtClose || failedAfterStage2,
+    giantNoTitle: false,
+    failureReason
+  };
+}
+
 export function buildFullYearSchedule(
   clubs: Record<string, ManagerClub>,
   userTeam: string,
@@ -640,12 +1016,7 @@ export function buildFullYearSchedule(
   const champions = buildChampionsBracket(seasonYear);
 
   const myOvr = calcRosterOvr(clubs[userTeam].players, clubs[userTeam].coach);
-  const objective =
-    myOvr >= 88.5
-      ? ({ id: "title", label: "Ganar al menos 1 título (Regional, Masters o Champions)" } as const)
-      : myOvr >= 85.5
-        ? ({ id: "champions", label: "Clasificar a VALORANT Champions (Top 16 VCT)" } as const)
-        : ({ id: "playoffs", label: "Entrar a Playoffs Regionales en Stage 1 o Stage 2" } as const);
+  const objective = buildSeasonObjective(myOvr);
 
   return {
     vctPoints,
@@ -866,6 +1237,33 @@ export function migrateCareerState(raw: ManagerCareerState): ManagerCareerState 
       if (!c.tier) c.tier = "established";
     });
   }
+
+  if (typeof career.career.objectiveRepBonus !== "number") {
+    career.career.objectiveRepBonus = 0;
+  }
+  if (career.pendingBoardMeeting === undefined) {
+    career.pendingBoardMeeting = null;
+  }
+  if (career.schedule && career.clubs?.[career.userTeam]) {
+    const curClub = career.clubs[career.userTeam];
+    const baseObj = buildSeasonObjective(calcRosterOvr(curClub.players, curClub.coach));
+    const prevObj = career.schedule.objective as Partial<SeasonObjectiveState> | undefined;
+    if (!prevObj || !prevObj.tier) {
+      career.schedule.objective = {
+        ...baseObj,
+        academyStarterPromoted: curClub.players.some((p) => p.isAcademy && (!p.sub || p.matchesPlayed > 0))
+      };
+    } else {
+      career.schedule.objective = {
+        ...baseObj,
+        ...prevObj,
+        missedInternationalsNotified: Array.isArray(prevObj.missedInternationalsNotified)
+          ? prevObj.missedInternationalsNotified
+          : []
+      };
+    }
+  }
+
 
   return career;
 }

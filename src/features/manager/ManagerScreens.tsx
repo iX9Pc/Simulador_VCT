@@ -5,10 +5,12 @@ import { useManagerStore } from "../../stores/useManagerStore.ts";
 import { DIFFICULTY_CFG, MARKET_PACE_CFG, ROLE_PROMISE_LABELS } from "./constants.ts";
 import {
   calcCareerScore,
+  calcManagerReputation,
   calcPlayerOvr,
   calcPlayerValue,
   clamp,
   fmtMoney,
+  getBoardExpectationByOvr,
   getClubAcademyInfo,
   getDiffCfg
 } from "./managerHelpers.ts";
@@ -94,34 +96,41 @@ export function ClubSelectScreen({ onTriggerImport }: { onTriggerImport: () => v
             Math.round(((360000 + Math.max(0, ovr - 80) * 40000) * diffCfg.budgetMult) / 5000) *
             5000;
           const acad = getClubAcademyInfo(name, academies, teamMeta);
+       const exp = getBoardExpectationByOvr(ovr);
 
-          return (
-            <div
-              key={name}
-              className="mgr-club-card"
-              style={{ borderTop: `2px solid ${meta.color}` }}
-            >
-              <div className="mgr-club-top">
-                <TeamLogo teamName={name} className="mini-team-logo" />
-                <div>
-                  <b>{name}</b>
-                  <small className="mono" style={{ color: "var(--mut)" }}>
-                    {meta.reg} · DT {coach?.n || "-"}
-                  </small>
-                </div>
-              </div>
-              <div className="mgr-club-stats mono">
-                <span>
-                  OVR <b>{ovr.toFixed(1)}</b>
-                </span>
-                <span>
-                  ACAD <b>{acad.quality.toFixed(1)}</b>
-                </span>
-                <span>
-                  CAJA <b className="kd-pos">{fmtMoney(budget)}</b>
-                </span>
-              </div>
-              <button
+       return (
+         <div
+           key={name}
+           className="mgr-club-card"
+           style={{ borderTop: `2px solid ${meta.color}` }}
+         >
+           <div className="mgr-club-top">
+             <TeamLogo teamName={name} className="mini-team-logo" />
+             <div>
+               <b>{name}</b>
+               <small className="mono" style={{ color: "var(--mut)" }}>
+                 {meta.reg} · DT {coach?.n || "-"}
+               </small>
+             </div>
+           </div>
+           <div className="mgr-club-stats mono">
+             <span>
+               OVR <b>{ovr.toFixed(1)}</b>
+             </span>
+             <span>
+               ACAD <b>{acad.quality.toFixed(1)}</b>
+             </span>
+             <span>
+               CAJA <b className="kd-pos">{fmtMoney(budget)}</b>
+             </span>
+           </div>
+           <div className="mgr-club-req mono" title={exp.label}>
+             <span className={`mgr-tier-pill tier-${exp.tier}`}>{exp.tierLabel}</span>
+             <span className="mgr-req-txt">
+               Exigencia: <b>{exp.shortLabel}</b>
+             </span>
+           </div>
+           <button
                 type="button"
                 className="p mono"
                 style={{ width: "100%", justifyContent: "center", padding: "6px" }}
@@ -770,6 +779,173 @@ export function NegotiationDrawer() {
             </button>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+export function BoardMeetingScreen() {
+  const M = useManagerStore((s) => s.career);
+  const resolveBoardMeeting = useManagerStore((s) => s.resolveBoardMeeting);
+
+  if (!M?.pendingBoardMeeting) return null;
+
+  const mt = M.pendingBoardMeeting;
+  const club = M.clubs[M.userTeam];
+  const rep = calcManagerReputation(M);
+  const fireAt = getDiffCfg(M).fireThreshold;
+  const total = M.career.wins + M.career.losses;
+  const wrPct = total ? ((M.career.wins / total) * 100).toFixed(0) : "50";
+
+  const promiseViable =
+    mt.tier === "giant"
+      ? M.boardConfidence >= 10 || rep >= 65
+      : M.boardConfidence >= fireAt + 12 || rep >= 56;
+
+  let defendPoints = 0;
+  if (total > 0 ? M.career.wins / total >= 0.5 : true) defendPoints++;
+  if (club.budget >= 180000) defendPoints++;
+  if (rep >= 58) defendPoints++;
+  if (
+    M.schedule.objective.academyStarterPromoted ||
+    M.trophies.some((t) => t.season === M.season && t.club === M.userTeam)
+  ) {
+    defendPoints++;
+  }
+  const defendViable = mt.tier === "giant" ? defendPoints >= 3 : defendPoints >= 2;
+
+  return (
+    <div className="mgr-panel mgr-meeting-panel">
+      <div className="t-group-head" style={{ flexWrap: "wrap", gap: "8px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span className={`mgr-tier-pill tier-${mt.tier}`}>{mt.tierLabel}</span>
+          <b className="mono kd-neg">
+            REUNIÓN FINAL DE DIRECTIVA · {mt.phaseLabel} ({M.userTeam.toUpperCase()})
+          </b>
+        </div>
+        <span className="mono" style={{ fontSize: "11px", color: "var(--mut)" }}>
+          TEMPORADA {mt.season} · SEMANA {mt.week}
+        </span>
+      </div>
+
+      <p style={{ fontSize: "13px", margin: "8px 0 6px", lineHeight: 1.45 }}>
+        La directiva te citó de urgencia por incumplir el objetivo de temporada:{" "}
+        <b>{mt.objectiveLabel}</b>.
+      </p>
+      <p className="mono kd-neg" style={{ fontSize: "11.5px", margin: "0 0 12px" }}>
+        MOTIVO: {mt.reason}
+      </p>
+
+      <div className="mgr-kpi-row mono" style={{ marginBottom: "12px" }}>
+        <div>
+          <small style={{ color: "var(--mut)" }}>RÉCORD</small>
+          <b>
+            {M.career.wins}W-{M.career.losses}L ({wrPct}%)
+          </b>
+        </div>
+        <div>
+          <small style={{ color: "var(--mut)" }}>CONFIANZA</small>
+          <b className={M.boardConfidence >= 20 ? "kd-pos" : "kd-neg"}>
+            {M.boardConfidence > 0 ? "+" : ""}
+            {M.boardConfidence}
+          </b>
+        </div>
+        <div>
+          <small style={{ color: "var(--mut)" }}>REP MANAGER</small>
+          <b style={{ color: "var(--vct-cyan)" }}>{rep}/99</b>
+        </div>
+        <div>
+          <small style={{ color: "var(--mut)" }}>CAJA ACTUAL</small>
+          <b className={club.budget >= 0 ? "kd-pos" : "kd-neg"}>{fmtMoney(club.budget)}</b>
+        </div>
+      </div>
+
+      {mt.giantNoTitle ? (
+        <>
+          <div className="mgr-meeting-verdict mono">
+            VEREDICTO DE JUNTA: En un club de exigencia GIGANTE (OVR 87+), terminar sin títulos
+            conlleva la destitución inmediata sin importar el récord en temporada regular.
+          </div>
+          <div className="btn-group" style={{ marginTop: "10px" }}>
+            <button
+              type="button"
+              className="p mono"
+              onClick={() => resolveBoardMeeting("accept_sack")}
+            >
+              Aceptar Cese con Profesionalismo
+            </button>
+            <button
+              type="button"
+              className="mono mgr-end-btn"
+              onClick={() => resolveBoardMeeting("defend")}
+            >
+              Discutir Récord y Exigir Explicaciones
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="mgr-meeting-grid">
+          <div className="mgr-meeting-opt">
+            <div className="mono" style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+              <b>PEDIR ÚLTIMA OPORTUNIDAD</b>
+              <span className={promiseViable ? "kd-pos" : "kd-neg"}>
+                VIABILIDAD: {promiseViable ? "ALTA" : "CRÍTICA"}
+              </span>
+            </div>
+            <small style={{ color: "var(--mut)", lineHeight: 1.35 }}>
+              Asumes un ultimátum directo: si la junta cede, sigues al frente con 0 semanas de
+              gracia y margen mínimo.
+            </small>
+            <button
+              type="button"
+              className="p mono"
+              style={{ marginTop: "auto", justifyContent: "center" }}
+              onClick={() => resolveBoardMeeting("promise")}
+            >
+              Aceptar Ultimátum
+            </button>
+          </div>
+
+          <div className="mgr-meeting-opt">
+            <div className="mono" style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+              <b>DEFENDER EL PROYECTO</b>
+              <span className={defendViable ? "kd-pos" : "kd-neg"}>
+                SOLIDEZ: {defendPoints}/4
+              </span>
+            </div>
+            <small style={{ color: "var(--mut)", lineHeight: 1.35 }}>
+              Presentas tus números de Win Rate, salud financiera, reputación y desarrollo de
+              plantilla para ganar respaldo.
+            </small>
+            <button
+              type="button"
+              className="mono t-btn-live"
+              style={{ marginTop: "auto", justifyContent: "center" }}
+              onClick={() => resolveBoardMeeting("defend")}
+            >
+              Presentar Defensa
+            </button>
+          </div>
+
+          <div className="mgr-meeting-opt">
+            <div className="mono" style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
+              <b>PRESENTAR RENUNCIA</b>
+              <span style={{ color: "var(--gold)" }}>SALIDA ORDENADA</span>
+            </div>
+            <small style={{ color: "var(--mut)", lineHeight: 1.35 }}>
+              Evitas el desgaste del despido y sales al mercado de banquillos para elegir un nuevo
+              proyecto de inmediato.
+            </small>
+            <button
+              type="button"
+              className="mono"
+              style={{ marginTop: "auto", justifyContent: "center" }}
+              onClick={() => resolveBoardMeeting("resign")}
+            >
+              Dimitir del Cargo
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

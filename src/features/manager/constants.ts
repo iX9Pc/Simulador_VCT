@@ -1,5 +1,6 @@
 import type { AcademiesJson, RoleName } from "../../core/index.ts";
 import type {
+  BoardTierId,
   CoachCourse,
   DeltaStatKey,
   DifficultyId,
@@ -354,5 +355,54 @@ export const FALLBACK_ACADEMIES: AcademiesJson = {
     "Xi Lai Gaming": { rank: 19, quality: 2.8, hasOwnAcademy: true },
     "Trace Esports": { rank: 20, quality: 2.4, hasOwnAcademy: true },
     NRG: { rank: null, quality: null, hasOwnAcademy: false }
+  }
+  
+};
+
+export interface BoardExpectationConfig {
+  tier: BoardTierId;
+  legacyId: "title" | "champions" | "playoffs";
+  tierLabel: string;
+  groupName: string;
+  shortLabel: string;
+  label: string;
+  pressureDesc: string;
+  rewardBudget: number;
+  rewardRep: number;
+}
+
+export const BOARD_EXPECTATIONS: Record<BoardTierId, BoardExpectationConfig> = {
+  giant: {
+    tier: "giant",
+    legacyId: "title",
+    tierLabel: "GIGANTE",
+    groupName: "Gigantes y Favoritos (OVR 87+)",
+    shortLabel: "Título + Top 4 Champions",
+    label: "Ganar al menos 1 título (Regional o Masters) y llegar a Top 4 en Champions",
+    pressureDesc: "Presión máxima desde el día uno: una temporada sin trofeos implica cese inmediato.",
+    rewardBudget: 120000,
+    rewardRep: 6
+  },
+  contender: {
+    tier: "contender",
+    legacyId: "champions",
+    tierLabel: "CONTENDIENTE",
+    groupName: "Contendientes (OVR 84.0–86.9)",
+    shortLabel: "2 Masters + Champions / Regional",
+    label: "Clasificar a los 2 Masters y a Champions (o ganar una liga regional)",
+    pressureDesc: "Margen para construir plantilla, pero quedarse fuera de un internacional desploma la confianza.",
+    rewardBudget: 95000,
+    rewardRep: 5
+  },
+  rebuild: {
+    tier: "rebuild",
+    legacyId: "playoffs",
+    tierLabel: "RECONSTRUCCIÓN",
+    groupName: "Proyectos en Reconstrucción (OVR < 84)",
+    shortLabel: "Playoffs + Caja Positiva + 1 Academia",
+    label: "Clasificar a Playoffs regionales, mantener saldo positivo en caja y subir 1 jugador de Academia a titular",
+    pressureDesc: "Expectativas realistas enfocadas en crecimiento deportivo, disciplina financiera y cantera.",
+    rewardBudget: 75000,
+    rewardRep: 4
   }
 };

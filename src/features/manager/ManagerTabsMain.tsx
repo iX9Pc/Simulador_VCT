@@ -20,6 +20,7 @@ import {
   calcManagerReputation,
   calcPlayerOvr,
   calcRosterOvr,
+  evaluateSeasonObjective,
   fmtMoney,
   getAgentSpecLabel,
   getDiffCfg,
@@ -65,6 +66,10 @@ export function HubTab() {
       : nextMatch.teamA!
     : null;
   const oppClub = oppName ? M.clubs[oppName] : null;
+  const objEval = evaluateSeasonObjective(M);
+  const diffCfg = getDiffCfg(M);
+  const estRewardBudget =
+  Math.round((M.schedule.objective.rewardBudget * diffCfg.prizeMult) / 1000) * 1000;
 
   return (
     <>
@@ -373,6 +378,44 @@ export function HubTab() {
 
         {/* COLUMNA DERECHA: KPIs, BUZÓN, PRENSA */}
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div className={`mgr-panel mgr-obj-panel status-${objEval.status}`}>
+         <div className="t-group-head" style={{ flexWrap: "wrap", gap: "6px" }}>
+           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+             <b className="mono">OBJETIVO DE TEMPORADA</b>
+             <span className={`mgr-tier-pill tier-${objEval.tier}`}>{objEval.tierLabel}</span>
+           </div>
+           <span className={`obj-status-badge mono is-${objEval.status}`}>
+             {objEval.statusLabel}
+           </span>
+         </div>
+
+         <div className="mgr-obj-title">{objEval.label}</div>
+
+         <div className="obj-criteria-list">
+           {objEval.criteria.map((c, idx) => (
+             <div key={idx} className="obj-crit-row mono">
+               <span
+                 className={`obj-crit-mark ${
+                   c.done ? "is-ok" : c.failed ? "is-fail" : "is-pend"
+                 }`}
+               >
+                 {c.done ? "OK" : c.failed ? "FALLO" : "PEND"}
+               </span>
+               <span className="obj-crit-label">{c.label}</span>
+               <span className="obj-crit-detail">{c.detail}</span>
+             </div>
+           ))}
+         </div>
+
+         <div className="mgr-obj-foot mono">
+           <span>{objEval.summary}</span>
+           <span className={M.schedule.objective.rewarded ? "kd-pos" : ""}>
+             {M.schedule.objective.rewarded
+               ? "BONO COBRADO"
+               : `BONO: +${fmtMoney(estRewardBudget)} · +${M.schedule.objective.rewardRep} REP`}
+           </span>
+         </div>
+       </div>
           <div className="mgr-panel">
             <div className="t-group-head">
               <b className="mono">ESTADO DEL CLUB &amp; MANAGER</b>
@@ -476,10 +519,13 @@ export function HubTab() {
                 M.news.slice(0, 4).map((n) => (
                   <div key={n.id} className={`news-card ${n.hot ? "is-hot" : ""}`}>
                     <div className="news-head mono">
-                      <span className={`news-tag cat-${n.cat.toLowerCase()}`}>{n.cat}</span>
-                      <span style={{ color: "var(--mut)" }}>
-                        T{n.s} · S{n.w}
-                      </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span className={`news-tag cat-${n.cat.toLowerCase()}`}>{n.cat}</span>
+                            {n.source && <span className="news-source">{n.source}</span>}
+                        </div>
+                            <span style={{ color: "var(--mut)" }}>
+                            T{n.s} · S{n.w}
+                        </span>
                     </div>
                     <b>{n.headline}</b>
                     <p>{n.body}</p>

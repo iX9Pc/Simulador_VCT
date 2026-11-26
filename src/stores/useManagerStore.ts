@@ -27,6 +27,7 @@ import {
 import {
   buildFullYearSchedule,
   buildRegionalLeagueForStage,
+  buildSeasonObjective,
   calcAcademyPriceByPot,
   calcLearningWeeks,
   calcManagerReputation,
@@ -38,6 +39,7 @@ import {
   collectUsedNames,
   computeStageStandings,
   enrichPlayer,
+  evaluateSeasonObjective,
   fmtMoney,
   generateAcademyBatch,
   generateAcademyProspect,
@@ -52,6 +54,21 @@ import {
   syncLearnedPoolsFromCareer,
   validateStartingLineup
 } from "../features/manager/managerHelpers.ts";
+import {
+  buildBoardMeetingNews,
+  buildMapPoolNews,
+  buildMatchStarNews,
+  buildMatchThrillerNews,
+  buildMatchUpsetNews,
+  buildObjectiveCompletedNews,
+  buildObjectiveRiskNews,
+  buildSeasonStartNews,
+  buildTitleNews,
+  buildTransferNews,
+  buildWeeklyDramaNews,
+  buildWeeklyRumorNews
+} from "../features/manager/newsTemplates.ts";
+import type { NewsDraft } from "../features/manager/newsTemplates.ts";
 import type {
   ActiveNegotiation,
   ActiveRenewal,
@@ -128,24 +145,13 @@ function addInbox(M: ManagerCareerState, tag: string, title: string, text: strin
   if (M.inbox.length > 50) M.inbox = M.inbox.slice(0, 50);
 }
 
-function pushNews(
-  M: ManagerCareerState,
-  cat: NewsCategory,
-  headline: string,
-  body: string,
-  teams: string[] = [],
-  hot = false
-): void {
+function pushNewsDraft(M: ManagerCareerState, draft: NewsDraft): void {
   M.news = M.news || [];
   M.news.unshift({
     id: `N-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
     s: M.season,
     w: M.week,
-    cat,
-    headline,
-    body,
-    teams,
-    hot
+    ...draft
   });
   if (M.news.length > 45) M.news = M.news.slice(0, 45);
 }
@@ -607,13 +613,20 @@ function executeTransferDeal(
     );
   }
   if (cash >= 90000 || isUserBuy || sellerName === M.userTeam) {
-    pushNews(
+    pushNewsDraft(
       M,
-      "OFICIAL",
-      `OFICIAL: ${moved.n} ficha por ${buyerName} (${fmtMoney(cash)})`,
-      `${buyerName} cerró el traspaso de ${moved.n} desde ${sellerName}${swapTxt}${sellTxt}.`,
-      [buyerName, sellerName],
-      cash >= 140000
+      buildTransferNews({
+        playerName: moved.n,
+        playerRole: moved.r,
+        playerOvr: calcPlayerOvr(moved),
+        playerAge: moved.age,
+        buyerName,
+        sellerName,
+        cash,
+        cashFormatted: fmtMoney(cash),
+        swapPlayer: swapPlayerName,
+        sellOnPct
+      })
     );
   }
   return true;
@@ -748,13 +761,15 @@ function rewardUserTitle(
     `CAMPEONES: ${titleLabel}`,
     `Premio de ${fmtMoney(prizeMoney)} acreditado (+${confBoost} Confianza).`
   );
-  pushNews(
+  pushNewsDraft(
     M,
-    "OFICIAL",
-    `${M.userTeam} SE CORONA CAMPEÓN DE ${titleLabel.toUpperCase()}`,
-    `${M.userTeam} levanta el trofeo y se embolsa ${fmtMoney(prizeMoney)} en premios oficiales.`,
-    [M.userTeam],
-    true
+    buildTitleNews({
+      teamName: M.userTeam,
+      titleLabel,
+      prizeFormatted: fmtMoney(prizeMoney),
+      coachName: club.coach.n,
+      tier
+    })
   );
 
   const candidates = SPONSORS_CATALOG.filter((sp) => sp.tier === tier);
@@ -820,6 +835,10 @@ function applyMatchImpactToClub(
       p.matchesPlayed = (p.matchesPlayed || 0) + 1;
       p.seasonMaps = (p.seasonMaps || 0) + mapsPlayed;
       p.seasonRatingSum = (p.seasonRatingSum || 0) + rat * mapsPlayed;
+
+      if (isUser && p.isAcademy && M.schedule.objective) {
+        M.schedule.objective.academyStarterPromoted = true;
+      }
 
       if (isUser) {
         const cs = M.careerPlayerStats[p.n] || {
@@ -942,32 +961,75 @@ function recordMatchNews(M: ManagerCareerState, m: ManagerMatch, s: SeriesResult
   if (!m.winner || !m.teamA || !m.teamB) return;
   const wTeam = m.winner;
   const lTeam = wTeam === m.teamA ? m.teamB : m.teamA;
-  const wOvr = calcRosterOvr(M.clubs[wTeam].players, M.clubs[wTeam].coach);
-  const lOvr = calcRosterOvr(M.clubs[lTeam].players, M.clubs[lTeam].coach);
+  const wClub = M.clubs[wTeam];
+  const lClub = M.clubs[lTeam];
+  const wOvr = calcRosterOvr(wClub.players, wClub.coach);
+  const lOvr = calcRosterOvr(lClub.players, lClub.coach);
   const S = computeSeriesStats(s, s.maps.length, true);
   const topP = Object.values(S).sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating))[0];
   const scoreTxt = `${m.scoreA}-${m.scoreB}`;
 
   if (lOvr - wOvr >= 1.8) {
-    pushNews(
+    pushNewsDraft(
       M,
-      "UPSET",
-      `BATACAZO: ${wTeam} sorprende a ${lTeam} (${scoreTxt})`,
-      `${wTeam} (OVR ${wOvr}) derriba al favorito ${lTeam} (OVR ${lOvr}) en ${m.label} (${m.mapsLine}).`,
-      [wTeam, lTeam],
-      true
+      buildMatchUpsetNews({
+        winner: wTeam,
+        loser: lTeam,
+        wOvr,
+        lOvr,
+        scoreTxt,
+        label: m.label,
+        mapsLine: m.mapsLine,
+        mvpName: topP?.u.p.n,
+        mvpRating: topP?.rating,
+        mvpAcs: topP?.acs,
+        winnerCoach: wClub.coach.n,
+        loserCoach: lClub.coach.n
+      })
     );
     return;
   }
 
-  if (topP && parseFloat(topP.rating) >= 1.38) {
+  if (topP && parseFloat(topP.rating) >= 1.36) {
     const pTeam = s.maps[0].teams[topP.ti].name;
-    pushNews(
+    const oppTeam = pTeam === m.teamA ? m.teamB : m.teamA;
+    pushNewsDraft(
       M,
-      "OFICIAL",
-      `Exhibición de ${topP.u.p.n} (${topP.rating} R2.0) en ${m.teamA} vs ${m.teamB}`,
-      `${topP.u.p.n} (${pTeam}) firmó ${topP.acs} ACS y ${topP.k}/${topP.d}/${topP.a} en el ${scoreTxt} de ${m.label}.`,
-      [m.teamA, m.teamB]
+      buildMatchStarNews({
+        playerName: topP.u.p.n,
+        playerRole: topP.u.p.r,
+        playerTeam: pTeam,
+        oppTeam,
+        rating: topP.rating,
+        acs: topP.acs,
+        kda: `${topP.k}/${topP.d}/${topP.a}`,
+        scoreTxt,
+        label: m.label,
+        mapsLine: m.mapsLine,
+        won: pTeam === wTeam
+      })
+    );
+    return;
+  }
+
+  const isCloseSeries = (m.fmt === 3 && s.maps.length === 3) || (m.fmt === 5 && s.maps.length === 5);
+  const isBigStage =
+    m.stage.startsWith("masters") || m.stage === "champions" || m.stage.endsWith("_po");
+  const involvesUser = m.teamA === M.userTeam || m.teamB === M.userTeam;
+
+  if (isCloseSeries && (isBigStage || involvesUser)) {
+    pushNewsDraft(
+      M,
+      buildMatchThrillerNews({
+        winner: wTeam,
+        loser: lTeam,
+        scoreTxt,
+        label: m.label,
+        mapsLine: m.mapsLine,
+        mvpName: topP?.u.p.n,
+        mvpRating: topP?.rating,
+        isInternational: m.stage.startsWith("masters") || m.stage === "champions"
+      })
     );
   }
 }
@@ -986,75 +1048,89 @@ function generateWeeklyRumorsAndDrama(M: ManagerCareerState): void {
       .sort((a, b) => calcPlayerOvr(b) - calcPlayerOvr(a))[0];
 
     if (sellerStar && Math.random() < 0.65) {
-      const templates: Array<[string, string]> = [
-        [
-          `Fuentes: ${buyer} sondea a ${sellerStar.n} (${seller})`,
-          `Insiders reportan contactos preliminares de ${buyer} para conocer la cláusula de ${sellerStar.n} (OVR ${calcPlayerOvr(sellerStar)}).`
-        ],
-        [
-          `${buyer} evalúa reforzar su quinteto con ${sellerStar.n}`,
-          `Tras los últimos scrims, el staff de ${buyer} analiza abrir negociaciones formales con ${seller}.`
-        ],
-        [
-          `Rumor de mercado: ${sellerStar.n} en la mira de ${buyer}`,
-          `Varios analistas señalan que ${buyer} prepara caja para tentar a la figura de ${seller} antes de la próxima ventana.`
-        ]
-      ];
-      const [hl, bd] = templates[Math.floor(Math.random() * templates.length)];
-      pushNews(M, "RUMOR", hl, bd, [buyer, seller]);
+      pushNewsDraft(
+        M,
+        buildWeeklyRumorNews({
+          buyer,
+          seller,
+          playerName: sellerStar.n,
+          playerRole: sellerStar.r,
+          playerOvr: calcPlayerOvr(sellerStar),
+          playerAge: sellerStar.age,
+          contractYears: sellerStar.contractYears,
+          buyerBudgetFormatted: fmtMoney(M.clubs[buyer].budget),
+          isFreeAgent: false
+        })
+      );
     } else if (M.freeAgents.length) {
       const fa = M.freeAgents[Math.floor(Math.random() * Math.min(6, M.freeAgents.length))];
-      pushNews(
+      pushNewsDraft(
         M,
-        "RUMOR",
-        `${buyer} prueba en scrims al agente libre ${fa.n}`,
-        `${fa.n} (${fa.r}, OVR ${calcPlayerOvr(fa)}) fue visto entrenando con el roster de ${buyer} esta semana.`,
-        [buyer]
+        buildWeeklyRumorNews({
+          buyer,
+          playerName: fa.n,
+          playerRole: fa.r,
+          playerOvr: calcPlayerOvr(fa),
+          playerAge: fa.age,
+          buyerBudgetFormatted: fmtMoney(M.clubs[buyer].budget),
+          isFreeAgent: true
+        })
       );
     }
   }
 
-  if (Math.random() < 0.36) {
-    const unhappyUserP = M.clubs[M.userTeam].players.find(
-      (p) => p.transferRequested || p.morale <= 45
-    );
+  if (Math.random() < 0.42) {
+    const userClub = M.clubs[M.userTeam];
+    const unhappyUserP = userClub.players.find((p) => p.transferRequested || p.morale <= 45);
+    const risingKid = userClub.players.find((p) => p.isAcademy && !p.sub && p.pot >= 88);
+
     if (unhappyUserP) {
-      pushNews(
+      pushNewsDraft(
         M,
-        "DRAMA",
-        `Tensión en ${M.userTeam}: ${unhappyUserP.n} evalúa su futuro`,
-        `La prensa filtra malestar de ${unhappyUserP.n} (Moral ${unhappyUserP.morale}) dentro del vestuario de ${M.userTeam}.`,
-        [M.userTeam],
-        true
+        buildWeeklyDramaNews({
+          type: "unhappy_player",
+          clubName: M.userTeam,
+          coachName: userClub.coach.n,
+          playerName: unhappyUserP.n,
+          playerMorale: unhappyUserP.morale
+        })
       );
     } else if ((M.lossStreak || 0) >= 3) {
-      pushNews(
+      pushNewsDraft(
         M,
-        "DRAMA",
-        `Crece la presión sobre el proyecto de ${M.userTeam}`,
-        `Con ${M.lossStreak} derrotas consecutivas, analistas cuestionan la continuidad del cuerpo técnico (Directiva ${M.boardConfidence}).`,
-        [M.userTeam],
-        true
+        buildWeeklyDramaNews({
+          type: "losing_streak",
+          clubName: M.userTeam,
+          coachName: userClub.coach.n,
+          lossStreak: M.lossStreak,
+          boardConfidence: M.boardConfidence
+        })
+      );
+    } else if (risingKid && Math.random() < 0.35) {
+      pushNewsDraft(
+        M,
+        buildWeeklyDramaNews({
+          type: "academy_hype",
+          clubName: M.userTeam,
+          coachName: userClub.coach.n,
+          playerName: risingKid.n,
+          playerPot: risingKid.pot
+        })
       );
     } else {
       const rndClub = allClubs[Math.floor(Math.random() * allClubs.length)];
       const rndCoach = M.clubs[rndClub].coach.n;
-      const dramas: Array<[string, string]> = [
-        [
-          `Debate táctico: critican las composiciones de DT ${rndCoach} (${rndClub})`,
-          `Analistas de VLR señalan que ${rndClub} insiste en composiciones arriesgadas en el map pool actual.`
-        ],
-        [
-          `${rndClub} intensifica scrims cerrados rumbo a la recta clave`,
-          `Fuentes de la escena indican que DT ${rndCoach} probó nuevos setups secretos en práctica.`
-        ],
-        [
-          `Rumores de cambios en el staff técnico de ${rndClub}`,
-          `La directiva de ${rndClub} observa el mercado de coaches jóvenes ante posibles ajustes de mitad de año.`
-        ]
-      ];
-      const [hl, bd] = dramas[Math.floor(Math.random() * dramas.length)];
-      pushNews(M, "DRAMA", hl, bd, [rndClub]);
+      const kinds = ["coach_debate", "secret_strats", "staff_rumor"] as const;
+      const chosen = kinds[Math.floor(Math.random() * kinds.length)];
+      pushNewsDraft(
+        M,
+        buildWeeklyDramaNews({
+          type: chosen,
+          clubName: rndClub,
+          coachName: rndCoach,
+          activeMapsSample: M.activeMapPool.slice(0, 3).join(", ")
+        })
+      );
     }
   }
 }
@@ -1393,6 +1469,147 @@ function seedChampionsIfReady(M: ManagerCareerState): void {
   }
 }
 
+function triggerBoardSacking(M: ManagerCareerState, title: string, detail: string): void {
+  M.fired = true;
+  M.pendingBoardMeeting = null;
+  const rescueClubs = Object.keys(M.clubs)
+    .filter((c) => c !== M.userTeam)
+    .sort(
+      (a, b) =>
+        calcRosterOvr(M.clubs[a].players, M.clubs[a].coach) -
+        calcRosterOvr(M.clubs[b].players, M.clubs[b].coach)
+    )
+    .slice(0, 6)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 3);
+  M.pendingJobOffers = rescueClubs.map((c) => ({
+    club: c,
+    reg: M.clubs[c].reg,
+    ovr: calcRosterOvr(M.clubs[c].players, M.clubs[c].coach),
+    budget: M.clubs[c].budget,
+    reason: "Proyecto de reconstrucción"
+  }));
+  addInbox(M, "DESPIDO", title, detail);
+}
+
+function evaluateObjectiveProgressAndMeetings(M: ManagerCareerState, isSeasonClose = false): void {
+  const club = M.clubs[M.userTeam];
+  const obj = M.schedule.objective;
+  if (!obj || M.fired || M.ended) return;
+
+  if (club.players.some((p) => p.isAcademy && !p.sub && !(p.injuredWeeks > 0))) {
+    obj.academyStarterPromoted = true;
+  }
+
+  if (obj.tier === "contender") {
+    const wonReg = M.schedule.stage1.regChamp === M.userTeam || M.schedule.stage2.regChamp === M.userTeam;
+    if (!wonReg) {
+      const checks: Array<{ key: number; seeded: boolean; inEvent: boolean; label: string; pen: number }> = [
+        {
+          key: 1,
+          seeded: M.schedule.stage1.mastersSeeded,
+          inEvent: M.schedule.stage1.masters.some((m) => m.teamA === M.userTeam || m.teamB === M.userTeam),
+          label: "VCT Masters 1",
+          pen: -12
+        },
+        {
+          key: 2,
+          seeded: M.schedule.stage2.mastersSeeded,
+          inEvent: M.schedule.stage2.masters.some((m) => m.teamA === M.userTeam || m.teamB === M.userTeam),
+          label: "VCT Masters 2",
+          pen: -12
+        },
+        {
+          key: 3,
+          seeded: M.schedule.championsSeeded,
+          inEvent: M.schedule.champions.some((m) => m.teamA === M.userTeam || m.teamB === M.userTeam),
+          label: `VALORANT Champions ${M.season}`,
+          pen: -10
+        }
+      ];
+
+      for (const c of checks) {
+        if (c.seeded && !c.inEvent && !obj.missedInternationalsNotified.includes(c.key)) {
+          obj.missedInternationalsNotified.push(c.key);
+          adjustBoard(M, c.pen, `Fuera de ${c.label}`);
+          pushNewsDraft(
+            M,
+            buildObjectiveRiskNews({
+              teamName: M.userTeam,
+              eventLabel: c.label,
+              boardConfidence: M.boardConfidence
+            })
+          );
+        }
+      }
+    }
+  }
+
+  const evalRes = evaluateSeasonObjective(M);
+
+  if (evalRes.canTriggerEarlyReward) {
+    obj.rewarded = true;
+    const diffCfg = getDiffCfg(M);
+    const bonusBudget = Math.round((obj.rewardBudget * diffCfg.prizeMult) / 1000) * 1000;
+    const early = M.week < 33;
+    club.budget += bonusBudget;
+    M.career.objectiveRepBonus = (M.career.objectiveRepBonus || 0) + obj.rewardRep;
+    adjustBoard(M, 12, "Objetivo de temporada cumplido");
+    M.financeLog.unshift({
+      s: M.season,
+      w: M.week,
+      concept: `Bono Objetivo ${obj.tierLabel}${early ? " (Anticipado)" : ""}`,
+      amount: bonusBudget
+    });
+    addInbox(
+      M,
+      "DIRECTIVA",
+      `OBJETIVO CUMPLIDO: +${fmtMoney(bonusBudget)} y +${obj.rewardRep} REP`,
+      `Completaste "${obj.label}". La directiva liberó ${fmtMoney(bonusBudget)} extra para fichajes y tu reputación de manager subió +${obj.rewardRep} puntos.`
+    );
+    pushNewsDraft(
+      M,
+      buildObjectiveCompletedNews({
+        teamName: M.userTeam,
+        tierLabel: obj.tierLabel,
+        objectiveLabel: obj.label,
+        bonusFormatted: fmtMoney(bonusBudget),
+        repGain: obj.rewardRep,
+        early
+      })
+    );
+    return;
+  }
+
+  const shouldTriggerMeeting =
+    !obj.meetingTriggered &&
+    !obj.meetingResolved &&
+    !M.pendingBoardMeeting &&
+    (evalRes.failedAfterStage2 ||
+      (isSeasonClose && evalRes.failedSeasonFinal) ||
+      (evalRes.tier === "giant" && evalRes.failedSeasonFinal));
+
+  if (shouldTriggerMeeting) {
+    obj.meetingTriggered = true;
+    M.pendingBoardMeeting = {
+      season: M.season,
+      week: M.week,
+      phaseLabel: isSeasonClose ? `CIERRE TEMPORADA ${M.season}` : "FIN DE STAGE 2",
+      tier: evalRes.tier,
+      tierLabel: evalRes.tierLabel,
+      objectiveLabel: evalRes.label,
+      reason: evalRes.failureReason,
+      giantNoTitle: evalRes.giantNoTitle
+    };
+    addInbox(
+      M,
+      "DIRECTIVA",
+      "CONVOCATORIA URGENTE: REUNIÓN FINAL DE DIRECTIVA",
+      `Incumplimiento del objetivo (${evalRes.failureReason}). Debes comparecer ante la junta antes de continuar.`
+    );
+  }
+}
+
 function closeCurrentSeason(M: ManagerCareerState): void {
   const sc = M.schedule;
   if (sc.seasonClosed) return;
@@ -1431,18 +1648,7 @@ function closeCurrentSeason(M: ManagerCareerState): void {
     ovrEnd: calcRosterOvr(M.clubs[M.userTeam].players, M.clubs[M.userTeam].coach)
   });
 
-  const objId = sc.objective?.id;
-  const wonAnyTitle = M.trophies.some((t) => t.season === M.season && t.club === M.userTeam);
-  const playedChampions = sc.champions.some(
-    (m) => m.teamA === M.userTeam || m.teamB === M.userTeam
-  );
-  const playedPO = [...sc.stage1.playoffs, ...sc.stage2.playoffs].some(
-    (m) => m.teamA === M.userTeam || m.teamB === M.userTeam
-  );
-  const metObj =
-    objId === "title" ? wonAnyTitle : objId === "champions" ? playedChampions : playedPO;
-  if (metObj) adjustBoard(M, 10, "Objetivo anual cumplido");
-  else adjustBoard(M, -16, `Objetivo incumplido (${sc.objective.label})`);
+  evaluateObjectiveProgressAndMeetings(M, true);
 
   for (const cName of Object.keys(M.clubs)) {
     const clubObj = M.clubs[cName];
@@ -1547,30 +1753,11 @@ function maybeGenerateIncomingOffer(M: ManagerCareerState): void {
 
 function checkBoardFiring(M: ManagerCareerState): void {
   recordBoardSnapshot(M);
-  if (M.graceWeeks > 0) return;
+  if (M.graceWeeks > 0 || M.pendingBoardMeeting) return;
   const fireAt = getDiffCfg(M).fireThreshold;
   if (M.boardConfidence <= fireAt && !M.fired) {
-    M.fired = true;
-    const rescueClubs = Object.keys(M.clubs)
-      .filter((c) => c !== M.userTeam)
-      .sort(
-        (a, b) =>
-          calcRosterOvr(M.clubs[a].players, M.clubs[a].coach) -
-          calcRosterOvr(M.clubs[b].players, M.clubs[b].coach)
-      )
-      .slice(0, 6)
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 3);
-    M.pendingJobOffers = rescueClubs.map((c) => ({
-      club: c,
-      reg: M.clubs[c].reg,
-      ovr: calcRosterOvr(M.clubs[c].players, M.clubs[c].coach),
-      budget: M.clubs[c].budget,
-      reason: "Proyecto de reconstrucción"
-    }));
-    addInbox(
+    triggerBoardSacking(
       M,
-      "DESPIDO",
       `CESADO DE ${M.userTeam.toUpperCase()}`,
       `Tu confianza directiva cayó a ${M.boardConfidence} (límite ${fireAt}). La junta decidió rescindir tu contrato.`
     );
@@ -1600,13 +1787,19 @@ function switchManagerToClub(
   M.pendingJobOffers = [];
   M.pendingOffer = null;
   M.pendingSponsorOffer = null;
+  M.pendingBoardMeeting = null;
   if (!M.career.clubsManaged.includes(targetClubName)) {
     M.career.clubsManaged.push(targetClubName);
   }
 
-  if (M.week <= 1) M.schedule = buildFullYearSchedule(M.clubs, M.userTeam, M.season);
-  else if (M.week <= 14) {
-    M.schedule.stage2 = buildRegionalLeagueForStage(M.clubs, M.userTeam, M.season, 2, 15);
+  if (M.week <= 1) {
+    M.schedule = buildFullYearSchedule(M.clubs, M.userTeam, M.season);
+  } else {
+    if (M.week <= 14) {
+      M.schedule.stage2 = buildRegionalLeagueForStage(M.clubs, M.userTeam, M.season, 2, 15);
+    }
+    const newOvr = calcRosterOvr(M.clubs[targetClubName].players, M.clubs[targetClubName].coach);
+    M.schedule.objective = buildSeasonObjective(newOvr);
   }
 
   addInbox(
@@ -1662,6 +1855,9 @@ interface ManagerStoreState {
   // Avance semanal
   advanceWeek: (watchLive: boolean) => void;
   skipToNextMatch: () => void;
+
+  // Reunión final de directiva
+  resolveBoardMeeting: (choice: "promise" | "defend" | "resign" | "accept_sack") => void;
 
   // Entrenamiento, plantilla, aprendizaje y coach
   setTraining: (modeId: TrainingModeId) => void;
@@ -1930,7 +2126,8 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => {
           mastersTitles: 0,
           championsTitles: 0,
           clubsManaged: [teamName],
-          applyCooldown: {}
+          applyCooldown: {},
+          objectiveRepBonus: 0
         },
         clubs,
         freeAgents: FREE_AGENTS_SEED.map((p) => enrichPlayer(p, true)),
@@ -1945,18 +2142,24 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => {
         lastPlayedMatch: null,
         pendingOffer: null,
         pendingSponsorOffer: null,
-        pendingJobOffers: []
+        pendingJobOffers: [],
+        pendingBoardMeeting: null
       };
 
       M.academy = generateAcademyBatch(12, teamName, M, db.teams, db.academies, db.teamMeta);
       db.setActiveMapPool(M.activeMapPool);
 
-      pushNews(
+      pushNewsDraft(
         M,
-        "OFICIAL",
-        `${teamName} inicia proyecto ${M.season}`,
-        `La directiva de ${teamName} confirmó nuevo Manager (${diffCfg.label}) con objetivo: ${M.schedule.objective.label}.`,
-        [teamName]
+        buildSeasonStartNews({
+          teamName,
+          season: M.season,
+          coachName: clubs[teamName].coach.n,
+          ovr: calcRosterOvr(clubs[teamName].players, clubs[teamName].coach),
+          diffLabel: diffCfg.label,
+          tier: M.schedule.objective.tier,
+          objectiveLabel: M.schedule.objective.label
+        })
       );
       addInbox(
         M,
@@ -2012,7 +2215,7 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => {
 
     advanceWeek: (watchLive) => {
       const cur = get().career;
-      if (!cur || cur.fired || cur.ended) return;
+      if (!cur || cur.fired || cur.ended || cur.pendingBoardMeeting) return;
       const M = cloneCareer(cur);
 
       if (M.week >= 33) {
@@ -2020,16 +2223,18 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => {
         M.week = 1;
         M.pendingOffer = null;
         M.pendingSponsorOffer = null;
+        M.pendingBoardMeeting = null;
         const rot = rotateActiveMapPool(M.activeMapPool, 2);
         M.activeMapPool = rot.activePool;
         useDbStore.getState().setActiveMapPool(rot.activePool);
-        pushNews(
+        pushNewsDraft(
           M,
-          "OFICIAL",
-          `VCT ${M.season}: rotan ${rot.outMaps.join(" y ")} por ${rot.inMaps.join(" y ")}`,
-          `Riot Games oficializó el nuevo Map Pool de 7 mapas para la Temporada ${M.season}: ${rot.activePool.join(", ")}.`,
-          [],
-          true
+          buildMapPoolNews({
+            season: M.season,
+            outMaps: rot.outMaps,
+            inMaps: rot.inMaps,
+            activePool: rot.activePool
+          })
         );
         addInbox(
           M,
@@ -2112,6 +2317,7 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => {
       processStageTransitions(M, 1);
       processStageTransitions(M, 2);
       seedChampionsIfReady(M);
+      evaluateObjectiveProgressAndMeetings(M, false);
       maybeGenerateIncomingOffer(M);
       generateWeeklyRumorsAndDrama(M);
 
@@ -2168,7 +2374,7 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => {
       let safety = 0;
       while (safety++ < 22) {
         const cur = get().career;
-        if (!cur || cur.fired || cur.ended || cur.week >= 33) break;
+        if (!cur || cur.fired || cur.ended || cur.pendingBoardMeeting || cur.week >= 33) break;
         const wm = getMatchesForWeek(cur.schedule, cur.week);
         const hasUser = wm.some(
           (m) => !m.played && (m.teamA === cur.userTeam || m.teamB === cur.userTeam)
@@ -2176,6 +2382,125 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => {
         if (hasUser) break;
         get().advanceWeek(false);
       }
+    },
+
+    resolveBoardMeeting: (choice) => {
+      const cur = get().career;
+      if (!cur?.pendingBoardMeeting) return;
+      const M = cloneCareer(cur);
+      const mt = M.pendingBoardMeeting!;
+      const club = M.clubs[M.userTeam];
+      const fireAt = getDiffCfg(M).fireThreshold;
+      const rep = calcManagerReputation(M);
+      const total = M.career.wins + M.career.losses;
+      const wr = total > 0 ? M.career.wins / total : 0.5;
+
+      if (mt.giantNoTitle) {
+        const fierce = choice === "defend";
+        pushNewsDraft(
+          M,
+          buildBoardMeetingNews({
+            teamName: M.userTeam,
+            outcome: "fired",
+            reason: mt.reason,
+            giantNoTitle: true
+          })
+        );
+        triggerBoardSacking(
+          M,
+          `CESADO DE ${M.userTeam.toUpperCase()} · TEMPORADA SIN TÍTULOS`,
+          fierce
+            ? `Defendiste tu récord en la reunión, pero la directiva de ${M.userTeam} fue tajante: en un gigante solo cuentan los trofeos.`
+            : `Aceptaste la resolución de la junta de ${M.userTeam}: sin títulos oficiales, el ciclo llega a su fin.`
+        );
+        commit(M);
+        return;
+      }
+
+      if (choice === "resign") {
+        M.schedule.objective.meetingResolved = true;
+        M.career.objectiveRepBonus = (M.career.objectiveRepBonus || 0) - 2;
+        pushNewsDraft(
+          M,
+          buildBoardMeetingNews({
+            teamName: M.userTeam,
+            outcome: "resigned",
+            reason: mt.reason
+          })
+        );
+        triggerBoardSacking(
+          M,
+          `RENUNCIA PRESENTADA EN ${M.userTeam.toUpperCase()}`,
+          `Decidiste dar un paso al costado tras la reunión final (${mt.reason}). Varios clubes se interesaron de inmediato en tu disponibilidad.`
+        );
+        commit(M);
+        return;
+      }
+
+      let survived = false;
+      if (choice === "promise") {
+        survived =
+          mt.tier === "giant"
+            ? M.boardConfidence >= 10 || rep >= 65
+            : M.boardConfidence >= fireAt + 12 || rep >= 56;
+      } else if (choice === "defend") {
+        let points = 0;
+        if (wr >= 0.5) points++;
+        if (club.budget >= 180000) points++;
+        if (rep >= 58) points++;
+        if (
+          M.schedule.objective.academyStarterPromoted ||
+          M.trophies.some((t) => t.season === M.season && t.club === M.userTeam)
+        ) {
+          points++;
+        }
+        survived = mt.tier === "giant" ? points >= 3 : points >= 2;
+      }
+
+      if (survived) {
+        M.schedule.objective.meetingResolved = true;
+        M.pendingBoardMeeting = null;
+        if (choice === "promise") {
+          M.boardConfidence = clamp(Math.max(fireAt + 14, M.boardConfidence - 8), fireAt + 10, 35);
+          M.graceWeeks = 0;
+        } else {
+          M.boardConfidence = clamp(Math.max(fireAt + 18, M.boardConfidence - 4), fireAt + 15, 45);
+          M.graceWeeks = 2;
+        }
+        addInbox(
+          M,
+          "DIRECTIVA",
+          `RESPALDO CONDICIONADO EN ${M.userTeam.toUpperCase()}`,
+          choice === "promise"
+            ? `La directiva aceptó tu ultimátum. Sigues en el cargo con Confianza ${M.boardConfidence} y 0 semanas de gracia.`
+            : `Tus argumentos deportivos y económicos convencieron a la junta. Continúas al frente con Confianza ${M.boardConfidence}.`
+        );
+        pushNewsDraft(
+          M,
+          buildBoardMeetingNews({
+            teamName: M.userTeam,
+            outcome: "survived",
+            reason: mt.reason
+          })
+        );
+        commit(M);
+        return;
+      }
+
+      pushNewsDraft(
+        M,
+        buildBoardMeetingNews({
+          teamName: M.userTeam,
+          outcome: "fired",
+          reason: mt.reason
+        })
+      );
+      triggerBoardSacking(
+        M,
+        `CESADO TRAS REUNIÓN FINAL · ${M.userTeam.toUpperCase()}`,
+        `Tus argumentos no convencieron a la directiva (${mt.reason}). El club decidió rescindir tu contrato.`
+      );
+      commit(M);
     },
 
     setTraining: (modeId) => {
@@ -2401,13 +2726,15 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => {
       const rot = rotateActiveMapPool(M.activeMapPool, 2);
       M.activeMapPool = rot.activePool;
       useDbStore.getState().setActiveMapPool(rot.activePool);
-      pushNews(
+      pushNewsDraft(
         M,
-        "OFICIAL",
-        `Rotación de Map Pool: entran ${rot.inMaps.join(" y ")}`,
-        `Salen del circuito competitivo ${rot.outMaps.join(" y ")}. Pool activo de 7 mapas actualizado.`,
-        [],
-        true
+        buildMapPoolNews({
+          season: M.season,
+          outMaps: rot.outMaps,
+          inMaps: rot.inMaps,
+          activePool: rot.activePool,
+          isManual: true
+        })
       );
       addInbox(
         M,
@@ -2881,7 +3208,6 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => {
         return;
       }
 
-      // Venta: contraofertar a un club IA
       const myClub = M.clubs[M.userTeam];
       const buyer = M.clubs[neg.clubName];
       const target = myClub.players.find((p) => p.n === neg.playerName);

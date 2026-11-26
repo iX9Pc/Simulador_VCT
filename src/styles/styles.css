@@ -3119,6 +3119,276 @@ footer.closing {
   gap: 3px;
 }
 
+/* FIX LOGO PAPER REX EN MODO CLARO (INVIERTE TRAZOS BLANCOS Y PRESERVA ACENTOS) */
+:root[data-theme="light"] img[src*="paperrex.png" i],
+:root[data-theme="light"] img.logo-prx {
+  filter: invert(1) hue-rotate(180deg) saturate(1.25) contrast(1.12);
+}
+
+/* ===== EXPECTATIVAS DE DIRECTIVA, OBJETIVO DE TEMPORADA Y REUNIÓN FINAL ===== */
+.mgr-club-req {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: var(--mut);
+  padding: 5px 7px;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 2px;
+  line-height: 1.25;
+}
+
+.mgr-req-txt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mgr-req-txt b {
+  color: var(--fg);
+}
+
+.mgr-tier-pill {
+  font: 700 9px "JetBrains Mono", monospace;
+  padding: 1px 5px;
+  border-radius: 2px;
+  border: 1px solid var(--bd-hi);
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.mgr-tier-pill.tier-giant {
+  color: var(--vct-red);
+  border-color: var(--vct-red);
+  background: var(--a-soft);
+}
+
+.mgr-tier-pill.tier-contender {
+  color: var(--gold);
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.mgr-tier-pill.tier-rebuild {
+  color: var(--vct-cyan);
+  border-color: var(--vct-cyan);
+  background: rgba(56, 189, 248, 0.10);
+}
+
+.mgr-obj-panel.status-completed {
+  border-color: var(--ok);
+}
+
+.mgr-obj-panel.status-at_risk {
+  border-color: var(--gold);
+}
+
+.mgr-obj-panel.status-failed {
+  border-color: var(--vct-red);
+}
+
+.obj-status-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--bd-hi);
+}
+
+.obj-status-badge.is-on_track {
+  color: var(--vct-cyan);
+  border-color: var(--vct-cyan);
+  background: rgba(56, 189, 248, 0.10);
+}
+
+.obj-status-badge.is-at_risk {
+  color: var(--gold);
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.obj-status-badge.is-completed {
+  color: var(--ok);
+  border-color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.obj-status-badge.is-failed {
+  color: var(--vct-red);
+  border-color: var(--vct-red);
+  background: var(--a-soft);
+}
+
+.mgr-obj-title {
+  font: 600 12.5px/1.35 "Barlow", sans-serif;
+  color: var(--fg);
+  margin-bottom: 8px;
+}
+
+.obj-criteria-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.obj-crit-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 2px;
+  font-size: 10.5px;
+}
+
+.obj-crit-mark {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 2px;
+  border: 1px solid var(--bd-hi);
+}
+
+.obj-crit-mark.is-ok {
+  color: var(--ok);
+  border-color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.obj-crit-mark.is-fail {
+  color: var(--vct-red);
+  border-color: var(--vct-red);
+  background: var(--a-soft);
+}
+
+.obj-crit-mark.is-pend {
+  color: var(--mut);
+}
+
+.obj-crit-label {
+  font-family: "Barlow", sans-serif;
+  font-size: 11.5px;
+  color: var(--fg);
+}
+
+.obj-crit-detail {
+  font-size: 10px;
+  color: var(--mut);
+  text-align: right;
+}
+
+.mgr-obj-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 7px;
+  border-top: 1px solid var(--bd);
+  font-size: 10.5px;
+  color: var(--mut);
+}
+
+.mgr-meeting-panel {
+  border-color: var(--vct-red);
+}
+
+.mgr-meeting-verdict {
+  padding: 9px 11px;
+  background: var(--a-soft);
+  border: 1px solid var(--vct-red);
+  border-radius: 2px;
+  font-size: 11.5px;
+  color: var(--fg);
+  line-height: 1.4;
+}
+
+.mgr-meeting-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 860px) {
+  .mgr-meeting-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mgr-meeting-opt {
+  background: var(--card);
+  border: 1px solid var(--bd-hi);
+  border-radius: 2px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ===== NOTICIAS ENRIQUECIDAS (SOLO MODO MANAGER) ===== */
+.news-source {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--mut);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.news-card-full {
+  gap: 7px;
+  padding: 12px 13px;
+}
+
+.news-card-full p {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.news-quote {
+  margin: 2px 0 0;
+  padding: 7px 10px;
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-left: 2px solid var(--bd-hi);
+  border-radius: 2px;
+  font: italic 12px/1.4 "Barlow", sans-serif;
+  color: var(--fg);
+}
+
+.news-teams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
+  padding-top: 7px;
+  border-top: 1px solid var(--bd);
+}
+
+.news-team-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--mut);
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 2px;
+  padding: 2px 6px;
+}
+
+.news-team-logo {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  display: block;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

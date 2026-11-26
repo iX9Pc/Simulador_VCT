@@ -12,6 +12,7 @@ import {
   getWeekPhaseName
 } from "./managerHelpers.ts";
 import {
+  BoardMeetingScreen,
   CareerSummaryScreen,
   ClubSelectScreen,
   FiredScreen,
@@ -82,10 +83,11 @@ export function ManagerPage() {
     reader.readAsText(file);
   };
 
-  const renderActiveTab = () => {
-    if (!M) return null;
-    if (M.fired) return <FiredScreen />;
-    switch (activeTab) {
+const renderActiveTab = () => {
+  if (!M) return null;
+  if (M.fired) return <FiredScreen />;
+  if (M.pendingBoardMeeting) return <BoardMeetingScreen />;
+  switch (activeTab) {
       case "hub":
         return <HubTab />;
       case "squad":
@@ -281,8 +283,8 @@ export function ManagerPage() {
                 </div>
               </div>
 
-              {!M.fired && (
-                <div className="series-tabs" style={{ marginBottom: "12px" }}>
+              {!M.fired && !M.pendingBoardMeeting && (
+  <div className="series-tabs" style={{ marginBottom: "12px" }}>
                   {tabs.map((t) => (
                     <button
                       key={t.id}

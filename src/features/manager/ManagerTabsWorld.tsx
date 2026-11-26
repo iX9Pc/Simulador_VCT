@@ -892,15 +892,31 @@ export function NewsTab() {
       <div className="news-grid">
         {list.length > 0 ? (
           list.map((n) => (
-            <article key={n.id} className={`news-card ${n.hot ? "is-hot" : ""}`}>
+            <article key={n.id} className={`news-card news-card-full ${n.hot ? "is-hot" : ""}`}>
               <div className="news-head mono">
-                <span className={`news-tag cat-${n.cat.toLowerCase()}`}>{n.cat}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                  <span className={`news-tag cat-${n.cat.toLowerCase()}`}>{n.cat}</span>
+                  {n.source && <span className="news-source">{n.source}</span>}
+                </div>
                 <span style={{ color: "var(--mut)" }}>
-                  TEMPORADA {n.s} · SEMANA {n.w}
+                  T{n.s} · S{n.w}
                 </span>
               </div>
               <h3>{n.headline}</h3>
               <p>{n.body}</p>
+              {n.quote && <blockquote className="news-quote">{n.quote}</blockquote>}
+              {n.teams.length > 0 && (
+                <div className="news-teams mono">
+                  {n.teams
+                    .filter((t) => Boolean(M.clubs[t]))
+                    .map((t) => (
+                      <span key={t} className="news-team-pill">
+                        <TeamLogo teamName={t} className="news-team-logo" />
+                        {t}
+                      </span>
+                    ))}
+                </div>
+              )}
             </article>
           ))
         ) : (
