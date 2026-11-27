@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import type { CSSProperties } from "react";
 import { ALL_MAPS, getTeamOvr } from "../../core/index.ts";
 import type { MapName, SeriesFormat } from "../../core/index.ts";
 import { TeamLogo } from "../../components/TeamLogo.tsx";
@@ -48,7 +47,6 @@ export function QuickMatchConsole() {
   const runMonteCarlo = useMatchStore((s) => s.runMonteCarlo);
   const stopLive = useMatchStore((s) => s.stopLive);
 
-  // Al arrancar o al cambiar datos/DataPack: validar selección y simular primera serie sin grabar historial
   useEffect(() => {
     ensureValidSelection();
     if (!useMatchStore.getState().series) {
@@ -56,7 +54,6 @@ export function QuickMatchConsole() {
     }
   }, [dataVersion, ensureValidSelection, simulateFull]);
 
-  // Limpiar intervalo al desmontar la página principal
   useEffect(() => () => stopLive(), [stopLive]);
 
   const teamNames = Object.keys(teams);
@@ -65,44 +62,56 @@ export function QuickMatchConsole() {
   const metaB = teamMeta[teamB];
   const coachA = coaches[teamA];
   const coachB = coaches[teamB];
+  const ovrA = teamA && teams[teamA] && coachA ? getTeamOvr(teams[teamA], coachA) : null;
+  const ovrB = teamB && teams[teamB] && coachB ? getTeamOvr(teams[teamB], coachB) : null;
 
   const mapDesc =
     mapChoice === "AUTO"
-      ? "Protocolo VCT: 1v1 define Equipo A/B + Veto de 7 pasos (con sinergia de 30 agentes)"
+      ? "Protocolo VCT: 1v1 define Equipo A/B + Veto de 7 pasos (sinergia de 30 agentes)"
       : ALL_MAPS[mapChoice].desc;
 
   return (
     <section id="sim">
       <div className="workspace-bar">
         <div>
+          <div className="ws-eyebrow mono">
+            <span className="mgr-live-pip" aria-hidden="true" />
+            <span>01 // MOTOR DE SIMULACIÓN COMPETITIVA VCT</span>
+          </div>
           <h1>Simulador Táctico VCT 2027</h1>
           <p className="workspace-sub">
-            Duelo 1v1, veto oficial de 7 pasos, draft inteligente de 30 agentes (5 ejes), economía
-            ronda a ronda y Visor 2D con navmesh A*.
+            Duelo 1v1, veto oficial de 7 pasos, draft de 30 agentes en 5 ejes, economía por ronda y
+            Visor 2D con navmesh A*.
           </p>
         </div>
-        <span className="mono" style={{ fontSize: "11px", color: "var(--mut)" }}>
-          POOL ACTIVO ({activeMapPool.length}): {activeMapPool.join(" · ")}
-        </span>
+
+        <div className="ws-pool-box">
+          <span className="ws-pool-label mono">MAP POOL ACTIVO ({activeMapPool.length})</span>
+          <div className="ws-pool-strip mono">
+            {activeMapPool.map((m) => (
+              <span key={m} className="ws-pool-chip">
+                {m}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* CONTROL DECK */}
-      <div className="control-deck">
+      {/* CONTROL DECK — CONSOLA UNIFICADA SIN CAJAS FLOTANTES */}
+      <div className="control-deck console-shell">
         <div className="deck-grid">
-          <div
-            className="team-picker"
-            style={{ "--team-color": colorA } as CSSProperties}
-          >
+          <div className="team-picker" style={{ borderTopColor: colorA }}>
             <div className="picker-logo-wrap">
               {teamA && <TeamLogo teamName={teamA} />}
             </div>
             <div className="picker-body">
               <div className="picker-top">
-                <span className="picker-label mono ca">EQUIPO IZQUIERDO</span>
-                {teamA && teams[teamA] && coachA && (
-                  <div className="picker-meta">
-                    <span>{metaA?.reg || "VCT"}</span> · <span>DT {coachA.n}</span>{" "}
-                    <span className="ovr-pill">OVR {getTeamOvr(teams[teamA], coachA)}</span>
+                <span className="picker-label mono ca">SIDE A · LOCAL</span>
+                {teamA && coachA && (
+                  <div className="picker-meta mono">
+                    <span>{metaA?.reg || "VCT"}</span>
+                    <span>·</span>
+                    <span>DT {coachA.n}</span>
                   </div>
                 )}
               </div>
@@ -118,6 +127,12 @@ export function QuickMatchConsole() {
                 ))}
               </select>
             </div>
+            {ovrA && (
+              <div className="picker-ovr-big">
+                <small className="mono">OVR</small>
+                <b>{ovrA}</b>
+              </div>
+            )}
           </div>
 
           <button
@@ -129,20 +144,18 @@ export function QuickMatchConsole() {
             ⇄
           </button>
 
-          <div
-            className="team-picker"
-            style={{ "--team-color": colorB } as CSSProperties}
-          >
+          <div className="team-picker" style={{ borderTopColor: colorB }}>
             <div className="picker-logo-wrap">
               {teamB && <TeamLogo teamName={teamB} />}
             </div>
             <div className="picker-body">
               <div className="picker-top">
-                <span className="picker-label mono cb">EQUIPO DERECHO</span>
-                {teamB && teams[teamB] && coachB && (
-                  <div className="picker-meta">
-                    <span>{metaB?.reg || "VCT"}</span> · <span>DT {coachB.n}</span>{" "}
-                    <span className="ovr-pill">OVR {getTeamOvr(teams[teamB], coachB)}</span>
+                <span className="picker-label mono cb">SIDE B · VISITANTE</span>
+                {teamB && coachB && (
+                  <div className="picker-meta mono">
+                    <span>{metaB?.reg || "VCT"}</span>
+                    <span>·</span>
+                    <span>DT {coachB.n}</span>
                   </div>
                 )}
               </div>
@@ -158,12 +171,18 @@ export function QuickMatchConsole() {
                 ))}
               </select>
             </div>
+            {ovrB && (
+              <div className="picker-ovr-big">
+                <small className="mono">OVR</small>
+                <b>{ovrB}</b>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="tactical-bar">
           <div className="tac-group">
-            <span className="tac-label">Formato</span>
+            <span className="tac-label">FORMATO</span>
             <div className="seg-group">
               {FORMATS.map((fmt) => (
                 <button
@@ -172,12 +191,12 @@ export function QuickMatchConsole() {
                   className={`seg-btn mono ${format === fmt ? "active" : ""}`}
                   onClick={() => setFormat(fmt)}
                 >
-                  Bo{fmt}
+                  BO{fmt}
                 </button>
               ))}
             </div>
 
-            <span className="tac-label">Mapa 1</span>
+            <span className="tac-label">MAPA 1</span>
             <select
               className="map-select"
               aria-label="Selector de mapa"
@@ -201,21 +220,21 @@ export function QuickMatchConsole() {
             <button type="button" className="p" onClick={() => simulateFull(true)}>
               Simular Serie
             </button>
-            <button type="button" onClick={stepRound}>
+            <button type="button" className="mono" onClick={stepRound}>
               +1 Ronda
             </button>
             <button
               type="button"
-              className={isAutoPlaying ? "live-active" : ""}
+              className={`mono ${isAutoPlaying ? "live-active" : ""}`}
               onClick={toggleAutoPlay}
             >
-              {isAutoPlaying ? "Pausar" : "Auto-Play"}
+              {isAutoPlaying ? "Pausar Vivo" : "Auto-Play"}
             </button>
           </div>
 
           <div className="btn-group">
-            <button type="button" onClick={() => runMonteCarlo(500)}>
-              Monte Carlo (500 Series)
+            <button type="button" className="mono" onClick={() => runMonteCarlo(500)}>
+              Monte Carlo · 500 Series
             </button>
           </div>
         </div>
@@ -225,29 +244,19 @@ export function QuickMatchConsole() {
       <SharedResultCard />
       {errorMsg && (
         <div className="cal-card" style={{ borderColor: "var(--vct-red)" }}>
-          <b style={{ color: "var(--vct-red)" }}>{errorMsg}</b>
+          <b className="mono" style={{ color: "var(--vct-red)", fontSize: "12px" }}>
+            {errorMsg}
+          </b>
         </div>
       )}
 
       {contextLabel && (
-        <div
-          className="cal-card"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "10px"
-          }}
-        >
+        <div className="cal-card cal-context-bar">
           <span className="mono" style={{ fontSize: "11.5px" }}>
+            <span className="mgr-live-pip" style={{ marginRight: "7px" }} aria-hidden="true" />
             <b>SERIE OFICIAL</b> · {contextLabel}
           </span>
-          <a
-            href="#torneo"
-            className="nav-link mono"
-            style={{ border: "1px solid var(--bd-hi)", fontSize: "11px", padding: "4px 9px" }}
-          >
+          <a href="#torneo" className="t-btn-sm mono" style={{ textDecoration: "none" }}>
             Volver al Torneo
           </a>
         </div>
@@ -256,17 +265,15 @@ export function QuickMatchConsole() {
       {monteCarlo && (
         <div className="cal-card">
           <div className="cal-top">
-            <span>
-              <b>
-                SIMULACIÓN MONTE CARLO ({monteCarlo.n} SERIES BO{monteCarlo.format})
-              </b>{" "}
-              · {monteCarlo.teamA} vs {monteCarlo.teamB}
+            <span className="mono" style={{ fontSize: "11px", letterSpacing: "0.05em" }}>
+              <b>MONTE CARLO · {monteCarlo.n} SERIES BO{monteCarlo.format}</b> · {monteCarlo.teamA}{" "}
+              vs {monteCarlo.teamB}
             </span>
-            <span className="mono">
+            <span className="mc-pct-row mono">
               <b className="ca">
                 {monteCarlo.teamA} {monteCarlo.pctA}%
-              </b>{" "}
-              —{" "}
+              </b>
+              <span style={{ color: "var(--dim)" }}>/</span>
               <b className="cb">
                 {monteCarlo.pctB}% {monteCarlo.teamB}
               </b>
@@ -275,34 +282,37 @@ export function QuickMatchConsole() {
           <div className="cal-bar">
             <div className="cal-bar-a" style={{ width: `${monteCarlo.pctA}%` }} />
           </div>
-          <div className="cal-meta">
-            <span>
-              Mapas/Serie: <b>{monteCarlo.avgMaps}</b>
-            </span>
-            <span>
-              Rondas/Serie: <b>{monteCarlo.avgRounds}</b>
-            </span>
-            <span>
-              Tasa Overtime: <b>{monteCarlo.otRate}%</b>
-            </span>
+          <div className="mc-stats-grid mono">
+            <div>
+              <small>MAPAS / SERIE</small>
+              <b>{monteCarlo.avgMaps}</b>
+            </div>
+            <div>
+              <small>RONDAS / SERIE</small>
+              <b>{monteCarlo.avgRounds}</b>
+            </div>
+            <div>
+              <small>TASA OVERTIME</small>
+              <b>{monteCarlo.otRate}%</b>
+            </div>
           </div>
         </div>
       )}
 
-    {/* VISOR BROADCAST COMPLETO */}
-    {series && (
-    <BroadcastViewer
-    series={series}
-    liveFinished={liveFinished}
-    liveMapIdx={liveMapIdx}
-    liveShown={liveShown}
-    revealedMaps={revealedMaps}
-    activeTab={activeTab}
-    isAutoPlaying={isAutoPlaying}
-    onSelectTab={selectTab}
-    shareBar={<ShareBar series={series} />}
-  />
-)}
+      {/* VISOR BROADCAST COMPLETO */}
+      {series && (
+        <BroadcastViewer
+          series={series}
+          liveFinished={liveFinished}
+          liveMapIdx={liveMapIdx}
+          liveShown={liveShown}
+          revealedMaps={revealedMaps}
+          activeTab={activeTab}
+          isAutoPlaying={isAutoPlaying}
+          onSelectTab={selectTab}
+          shareBar={<ShareBar series={series} />}
+        />
+      )}
 
       {/* PREVIA DE SCOUTING CON RADARES SVG */}
       <MatchPreview teamA={teamA} teamB={teamB} format={format} />

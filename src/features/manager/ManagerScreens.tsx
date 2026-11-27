@@ -88,7 +88,7 @@ export function ClubSelectScreen({ onTriggerImport }: { onTriggerImport: () => v
       </div>
 
       <div className="mgr-club-grid">
-        {allClubs.map((name) => {
+        {allClubs.map((name, idx) => {
           const meta = teamMeta[name] || { reg: "AMERICAS", color: "#E5484D" };
           const coach = coaches[name];
           const ovr = coach ? parseFloat(getTeamOvr(teams[name], coach)) : 80;
@@ -112,6 +112,7 @@ export function ClubSelectScreen({ onTriggerImport }: { onTriggerImport: () => v
                  {meta.reg} · DT {coach?.n || "-"}
                </small>
              </div>
+             <span className="mgr-club-idx">{String(idx + 1).padStart(2, "0")}</span>
            </div>
            <div className="mgr-club-stats mono">
              <span>

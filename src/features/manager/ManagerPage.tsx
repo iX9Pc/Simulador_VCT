@@ -212,74 +212,82 @@ const renderActiveTab = () => {
                     <TeamLogo teamName={M.userTeam} className="score-logo-sm" />
                   </span>
                   <div>
-                    <div className="mono" style={{ fontSize: "10px", color: "var(--mut)" }}>
-                      MODO MANAGER · TEMPORADA {M.season} · SEMANA {M.week}/33 ·{" "}
-                      {getWeekPhaseName(M.week)}
+                    <div className="mgr-eyebrow">
+                      <span className="mgr-live-pip" aria-hidden="true" />
+                      <span>
+                        VCT MANAGER · T{M.season} · SEM {String(M.week).padStart(2, "0")}/33 ·{" "}
+                        {getWeekPhaseName(M.week)}
+                      </span>
                     </div>
-                    <h2 style={{ fontSize: "22px", marginTop: "2px", color: club.color }}>
+                    <h2 className="mgr-club-headline" style={{ color: club.color }}>
                       {M.userTeam}
                     </h2>
                   </div>
                 </div>
 
                 <div className="mgr-header-kpis mono">
-                  <div className="mgr-kpi-box">
-                    <small>OVR</small>
-                    <b>{ovr}</b>
+                  <div className="mgr-kpi-strip">
+                    <div className="mgr-kpi-box">
+                      <small>OVR</small>
+                      <b>{ovr}</b>
+                    </div>
+                    <div className="mgr-kpi-box">
+                      <small>PRESUPUESTO</small>
+                      <b className={club.budget >= 0 ? "kd-pos" : "kd-neg"}>
+                        {fmtMoney(club.budget)}
+                      </b>
+                    </div>
+                    <div className="mgr-kpi-box">
+                      <small>DIRECTIVA{M.graceWeeks > 0 ? ` · G:${M.graceWeeks}S` : ""}</small>
+                      <b
+                        className={
+                          M.boardConfidence >= 35
+                            ? "kd-pos"
+                            : M.boardConfidence <= 0
+                              ? "kd-neg"
+                              : ""
+                        }
+                      >
+                        {M.boardConfidence > 0 ? "+" : ""}
+                        {M.boardConfidence}
+                      </b>
+                    </div>
+                    <div className="mgr-kpi-box">
+                      <small>REP</small>
+                      <b style={{ color: "var(--vct-cyan)" }}>{rep}</b>
+                    </div>
+                    <div className="mgr-kpi-box">
+                      <small>SAVE</small>
+                      <b className="kd-pos">{M.lastSavedAt || "AUTO"}</b>
+                    </div>
                   </div>
-                  <div className="mgr-kpi-box">
-                    <small>PRESUPUESTO</small>
-                    <b className={club.budget >= 0 ? "kd-pos" : "kd-neg"}>
-                      {fmtMoney(club.budget)}
-                    </b>
-                  </div>
-                  <div className="mgr-kpi-box">
-                    <small>DIRECTIVA{M.graceWeeks > 0 ? ` (G:${M.graceWeeks}S)` : ""}</small>
-                    <b
-                      className={
-                        M.boardConfidence >= 35
-                          ? "kd-pos"
-                          : M.boardConfidence <= 0
-                            ? "kd-neg"
-                            : ""
-                      }
+
+                  <div className="btn-group">
+                    <button
+                      type="button"
+                      className="t-btn-sm mono t-btn-live"
+                      onClick={exportSave}
+                      title="Descarga tu partida en .json para respaldo o pasarla a amigos"
                     >
-                      {M.boardConfidence > 0 ? "+" : ""}
-                      {M.boardConfidence}
-                    </b>
+                      Exportar .json
+                    </button>
+                    <button
+                      type="button"
+                      className="t-btn-sm mono"
+                      onClick={triggerImport}
+                      title="Carga una partida .json tuya o de un amigo"
+                    >
+                      Importar .json
+                    </button>
+                    <button
+                      type="button"
+                      className="t-btn-sm mono mgr-end-btn"
+                      onClick={endCareer}
+                      title="Termina esta carrera y muestra tu calificación final"
+                    >
+                      Terminar
+                    </button>
                   </div>
-                  <div className="mgr-kpi-box">
-                    <small>REP</small>
-                    <b style={{ color: "var(--vct-cyan)" }}>{rep}</b>
-                  </div>
-                  <div className="mgr-kpi-box">
-                    <small>GUARDADO</small>
-                    <b className="kd-pos">{M.lastSavedAt || "AUTO"}</b>
-                  </div>
-                  <button
-                    type="button"
-                    className="t-btn-sm mono t-btn-live"
-                    onClick={exportSave}
-                    title="Descarga tu partida en .json para respaldo o pasarla a amigos"
-                  >
-                    Exportar .json
-                  </button>
-                  <button
-                    type="button"
-                    className="t-btn-sm mono"
-                    onClick={triggerImport}
-                    title="Carga una partida .json tuya o de un amigo"
-                  >
-                    Importar .json
-                  </button>
-                  <button
-                    type="button"
-                    className="t-btn-sm mono mgr-end-btn"
-                    onClick={endCareer}
-                    title="Termina esta carrera y muestra tu calificación final"
-                  >
-                    Terminar Carrera
-                  </button>
                 </div>
               </div>
 
